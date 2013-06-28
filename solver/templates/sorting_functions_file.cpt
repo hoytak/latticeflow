@@ -1,0 +1,23 @@
+#include <algorithm>
+#include "array_wrapper.hpp"
+
+#ifndef _SORTING_FUNCTIONS_FILE_H_
+#define _SORTING_FUNCTIONS_FILE_H_
+
+template <class C> 
+static inline void conditional_swap(C& x1, C& x2) {
+  if(x2 < x1) swap(x1, x2);	
+}
+
+template <typename dtype, int n> 
+struct fixed_sorter {
+  static inline void sort(typename Array<dtype, n>::iterator start, 
+			  typename Array<dtype, n>::iterator end) {
+    std::sort(start, end);
+  }
+};
+
+%(functions)s
+
+#endif /* _SORTING_FUNCTIONS_FILE_H_ */
+
