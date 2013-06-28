@@ -1,0 +1,1 @@
+      %(node_name)s [pos="%(x_coord)f,%(y_coord)f", label="", shape="circle", style=filled, fillcolor="%(node_color)s"]

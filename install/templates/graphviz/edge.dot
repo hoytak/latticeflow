@@ -1,0 +1,1 @@
+      %(node_1)s -> %(node_2)s [color="#0000FF", len=%(line_length)f, style=bold]

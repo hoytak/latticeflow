@@ -46,7 +46,7 @@ def options(ctx):
     ctx.add_option('--max-2d-radius', dest='max_2d_radius', default=4,
                    help='The maximum radius to use in creating 2d edge kernels; default = 4.')
         
-    ctx.add_option('--3d', dest='enable_3d', action='store_true', default=True,
+    ctx.add_option('--3d', dest='enable_3d', action='store_true', default=False,
                    help='Enable generation of 3d kernels')
     ctx.add_option('--max-3d-radius', dest='max_3d_radius', default=2,
                    help='The maximum radius to use in creating 3d edge kernels; default = 2.')
@@ -71,7 +71,7 @@ def options(ctx):
     ctx.add_option('--no-python', dest='python', action='store_false', default=True,
                    help='Disable compilation of the python extension module.')
 
-    ctx.add_option('--benchmark', dest='benchmark', default=None,
+    ctx.add_option('--benchmark', dest='benchmark', default="quick",
                    help='Specify the type of benchmark to run (default: quick).')
 
     ctx.add_option('--benchmark-checks', dest='benchmark_check', action='store_true',
@@ -98,7 +98,7 @@ def __process_options(ctx):
     if ctx.options.benchmark is not None:
         ctx.env.benchmark = ctx.options.benchmark
 
-    if ctx.options.benchmark_check or not hasattr(ctx.env, "benchmark"):
+    if ctx.options.benchmark_check:
         ctx.env.benchmark_check = ctx.options.benchmark_check
 
     ctx.env.enable_1d = ctx.options.enable_1d
