@@ -59,7 +59,7 @@ def options(ctx):
     ctx.add_option('--all-kernels', dest='all_kernels', action='store_true', default=False,
                        help='Enable creation of 1d, 2d, 3d, and 4d kernels.')    
 
-    ctx.add_option('--test-mode', dest='test_mode', action='store_true', default=False,
+    ctx.add_option('--test', dest='test_mode', action='store_true', default=False,
                        help= ('Test/debugging mode: all debug flags, '
                               'plus only one kernel for debugging purposes '
                               '(can be overridden by fast).'))

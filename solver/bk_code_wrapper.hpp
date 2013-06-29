@@ -4,7 +4,7 @@
 #ifdef ENABLE_BOYKOV_KOLMOGOROV_GC_CODE
 
 #include "lattice.hpp"
-#include "graphcuts/energy.hpp"
+#include "graphcuts/bk_energy.hpp"
 
 namespace latticeQBP {
 

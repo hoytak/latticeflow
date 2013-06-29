@@ -1,4 +1,5 @@
-import sys
+import math
+import re
 from itertools import product
 from collections import defaultdict
 from os.path import exists, join, split, abspath
@@ -28,9 +29,9 @@ graph_scale = 0.4
 def load_template(s):
     return open(join("install/templates", s), "r").read()
 
-class Templates: pass
+class Info: pass
 
-T = Templates()
+T = Info()
 
 T.header = load_template("header.txt")
 
@@ -159,6 +160,43 @@ def generateKernelSources(ctx):
 
 class KernelEdgeGenerator:
 
+    def __getGeocutEdgeWeights(self, dimension, edges):
+
+        if dimension == 2 and len(edges) >= 4:
+
+            angles = [math.atan2(e[1], e[0]) % (2*math.pi) for e in edges]
+
+            # Verify that it's ok; if not, then just say so
+
+            if len(set(angles)) != len(edges):
+                return (False, [1]*len(edges))
+            
+            edge_info = sorted(zip(angles, edges))
+            angles = [aw for aw, e in edge_info]
+
+            def get_aw(idx):
+                n = len(angles)
+                a1 = angles[ (idx - 1) % n]
+                a2 = angles[ (idx + 1) % n]
+
+                if a2 < a1:
+                    a2 += 2*math.pi
+
+                return (a2 - a1) / 2
+
+            angle_widths = [get_aw(i) for i in xrange(len(angles))]
+
+            assert abs(sum(angle_widths) - 2*math.pi) < 1e-8, sum(angle_widths)
+
+            weight_map = dict(
+                (e, aw / (2.0 * math.sqrt(e[0]*e[0] + e[1]*e[1])))
+                for aw, (ang, e) in zip(angle_widths, edge_info))
+
+            return (True, [weight_map[e] for e in edges])
+        else:
+            return (False, [1]*len(edges))
+        
+
     def Full(self, dimension, radius):
         """
         Makes things in a solid sphere pattern.
@@ -175,53 +213,54 @@ class KernelEdgeGenerator:
 
         for x in product( *iters):
             if 0 < sum(xe**2 for xe in x) <= radius**2:
-                lr.append(x)
+                lr.append(tuple(x))
 
-        return lr
+        lr = sorted(lr)
+
+        R = Info()
+
+        R.edges = lr
+        R.is_geocut_applicable, R.geocut_edge_weights = \
+            self.__getGeocutEdgeWeights(dimension, lr)
+
+        return R
 
     def Star(self, dimension, radius):
         """
-        Makes things in a solid sphere pattern.
+        Makes things in a sphere pattern, but with no lines crossing
+        other lines.
         """
 
-        lr = set(self.Full(dimension,radius))
+        lr = set(self.Full(dimension,radius).edges)
 
+        # print "$$$$$$$$$$$$$$$$$$ STAR"
+
+        lr_s = sorted(lr, key = lambda edge: sum(u*u for u in edge))
+        angles = [tuple(math.atan2(u, e[0]) for u in e[1:]) for e in lr_s]
+
+        # print "\n".join(str(edge + (ang,)) for edge, ang in zip(lr_s, angles))
+
+        seen_angles = set()
         del_set = set()
+        
+        for ang, e in zip(angles, lr_s):
+            if ang in seen_angles:
+                lr.remove(e)
+            else:
+                seen_angles.add(ang)
 
-        for e1 in lr:
-            for e2 in lr:
-                in_line = True
+        edges = sorted(lr)
 
-                di = 0
+        # print "geocut!!!!!!!!!!!!!!!!"
+        
+        R = Info()
+        R.edges = edges
+        R.is_geocut_applicable, R.geocut_edge_weights = \
+            self.__getGeocutEdgeWeights(dimension, lr)
 
-                while e2[di] == 0:
-                    if e1[di] == 0:
-                        di += 1
-                    else:
-                        in_line = False
-                        break
+        # print "<<<<<<<<<<<<<<<<<<<<<< DONE" 
 
-                if not in_line:
-                    continue
-
-                r = float(e1[di]) / float(e2[di])
-
-                if int(r) != r or r <= 1:
-                    continue
-
-                for dim in xrange(di + 1,dimension):
-                    if e2[dim] * r != e1[dim]:
-                        in_line = False
-                        break
-
-                if in_line:
-                    del_set.add(e1)
-                    break
-
-
-        return lr - del_set
-
-
+        return R
 
 ################################################################################
 # Now the meet of the templating
@@ -276,7 +315,9 @@ class SourceFileSetup:
 
         keg = KernelEdgeGenerator()
 
-        edge_list = sorted(getattr(keg, ktype)(dimension, radius, **kwargs))
+        edge_info = getattr(keg, ktype)(dimension, radius, **kwargs)
+
+        edge_list = edge_info.edges
 
         if len(edge_list) == 0:
             return True, None
@@ -311,7 +352,13 @@ class SourceFileSetup:
 
         edge_list_str += '}'
 
+
         d['edge_list'] = edge_list_str
+        d['is_geocut_applicable'] = 1 if edge_info.is_geocut_applicable else 0
+        d['geocut_edge_weights'] = (
+            '{' + ', '.join( ('%1.16f' % w if w != 1 else "1.0")
+                            for w in edge_info.geocut_edge_weights) + '}')
+        
         d['n_edges'] = len(edge_list)
 
         ############################################################
@@ -320,7 +367,7 @@ class SourceFileSetup:
         d["kernel_type"] = ktype
 
         if "name" in kwargs:
-            d['kernel_name'] = name
+            d['kernel_name'] = name = kwargs["name"]
 
             if name in self.seen_kernel_names:
                 self.ctx.fatal("Configuration Error: Given kernel name '%s' already in use!!" % name)

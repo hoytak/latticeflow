@@ -62,7 +62,7 @@ protected:
 
   template <int partition> inline void checkPartitioning() const {
     static_assert( adjustment_mode || partition == 0,
-		   "Partition-based excess only allowed in non-simple mode.");
+                   "Partition-based excess only allowed in non-simple mode.");
 
     if(adjustment_mode) 
       assert_equal(partition, state);
@@ -111,7 +111,7 @@ public:
     return -reduction;
   }
 
-////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////
 protected:
 
   template <typename Lattice>
@@ -130,7 +130,7 @@ protected:
       auto nn = lattice.neighbor(this, i);
 
       if(!lattice.isValidNode(nn))
-	continue;
+        continue;
 
       uint rev_idx = lattice.reverseIndex(i);
 
@@ -143,28 +143,28 @@ protected:
       // cout << "Testing nodes " << lattice._tag(this) << ", " << lattice._tag(nn) << ", ei = " << i << endl;
 
       if(simple_mode)
-	assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), edges[i]);
+        assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), edges[i]);
       else
-      assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), 2*edges[i]);
+        assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), 2*edges[i]);
 
       if(simple_mode || adjustment_mode) {
-	if(this->state != 0 && nn->state == 0) {
-	  assert_geq(alpha[i], 0);
-	  assert_leq(nn->alpha[rev_idx], 0);
-	} 
-	else if (this->state == 0 && nn->state != 0) {
-	  assert_leq(alpha[i], 0);
-	  assert_geq(nn->alpha[rev_idx], 0);
-	}
+        if(this->state != 0 && nn->state == 0) {
+          assert_geq(alpha[i], 0);
+          assert_leq(nn->alpha[rev_idx], 0);
+        } 
+        else if (this->state == 0 && nn->state != 0) {
+          assert_leq(alpha[i], 0);
+          assert_geq(nn->alpha[rev_idx], 0);
+        }
       }
     }
 
     if(check_neighbors) {
       for(size_t i = 0; i < lattice.kernelSize(); ++i) {
-	auto nn = lattice.neighbor(this, i);
-	if(!lattice.isValidNode(nn))
-	  continue;
-	nn->_debugVerifyNodeConsistency(lattice, false);
+        auto nn = lattice.neighbor(this, i);
+        if(!lattice.isValidNode(nn))
+          continue;
+        nn->_debugVerifyNodeConsistency(lattice, false);
       }
     }
 
@@ -185,9 +185,9 @@ public:
 #endif
     
     // if(!simple_mode || DEBUG_MODE) {
-      for(size_t i = 0; i < lattice.kernel_size; ++i)  
-	lattice.neighbor(this, i)->alpha[lattice.reverseIndex(i)] *= -1;
-      // }
+    for(size_t i = 0; i < lattice.kernel_size; ++i)  
+      lattice.neighbor(this, i)->alpha[lattice.reverseIndex(i)] *= -1;
+    // }
 
     // All we need to do should be to set the lattice 
     assert(state == 0 || state == 1);
@@ -240,7 +240,7 @@ public:
     dest->alpha[Kernel::reverseIndex(ei)] += amount;
   
 #ifndef NDEBUG
-   _debugVerifyNodeConsistency(lattice);
+    _debugVerifyNodeConsistency(lattice);
     dest->_debugVerifyNodeConsistency(lattice);
 
     for(size_t i = 0; i < lattice.kernel_size; ++i) {
@@ -272,19 +272,19 @@ public:
       assert(lattice.withinBounds(n));
 
       if(simple_mode)
-	n->reduction += q;
+        n->reduction += q;
       else 
-	n->reduction += 2*q;
+        n->reduction += 2*q;
 
 #ifndef NDEBUG
       n->_debugVerifyNodeConsistency(lattice);
       n->q += q;
 #endif
 
-     }
+    }
 
     inline void addE2(node_ptr n1, node_ptr n2, uint ei, 
-		      dtype e00, dtype e01, dtype e10, dtype e11) const {
+                      dtype e00, dtype e01, dtype e10, dtype e11) const {
 
       // cout << "Adding nodes " << lattice._tag(n1) << ", " << lattice._tag(n2) << ", ei = " << ei << endl;
 
@@ -310,14 +310,14 @@ public:
       assert_geq(e2, 0);
 
       if(simple_mode) {
-	n1->reduction += q1 + q12;
-	n2->reduction += q2;
-	n1->alpha[ei] += e2;
+        n1->reduction += q1 + q12;
+        n2->reduction += q2;
+        n1->alpha[ei] += e2;
       } else {
-	n1->reduction += 2*q1 + q12;
-	n2->reduction += 2*q2 + q12;
-	n1->alpha[ei] += e2;
-	n2->alpha[rev_idx] += e2;
+        n1->reduction += 2*q1 + q12;
+        n2->reduction += 2*q2 + q12;
+        n1->alpha[ei] += e2;
+        n2->alpha[rev_idx] += e2;
       }
 
 #ifndef NDEBUG
@@ -336,208 +336,5 @@ public:
   };
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// inter-partition work
-
-
-
 #endif
 
-
-
-// void _debugVerifyNodeReduction(node_ptr node, bool print_always = false) { 
-// #ifndef NDEBUG
-
-//   if(!(node >= lattice.begin() && node < lattice.end()))
-//     return;
-
-//   ftype r_value = 2*node->q;
-
-//   if(node->on()) {
-	
-//     for(size_t i = 0; i < n_dimensions; ++i) {
-//       {	  
-// 	node_ptr nn = lattice.neighbor(node, i, -1);
-	    
-// 	assert_leq(abs(nn->edges[i]), 100000);
-// 	assert_leq(abs(nn->alpha[i]), 100000);
-	    
-// 	assert_leq(abs(nn->alpha[i]), abs(nn->edges[i]));
-
-// 	if(nn->on()) {
-// 	  r_value += nn->edges[i];
-// 	  r_value += nn->alpha[i];
-// 	}
-//       }
-
-//       {
-// 	node_ptr nn = lattice.neighbor(node, i, 1);
-
-// 	assert_leq(abs(node->edges[i]), 100000);
-// 	assert_leq(abs(node->alpha[i]), 100000);
-
-// 	assert_leq(abs(node->alpha[i]), abs(node->edges[i]));
-
-// 	if(nn->on()) {
-// 	  r_value += node->edges[i];
-// 	  r_value -= node->alpha[i];
-// 	}
-//       }
-//     }
-
-//   } else {
-
-//     for(size_t i = 0; i < n_dimensions; ++i) {
-//       {	  
-// 	node_ptr nn = lattice.neighbor(node, i, -1);
-
-// 	assert_leq(abs(nn->edges[i]), 100000);
-// 	assert_leq(abs(nn->alpha[i]), 100000);
-
-// 	assert_leq(abs(nn->alpha[i]), abs(nn->edges[i]));
-
-// 	if(nn->on()){
-// 	  r_value += 2*nn->edges[i];
-// 	} else {
-// 	  r_value += nn->edges[i];
-// 	  r_value += nn->alpha[i];
-// 	}
-//       }
-
-//       {
-// 	node_ptr nn = lattice.neighbor(node, i, 1);
-
-// 	assert_leq(abs(node->edges[i]), 100000);
-// 	assert_leq(abs(node->alpha[i]), 100000);
-
-// 	assert_leq(abs(node->alpha[i]), abs(node->edges[i]));
-
-// 	if(nn->on()){
-// 	  r_value += 2*node->edges[i];
-// 	} else {
-// 	  r_value += node->edges[i];
-// 	  r_value -= node->alpha[i];
-// 	}
-//       }
-//     }
-//   }
-
-//   bool _node_error = abs(node->reduction - r_value) > 1e-4;
-
-//   if(_node_error)
-//     cout << ">>>> REDUCTION BOOKKEEPING ERROR <<<< " << endl;
-
-
-//   if(_node_error || print_always) {
-	
-//     cout << "Node index = " << (node - lattice.begin()) << endl;
-//     cout << "r_value = " << r_value << "; node->reduction = " << node->reduction << endl;
-
-//     cout << "(" << (node - lattice.begin())
-// 	 << "); state = " << node->state
-// 	 << "; q = " << node->q
-// 	 << ": reduction = " << node->reduction 
-// 	 << endl;
-
-//     for(size_t i = 0; i < n_dimensions; ++i) {
-	  
-//       node_ptr nn = lattice.neighbor(node, i, -1);
-
-//       cout << "  -" << i 
-// 	   << "; state = " << nn->state
-// 	   << "; q = " << nn->q
-// 	   << "; edge = " << nn->edges[i]
-// 	   << "; alpha = " << nn->alpha[i]
-// 	   << ": reduction = " << nn->reduction 
-// 	   << endl;
-//     }
-
-//     for(size_t i = 0; i < n_dimensions; ++i) {
-	  
-//       node_ptr nn = lattice.neighbor(node, i, 1);
-
-//       cout << "  +" << i 
-// 	   << "; state = " << nn->state
-// 	   << "; q = " << nn->q
-// 	   << "; edge = " << node->edges[i]
-// 	   << "; alpha = " << node->alpha[i]
-// 	   << ": reduction = " << nn->reduction 
-// 	   << endl;
-//     } 
-	
-//     if(_node_error)
-//       abort();
-//   }
-// #endif
-// }
-
-
-//   template <int start_state> inline void flipNode(node_ptr node) {
-      
-//   // Go through and remove all the reductions from neighbors that
-//   // are in the same state as we are; then impose the new
-//   // reductions on them.
-
-//   // Also need to update the base reductions of these other nodes
-//   // with the influence difference of this new state
-      
-//   // cout << "Flipping Node WR " << (node - lattice.begin()) << endl;
-
-//   const int s1 = (start_state <= 1)
-//     ? ((start_state == 0) ? -1 : 1)
-//     : node->state;
-
-//   for(size_t i = 0; i < n_dimensions; ++i) {
-    
-//     nn->    for(size_t i = 0; i < lattice.kernelSize(); ++i) 
-//       lattice.neighbor(this, i)->
-
-//     const dtype node_edge = node->edges[i];
-//     const dtype node_alpha = node->alpha[i];
-
-//     {
-//       const int dir = 1;
-//       const node_ptr nn = lattice.neighbor(node, i, dir);
-//       const int s2 = nn->state;
-
-//       const dtype r = dir*s1*s2*node_alpha + s1*node_edge;
-
-//       node->reduction += r;
-//       nn->reduction   -= r;
-//       nn->gain        -= s1 * s2 * node_edge;
-//     }
-
-//     {
-//       const int dir = -1;
-//       const node_ptr nn = lattice.neighbor(node, i, dir);
-//       const int s2 = nn->state;
-//       const dtype nn_edge = nn->edges[i];
-//       const dtype nn_alpha = nn->alpha[i];
-
-//       const dtype r    = dir*s1*s2*nn_alpha + s1*nn_edge;
-
-//       node->reduction += r;
-//       nn->reduction   -= r;
-//       nn->gain        -= s1 * s2 * nn_edge;
-//     }
-//   }
-
-//   node->gain *= -1;
-//   current_value += node->gain;
-
-//   node->state = -s1;
-
-// #ifndef NDEBUG
-//   assert(!node->isPinned());
-
-//   _debugVerifyNodeConsistency(node);
-//   _debugVerifyNodeReduction(node);
-
-//   for(size_t i = 0; i < n_dimensions; ++i) {
-//     _debugVerifyNodeConsistency(lattice.neighbor(node, i, -1));
-//     _debugVerifyNodeConsistency(lattice.neighbor(node, i, 1));
-//     _debugVerifyNodeReduction(lattice.neighbor(node, i, -1));
-//     _debugVerifyNodeReduction(lattice.neighbor(node, i, 1));
-//   }
-// #endif
-// }

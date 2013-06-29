@@ -29,7 +29,6 @@ cdef extern from "factory.hpp"  namespace "latticeQBP":
 
         vector[int] getCut()
 
-
     ctypedef LatticeFlowInterface* solver_ptr
 
     solver_ptr getLatticeFlowInterface(string solver,
@@ -41,6 +40,11 @@ cdef extern from "factory.hpp"  namespace "latticeQBP":
     vector[string] validKernelNames()
     vector[string] validSolverNames()
 
+cdef extern from "tv_solver.hpp":
+
+    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4>" (
+        size_t nx, size_t ny, double *function, double lm)
+    
 cdef extern from "math.h":
     double exp(double)
 
@@ -56,10 +60,9 @@ cpdef getKernelDimension(str kernel):
 
     return kernelDimension(kernel)
 
-
 cdef class LatticeFlow(object):
     """
-    An interface to the
+    An interface to the lattice flow stuff
 
     """
 
@@ -413,3 +416,21 @@ def _runBenchmark(str image_file, str kernel, str solver, bint check_result = Fa
             print "Solutions exactly match."
 
     return lf.runTime()
+
+def calculate2dTV(ar Xo, double flt):
+
+    cdef ar[double, ndim=2, mode='c'] X = np.ascontiguousarray(Xo, dtype='d')
+
+    cdef vector[double] Rv = _calculate2dTV(X.shape[0], X.shape[1], &X[0,0], flt)
+
+    cdef ar[double, ndim=2, mode='c'] R = np.empty( (X.shape[0], X.shape[1]) )
+
+    cdef size_t i, j
+
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            R[i,j] = Rv[i*X.shape[1] + j]
+        
+    return R
+
+    

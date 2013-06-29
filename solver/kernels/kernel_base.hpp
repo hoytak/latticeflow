@@ -4,7 +4,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // A Kernel wrapper that should be used based on the previous.
 
-#include "array_wrapper.hpp"
+#include "../array_wrapper.hpp"
 #include <algorithm>
 
 template <int d>
@@ -30,7 +30,8 @@ __to_nested_array(std::initializer_list<std::initializer_list<int> > ll) {
   return rr;
 }
 
-template <int _n_dimensions, int _size> class KernelBase {
+template <int _n_dimensions, int _size, int _geocut_applicable>
+class KernelBase {
 public:
   static constexpr int kernel_verification = 1;
 
@@ -38,12 +39,18 @@ public:
 
   typedef Array<int, _n_dimensions> delta_type;
   typedef Array<delta_type, _size> deltas_type;
+  typedef Array<double, _size> geocut_edge_weight_type;
 
-  inline KernelBase(std::initializer_list<std::initializer_list<int> > _deltas)
+  inline KernelBase(std::initializer_list<std::initializer_list<int> > _deltas, 
+                    std::initializer_list<double> _geocut_edge_weights)
     : deltas(__to_nested_array<_size, _n_dimensions>(_deltas))
+    , geocut_edge_weights(_geocut_edge_weights)
   {}
 
   const deltas_type deltas;
+  const geocut_edge_weight_type geocut_edge_weights;
+
+  static constexpr bool is_geocut_applicable = _geocut_applicable;
 
   static constexpr size_t n_dimensions = _n_dimensions;
   static constexpr size_t size = _size;

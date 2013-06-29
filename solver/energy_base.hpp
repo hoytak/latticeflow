@@ -14,7 +14,7 @@ namespace latticeQBP {
   template <typename Policy> class LatticeEnergyBase {
   public:
     static_assert(Policy::Kernel::kernel_verification == 1, 
-		  "Provided Kernel does not appear to inherit from KernelBase class.");
+                  "Provided Kernel does not appear to inherit from KernelBase class.");
 
     static constexpr int n_dimensions = Policy::Kernel::n_dimensions;
 
@@ -46,31 +46,31 @@ namespace latticeQBP {
       static constexpr int n_dimensions = Policy::Kernel::n_dimensions;
 
       inline const index_vect& latticeCoord() const { 
-	return node_idx_iter.coords();
+        return node_idx_iter.coords();
       }
 
       inline size_t nodeIndex() const {
-	return node_idx_iter.boundedIndex();
+        return node_idx_iter.boundedIndex();
       }
 
       inline bool done() const { return node_idx_iter.done(); }
 
       inline void addUnaryPotential(dtype e0, dtype e1) { 
-	filler.addE1(lattice.ptr(node_idx_iter.index()), e0, e1);
+        filler.addE1(lattice.ptr(node_idx_iter.index()), e0, e1);
       }
 
       inline void addCapacityFromSource(dtype c) {
-	filler.addE1(lattice(node_idx_iter.index()), -c);
+        filler.addE1(lattice(node_idx_iter.index()), -c);
       }
 
       inline void addCapacityToSink(dtype c) {
-	filler.addE1(lattice(node_idx_iter.index()), c);
+        filler.addE1(lattice(node_idx_iter.index()), c);
       }
 
       const UnaryFillingIterator& operator++() {
-	assert(!node_idx_iter.done());
-	node_idx_iter.increment();
-	return *this;
+        assert(!node_idx_iter.done());
+        node_idx_iter.increment();
+        return *this;
       }
 
 
@@ -78,9 +78,9 @@ namespace latticeQBP {
       friend class LatticeEnergyBase;
 
       UnaryFillingIterator(Lattice& _lattice) 
-	: lattice(_lattice)
-	, filler(lattice)
-	, node_idx_iter(lattice.indexIterator())
+        : lattice(_lattice)
+        , filler(lattice)
+        , node_idx_iter(lattice.indexIterator())
       {
       }
 
@@ -94,117 +94,129 @@ namespace latticeQBP {
 
       static constexpr int n_dimensions = Policy::Kernel::n_dimensions;
 
+      inline size_t nodeIndexOf1() const {
+        return node_idx_iter.boundedIndex();
+      }
+
       inline size_t nodeIndex() const {
-	return node_idx_iter.boundedIndex();
+        return nodeIndexOf1();
+      }
+
+      inline size_t nodeIndexOf2() const {
+        return node_idx_target_iters[node_target_iter_index].boundedIndex();
       }
 
       inline size_t edgeIndex() const {
-	return node_target_iter_index;
+        return node_target_iter_index;
       }
 
       inline const index_vect& latticeCoordOf1() const { 
-	return node_idx_iter.coords();
+        return node_idx_iter.coords();
       }
 
       inline const index_vect& latticeCoordOf2() const { 
-	return node_idx_target_iters[node_target_iter_index].coords(); 
+        return node_idx_target_iters[node_target_iter_index].coords(); 
       }
     
       inline double L2_SquaredDistance() const { 
-	return dist2(latticeCoordOf1(), latticeCoordOf2());
+        return dist2(latticeCoordOf1(), latticeCoordOf2());
       }
 
       inline double L2_Distance() const { 
-	return sqrt(L2_SquaredDistance());
+        return sqrt(L2_SquaredDistance());
       }
 
       inline bool done() const { return node_idx_iter.done(); }
 
       inline void addUnaryPotentialTo1(dtype e0, dtype e1) { 
-	filler.addE1(lattice.ptr(node_idx_iter.index()), (e1 - e0));
+        filler.addE1(lattice.ptr(node_idx_iter.index()), e0, e1);
       }
 
       inline void addUnaryPotentialTo2(dtype e0, dtype e1) { 
-	filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
-		     e0, e1);
+        filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
+                     e0, e1);
+      }
+
+      inline double geocutEdgeWeight() const {
+        return lattice.geocutEdgeWeight(edgeIndex());
       }
 
       inline void addPairwisePotential(dtype e00, dtype e01, dtype e10, dtype e11) {
-	filler.addE2(lattice.ptr(node_idx_iter.index()), 
-		     lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
-		     node_target_iter_index,
-		     e00, e01, e10, e11);
+        filler.addE2(lattice.ptr(node_idx_iter.index()), 
+                     lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
+                     node_target_iter_index,
+                     e00, e01, e10, e11);
       }
 
       inline void addCapacityOfEdge(dtype c) {
-	filler.addE2(lattice.ptr(node_idx_iter.index()), 
-		     lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
-		     node_target_iter_index, 
-		     0, 0 ,-c);
+        filler.addE2(lattice.ptr(node_idx_iter.index()), 
+                     lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), 
+                     node_target_iter_index, 
+                     0, 0 ,-c);
       }
 
       inline void addCapacityOfSourceTo1(dtype c) {
-	filler.addE1(lattice(node_idx_iter.index()), -c);
+        filler.addE1(lattice(node_idx_iter.index()), -c);
       }
 
       inline void addCapacityOf1ToSink(dtype c) {
-	filler.addE1(lattice(node_idx_iter.index()), c);
+        filler.addE1(lattice(node_idx_iter.index()), c);
       }
 
       inline void addCapacityOfSourceTo2(dtype c) {
-	filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), -c);
+        filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), -c);
       }
 
       inline void addCapacityOf2ToSink(dtype c) {
-	filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), c);
+        filler.addE1(lattice.ptr(node_idx_target_iters[node_target_iter_index].index()), c);
       }
 
       const PairwiseFillingIterator& operator++() {
       
-	do {
-	  if(unlikely(done()))
-	    return *this;
+        do {
+          if(unlikely(done()))
+            return *this;
 
-	  ++node_target_iter_index;
+          ++node_target_iter_index;
 
-	  if(node_target_iter_index >= lattice.kernel_positive_size) {
+          if(node_target_iter_index >= lattice.kernel_positive_size) {
 
-	    assert(!node_idx_iter.done());
+            assert(!node_idx_iter.done());
 
-	    node_target_iter_index = 0;
+            node_target_iter_index = 0;
 
-	    // Increment everything
-	    size_t step = node_idx_iter.increment();
+            // Increment everything
+            size_t step = node_idx_iter.increment();
 	  
-	    if(step == 1) {
-	      for(auto& it : node_idx_target_iters)
-		++it;
-	    } else {
-	      for(auto& it : node_idx_target_iters) {
-		it.jump(step);
-	      }
-	    }
-	  }
+            if(step == 1) {
+              for(auto& it : node_idx_target_iters)
+                ++it;
+            } else {
+              for(auto& it : node_idx_target_iters) {
+                it.jump(step);
+              }
+            }
+          }
 
-	} while(!lattice.withinBounds(node_idx_target_iters[node_target_iter_index].coords()));
+        } while(!lattice.withinBounds(node_idx_target_iters[node_target_iter_index].coords()));
 
-	return *this;
+        return *this;
       }
 
     private:
       friend class LatticeEnergyBase;
 
       PairwiseFillingIterator(Lattice& _lattice) 
-	: lattice(_lattice)
-	, filler(lattice)
-	, node_idx_iter(lattice.indexIterator())
-	, node_idx_target_iters(lattice.fullIndexIterator())
-	, node_target_iter_index(0)
+        : lattice(_lattice)
+        , filler(lattice)
+        , node_idx_iter(lattice.indexIterator())
+        , node_idx_target_iters(lattice.fullIndexIterator())
+        , node_target_iter_index(0)
       {
-	// Advance the non-bounded lattice iterator to the start of the
-	// bounded iterator
-	for(size_t i = 0; i < lattice.kernelPositiveSize(); ++i)
-	  node_idx_target_iters[i].jump(lattice.jump(i));
+        // Advance the non-bounded lattice iterator to the start of the
+        // bounded iterator
+        for(size_t i = 0; i < lattice.kernelPositiveSize(); ++i)
+          node_idx_target_iters[i].jump(lattice.jump(i));
       }
 
       Lattice& lattice;

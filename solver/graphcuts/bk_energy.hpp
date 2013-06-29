@@ -74,7 +74,7 @@
 #define __ENERGY_H__
 
 #include <assert.h>
-#include "graph.hpp"
+#include "bk_graph.hpp"
 
 template <typename captype, typename tcaptype, typename flowtype> class Energy: public Graph<captype,tcaptype,flowtype>
 {

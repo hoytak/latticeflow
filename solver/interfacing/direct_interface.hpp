@@ -34,11 +34,11 @@ namespace latticeQBP {
       vector<int> edge_deltas(n_dimensions * n_filling_edges);
     
       for(size_t j = 0; j < n_filling_edges; ++j) {
-	const auto& diff = solver.getLattice().diff(j);
+        const auto& diff = solver.getLattice().diff(j);
 
-	for(size_t d = 0; d < n_dimensions; ++d) {
-	  edge_deltas[j*n_dimensions + d] = diff[d];
-	}
+        for(size_t d = 0; d < n_dimensions; ++d) {
+          edge_deltas[j*n_dimensions + d] = diff[d];
+        }
       }
 
       vector<size_t> dim_vect(dimensions.begin(), dimensions.end());
@@ -66,31 +66,31 @@ namespace latticeQBP {
     
       // Here we have the filler for the 
       for(auto fill_iter = solver.getUnaryFillingIterator(); 
-	  !fill_iter.done(); ++fill_iter) {
+          !fill_iter.done(); ++fill_iter) {
 
-	size_t node_index = fill_iter.nodeIndex();
+        size_t node_index = fill_iter.nodeIndex();
 
-	assert_lt(node_index, nNodes());
+        assert_lt(node_index, nNodes());
 
-	fill_iter.addUnaryPotential(unary_energy_array[2*node_index + 0],
-				    unary_energy_array[2*node_index + 1]);
+        fill_iter.addUnaryPotential(unary_energy_array[2*node_index + 0],
+                                    unary_energy_array[2*node_index + 1]);
       }
 
       for(auto fill_iter = solver.getPairwiseFillingIterator();
-	  !fill_iter.done(); ++fill_iter) {
+          !fill_iter.done(); ++fill_iter) {
       
-	size_t node_index = fill_iter.nodeIndex();
-	size_t edge_index = fill_iter.edgeIndex();
+        size_t node_index = fill_iter.nodeIndex();
+        size_t edge_index = fill_iter.edgeIndex();
 	
-	assert_lt(node_index, nNodes());
-	assert_lt(edge_index, nFillingEdges());
+        assert_lt(node_index, nNodes());
+        assert_lt(edge_index, nFillingEdges());
 
-	size_t base_index = node_index * (4*Lattice::kernelPositiveSize()) + 4*edge_index;
+        size_t base_index = node_index * (4*Lattice::kernelPositiveSize()) + 4*edge_index;
 
-	fill_iter.addPairwisePotential(binary_energy_array[base_index + 0],
-				       binary_energy_array[base_index + 1],
-				       binary_energy_array[base_index + 2],
-				       binary_energy_array[base_index + 3]);
+        fill_iter.addPairwisePotential(binary_energy_array[base_index + 0],
+                                       binary_energy_array[base_index + 1],
+                                       binary_energy_array[base_index + 2],
+                                       binary_energy_array[base_index + 3]);
       }
     }
 
@@ -100,7 +100,7 @@ namespace latticeQBP {
       vector<int> cut(lattice.sizeWithinBounds());
 
       for(auto node_iter = lattice.indexIterator(); !node_iter.done(); ++node_iter)
-	cut[node_iter.boundedIndex()] = lattice[node_iter.index()].on() ? 1 : 0;
+        cut[node_iter.boundedIndex()] = lattice[node_iter.index()].on() ? 1 : 0;
 
       return cut;
     }

@@ -343,7 +343,7 @@ public:
     : Base(_dimensions, _getMaximumJumps())
   {
     Array<long, kernel_size> jumps;
-    
+
     Kernel kernel;
 
     // Get the jumps 
@@ -366,6 +366,7 @@ public:
     for(size_t i = 0; i < kernel_size; ++i) {
       index_jumps[i] = jumps[index_mapping[i]];
       diff_arrays[i] = kernel.deltas[index_mapping[i]];
+      geocut_edge_weights[i] = kernel.geocut_edge_weights[index_mapping[i]];
     }
 
     // Make sure it's symmetric
@@ -377,6 +378,10 @@ public:
   
   Array<int, n_dimensions> diff(size_t i) const {
     return diff_arrays[i];
+  }
+
+  double geocutEdgeWeight(size_t i) const {
+    return geocut_edge_weights[i];
   }
 
   long jump(size_t i) const {
@@ -430,6 +435,7 @@ public:
 private:
   
   Array<long, kernel_size> index_jumps;
+  Array<double, kernel_size> geocut_edge_weights;
   typename Kernel::deltas_type diff_arrays;
 
 };
