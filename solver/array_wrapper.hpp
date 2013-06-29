@@ -13,6 +13,10 @@
 
 #include "debug.hpp"
 
+using std::copy;
+using std::copy_n;
+using std::fill;
+
 template <typename dtype> 
 class Element {
 public:

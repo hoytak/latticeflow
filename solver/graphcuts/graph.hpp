@@ -40,7 +40,7 @@
 #define __GRAPH_H__
 
 #include <string.h>
-#include "block.h"
+#include "block.hpp"
 
 #include <assert.h>
 // NOTE: in UNIX you need to use -DNDEBUG preprocessor option to supress assert's!!!
@@ -513,8 +513,6 @@ template <typename captype, typename tcaptype, typename flowtype>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "graph.h"
-
 
 template <typename captype, typename tcaptype, typename flowtype> 
     Graph<captype, tcaptype, flowtype>::Graph(int node_num_max, int edge_num_max, void (*err_function)(const char *))

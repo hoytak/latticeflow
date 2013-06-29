@@ -4,8 +4,7 @@
 #ifdef ENABLE_BOYKOV_KOLMOGOROV_GC_CODE
 
 #include "lattice.hpp"
-#include "bk_code_wrapper.hpp"
-#include "graphcuts/energy.h"
+#include "graphcuts/energy.hpp"
 
 namespace latticeQBP {
 
@@ -41,7 +40,7 @@ namespace latticeQBP {
     }
 
     inline void addE2(node_ptr n1, node_ptr n2, uint ei,
-		      dtype e00, dtype e01, dtype e10, dtype e11) const {
+                      dtype e00, dtype e01, dtype e10, dtype e11) const {
 
       assert(lattice.withinBounds(n1));
       assert(lattice.neighbor(n1, ei) == n2);
@@ -72,37 +71,37 @@ namespace latticeQBP {
       , graph_nodes(bounds_indexer.size())
     {
       for(size_t i = 0; i < bounds_indexer.size(); ++i) {
-	graph_nodes[i] = graphcutter.add_variable();
+        graph_nodes[i] = graphcutter.add_variable();
       }
     }
 
     void setup() {
 
       for(auto it = IndexIterator<_KernelLattice::n_dimensions>(bounds); !it.done(); ++it){
-	const auto& n1_coords = it.coords();
-	auto n1_ptr = (*this)(n1_coords);
-	auto n1_gc_ptr = getGCVar(n1_coords);
+        const auto& n1_coords = it.coords();
+        auto n1_ptr = (*this)(n1_coords);
+        auto n1_gc_ptr = getGCVar(n1_coords);
 
-	graphcutter.add_term1(n1_gc_ptr, n1_ptr->e0, n1_ptr->e1);
+        graphcutter.add_term1(n1_gc_ptr, n1_ptr->e0, n1_ptr->e1);
 
-	// cout << "Node: " << n1_coords << ": " << n1_ptr->e0 << ", " << n1_ptr->e1 << endl;
+        // cout << "Node: " << n1_coords << ": " << n1_ptr->e0 << ", " << n1_ptr->e1 << endl;
 
-	for(unsigned int i = 0; i < _KernelLattice::kernel_positive_size; ++i) {
-	  auto n2_coords = neighborCoords(n1_ptr, i);
+        for(unsigned int i = 0; i < _KernelLattice::kernel_positive_size; ++i) {
+          auto n2_coords = this->neighborCoords(n1_ptr, i);
 
-	  if(!withinBounds(n2_coords))
-	    continue;
+          if(!this->withinBounds(n2_coords))
+            continue;
 
-	  auto n2_gc_ptr = getGCVar(n2_coords);
+          auto n2_gc_ptr = getGCVar(n2_coords);
 	  
-	  graphcutter.add_term2(n1_gc_ptr, n2_gc_ptr, 
-				n1_ptr->e00v[i], n1_ptr->e01v[i], 
-				n1_ptr->e10v[i], n1_ptr->e11v[i]);
+          graphcutter.add_term2(n1_gc_ptr, n2_gc_ptr, 
+                                n1_ptr->e00v[i], n1_ptr->e01v[i], 
+                                n1_ptr->e10v[i], n1_ptr->e11v[i]);
 	  
-	  // cout << "Edge: " << n1_coords << " -- " << n2_coords << ": "
-	  //      << n1_ptr->e00v[i] << ", " << n1_ptr->e01v[i] << ", " 
-	  //      << n1_ptr->e10v[i] << ", " << n1_ptr->e11v[i] << endl;
-	}
+          // cout << "Edge: " << n1_coords << " -- " << n2_coords << ": "
+          //      << n1_ptr->e00v[i] << ", " << n1_ptr->e01v[i] << ", " 
+          //      << n1_ptr->e10v[i] << ", " << n1_ptr->e11v[i] << endl;
+        }
       }
     }
 
@@ -110,11 +109,11 @@ namespace latticeQBP {
       graphcutter.minimize();
 
       for(auto it = IndexIterator<_KernelLattice::n_dimensions>(bounds); !it.done(); ++it){
-	const auto& n1_coords = it.coords();
-	auto n1_ptr = (*this)(n1_coords);
-	auto n1_gc_ptr = getGCVar(n1_coords);
+        const auto& n1_coords = it.coords();
+        auto n1_ptr = (*this)(n1_coords);
+        auto n1_gc_ptr = getGCVar(n1_coords);
 
-	n1_ptr->is_on = (graphcutter.get_var(n1_gc_ptr) != 0);
+        n1_ptr->is_on = (graphcutter.get_var(n1_gc_ptr) != 0);
       }
     }
 

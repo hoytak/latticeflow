@@ -4,6 +4,7 @@
 #include <ctime>
 #include <sstream>
 #include <cmath>
+#include "debug.hpp"
 
 class TimeTracker{
 public:
@@ -60,10 +61,10 @@ inline double TimeTracker::elapsedSeconds() const
 {
     if(started)
     {
-	clock_t cur_time_diff = paused ? 0 : clock() - start_time;
-	double r = double(cur_time_diff + offset) / CLOCKS_PER_SEC;
-	assert(r >= 0);
-	return r;
+      clock_t cur_time_diff = paused ? 0 : clock() - start_time;
+      double r = double(cur_time_diff + offset) / CLOCKS_PER_SEC;
+      assert_geq(r, 0);
+      return r;
     }
     else
     {

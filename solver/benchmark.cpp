@@ -2,7 +2,7 @@
 #undef ENABLE_OPENMP
 #endif
 
-#include "graphcuts/energy.h"
+#include "graphcuts/energy.hpp"
 
 #include "energy.hpp"
 #include "rng.hpp"

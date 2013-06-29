@@ -149,9 +149,10 @@ def __process_options(ctx):
 
     ################################################################################
     # Set up the solver list
-
     ctx.env.solver_list = ["LatticeEnergyMinimizer",
-                           "LatticeEnergyAdjuster"]
+                           "LatticeEnergyAdjuster",
+                           "LatticeLevelReductions"
+                           ]
 
     if ctx.env.enable_bkgc:
         ctx.env.solver_list.append("BKGCEnergyMinimizer")
@@ -233,12 +234,12 @@ def build(ctx):
               lib          = ['m'],
               use = ['stlatticeflow']
               )
-
-    ctx(features = 'cxx cxxshlib pyext cython',
-        source   = ['extensions/python/pylatticeflow.pyx'],
-        target   = 'pylatticeflow',
-        use      = ['stlatticeflow']
-        )
+    if ctx.options.python:
+        ctx(features = 'cxx cxxshlib pyext cython',
+            source   = ['extensions/python/pylatticeflow.pyx'],
+            target   = 'pylatticeflow',
+            use      = ['stlatticeflow']
+            )
 
     
 

@@ -9,7 +9,9 @@
 
 #ifndef NDEBUG
 
+#ifndef EMACS_FLYMAKE
 #warning ">>>>>>>>>>>>>>> Debug On; pass -DNDEBUG to disable <<<<<<<<<<<<<<<<<<<<<<<<<"
+#endif
 
 #include <iostream>
 using std::cout;

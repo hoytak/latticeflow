@@ -17,7 +17,7 @@
 
 #include "array_wrapper.hpp"
 #include "indexing.hpp"
-#include "kernels.hpp"
+#include "kernels/kernels.hpp"
 
 #include <vector>
 #include <iostream>
@@ -416,15 +416,15 @@ public:
   }
 
   inline index_vect neighborCoords(value_cptr n, unsigned int ei) const {
-    return getCoords(neighbor(n, ei));
+    return this->getCoords(neighbor(n, ei));
   }
 
   inline index_vect neighborCoords(value_direct_cptr n, unsigned int ei) const {
-    return getCoords(neighbor(n, ei));
+    return this->getCoords(neighbor(n, ei));
   }
 
   inline index_vect neighborCoords(size_t n_idx, unsigned int ei) const {
-    return getCoords(neighbor(n_idx, ei));
+    return this->getCoords(neighbor(n_idx, ei));
   }
 
 private:

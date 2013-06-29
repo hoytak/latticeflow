@@ -105,8 +105,8 @@
 #error Requires Visual C++ 2005 (VC8) compiler or later.
 #endif
 
-#include "energy.h"
-#include "graph.h"
+#include "energy.hpp"
+#include "graph.hpp"
 
 /////////////////////////////////////////////////////////////////////
 // Utility functions, classes, and macros

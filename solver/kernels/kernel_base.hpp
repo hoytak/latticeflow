@@ -5,12 +5,13 @@
 // A Kernel wrapper that should be used based on the previous.
 
 #include "array_wrapper.hpp"
+#include <algorithm>
 
 template <int d>
 static inline Array<int, d> __to_array(std::initializer_list<int> l) {
   Array<int, d> r;
 
-  copy(l.begin(), l.end(), r.begin());
+  std::copy(l.begin(), l.end(), r.begin());
 
   return r;
 }
@@ -23,7 +24,7 @@ __to_nested_array(std::initializer_list<std::initializer_list<int> > ll) {
 
   for(auto it = ll.begin(); it != ll.end(); ++it) {
     int i = it - ll.begin();
-    copy(it->begin(), it->end(), rr[i].begin());
+    std::copy(it->begin(), it->end(), rr[i].begin());
   }
 
   return rr;

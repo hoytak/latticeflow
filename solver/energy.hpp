@@ -46,7 +46,7 @@ namespace latticeQBP {
   // NetFlowLatticeEnergyReductions
 
   template <int n_dimensions, typename Kernel, typename dtype = long>
-  class NetFlowLatticeEnergyReductions 
+  class LatticeLevelReductions 
     : public LatticeEnergyBase<_NetFlowReductionMinimizationPolicy<n_dimensions, Kernel, dtype> >
   {
 
@@ -54,7 +54,7 @@ namespace latticeQBP {
     typedef LatticeEnergyBase<_NetFlowReductionMinimizationPolicy<n_dimensions, Kernel, dtype> > Base;   
     typedef typename Base::index_vect index_vect;
 
-    NetFlowLatticeEnergyReductions(const index_vect& dimensions)
+    LatticeLevelReductions(const index_vect& dimensions)
       : Base(dimensions)
     {}
 

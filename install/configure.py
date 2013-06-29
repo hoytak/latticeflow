@@ -33,7 +33,12 @@ def compilerOptionWorks(ctx, option, base_options = [], must_work = False):
             msg = ("Checking %s support for compiler option %s"
                    % ("required" if must_work else "optional", option)),
             define_name = str(option),
-            fragment    = "int main() {return 0; }",
+            fragment    = """
+            #include <cmath>
+            int main() {
+               return 0;
+            }
+            """,
             execute     = True)
 
         return True
