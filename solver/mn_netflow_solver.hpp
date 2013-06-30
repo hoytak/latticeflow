@@ -27,7 +27,9 @@ public:
 
   void run() {
 
-    cout << "Setting up model." << endl;
+    if(HAVE_OUTPUT)
+      cout << "Setting up model." << endl;
+
     TimeTracker tt;
     tt.start();
 
@@ -145,7 +147,8 @@ public:
     }
 #endif
 
-    cout << "Finished running model in " << tt.asString() << "." << endl;
+    if(HAVE_OUTPUT)
+      cout << "Finished running model in " << tt.asString() << "." << endl;
 
   }
 };

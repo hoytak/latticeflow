@@ -108,7 +108,7 @@ public:
 
   dtype level() const {
     assert_equal(reduction_shift, 0);
-    return -reduction;
+    return simple_mode ? reduction : reduction >> 1;
   }
 
   ////////////////////////////////////////////////////////////////////////////////
