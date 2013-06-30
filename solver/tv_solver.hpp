@@ -9,9 +9,9 @@ using namespace std;
 
 namespace latticeQBP {
 
-  static inline long toLong(double x) { return long(round(x*(1 << 16))); }
-  static inline double toDbl(long x) { return double(x) *(1.0 / (1 << 16)); }
-
+  static inline long toLong(double x) { return long(round(x*(long(1) << 32))); }
+  static inline double toDbl(long x) { return double(x) *(1.0 / (long(1) << 32)); }
+  
   template <typename Kernel, typename dtype = long>
   vector<double> calculate2dTV(size_t nx, size_t ny, 
                                double *function, double lambda) {
@@ -24,6 +24,22 @@ namespace latticeQBP {
     typedef typename rsolver_type::index_vect index_vect;
 
     // cout << "nx = " << nx << "; ny = " << ny << endl;
+
+    double min_x = *min_element(function, function + nx*ny);
+    double max_x = *max_element(function, function + nx*ny);
+
+    double w = max_x - min_x;
+
+    const double conversion_factor = 
+      (double(long(1) << 42) / (max(1.0, lambda) * (max_x - min_x)));
+
+    auto toLong = [conversion_factor](double x) {
+      return long(round(x * conversion_factor));
+    }; 
+
+    auto toDbl = [conversion_factor](long x) {
+      return double(x) / conversion_factor;
+    }; 
 
     rsolver_type rsolver(index_vect({ny, nx}));
 

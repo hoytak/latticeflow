@@ -42,7 +42,7 @@ cdef extern from "factory.hpp"  namespace "latticeQBP":
 
 cdef extern from "tv_solver.hpp":
 
-    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_8>" (
+    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24>" (
         size_t nx, size_t ny, double *function, double lm)
     
 cdef extern from "math.h":
