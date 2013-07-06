@@ -6,7 +6,7 @@ from pylatticeflow import calculate2dTV
 from matplotlib.pylab import imread, figure, show
 
 lm = float(sys.argv[1])
-image_file = "benchmarks/images/branches.png"
+image_file = "benchmarks/images/truffles-small.png"
 
 Xo = imread(image_file)
 
@@ -19,10 +19,10 @@ Xtv = calculate2dTV(X, lm)
 
 f = figure()
 a = f.add_subplot(121)
-a.imshow(X, vmin=0, vmax=1)
+a.imshow(X, vmin=0, vmax=1, interpolation='nearest')
 
 a = f.add_subplot(122)
-a.imshow(Xtv, vmin=0, vmax=1)
+a.imshow(Xtv, vmin=0, vmax=1, interpolation='nearest')
 
 show()
 

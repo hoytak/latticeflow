@@ -5,13 +5,12 @@
 #include "kernels/kernels.hpp"
 #include <cmath>
 #include <iostream>
+#include <cstdint>
+
 using namespace std;
 
 namespace latticeQBP {
 
-  static inline long toLong(double x) { return long(round(x*(long(1) << 32))); }
-  static inline double toDbl(long x) { return double(x) *(1.0 / (long(1) << 32)); }
-  
   template <typename Kernel, typename dtype = long>
   vector<double> calculate2dTV(size_t nx, size_t ny, 
                                double *function, double lambda) {
@@ -31,13 +30,14 @@ namespace latticeQBP {
     double w = max_x - min_x;
 
     const double conversion_factor = 
-      (double(long(1) << 42) / (max(1.0, lambda) * (max_x - min_x)));
+      (double(dtype(1) << (sizeof(dtype)*8 - 16))
+       / (max(1.0, lambda) * (max_x - min_x)));
 
-    auto toLong = [conversion_factor](double x) {
-      return long(round(x * conversion_factor));
+    auto toDtype = [conversion_factor](double x) {
+      return dtype(round(x * conversion_factor));
     }; 
 
-    auto toDbl = [conversion_factor](long x) {
+    auto toDbl = [conversion_factor](dtype x) {
       return double(x) / conversion_factor;
     }; 
 
@@ -49,7 +49,7 @@ namespace latticeQBP {
       size_t idx_x = ufi.latticeCoord()[1];
       size_t idx = nx*idx_y + idx_x;
 
-      long fv = toLong(function[idx]);
+      dtype fv = toDtype(lambda*function[idx]);
 
       ufi.addUnaryPotential(0, fv);
     }
@@ -64,7 +64,7 @@ namespace latticeQBP {
       size_t dest_idx_x = pwfi.latticeCoordOf2()[1];
       size_t idx_dest = nx*dest_idx_y + dest_idx_x;
 
-      long pwf = toLong(0.5*lambda*pwfi.geocutEdgeWeight() 
+      dtype pwf = toDtype(0.5*pwfi.geocutEdgeWeight() 
                         * abs(function[idx_src] - function[idx_dest]));
 
       pwfi.addPairwisePotential(0, pwf, pwf, 0);
@@ -80,7 +80,8 @@ namespace latticeQBP {
     size_t i = 0;
     for(auto it = rsolver.getLattice().indexIterator(); !it.done(); ++it) {
       // cout << it.coords() << ": r = " << rsolver.getLattice()(it.coords())->level() << endl;
-      res[i++] = toDbl(rsolver.getLattice()(it.coords())->level());
+      res[i++] = toDbl(rsolver.getLattice()(it.coords())->level()) 
+        / (1e-32 + lambda);
     }
 
     return res;

@@ -4,17 +4,22 @@
 
 #include "lattice.hpp"
 
+#define NF_ON_BY_REDUCTION       (1 << 0)
+#define NF_ENABLE_KEY_PARTIONING (1 << 1)
+#define NF_ADJUSTMENT_MODE       (1 << 2)
+
 template <typename Kernel, typename dtype, int mode>
 class NetworkFlowNode {
 
 private:
-  static constexpr bool adjustment_mode = (mode == 0);
-  static constexpr bool simple_mode     = (mode == 1);
-  static constexpr bool reduction_mode  = (mode == 2);
+  static constexpr bool simple_mode     = (mode == 0);
+  static constexpr bool reduction_mode  = ((mode & NF_ON_BY_REDUCTION) != 0);
+  static constexpr bool adjustment_mode = ((mode & NF_ADJUSTMENT_MODE) != 0);
+  static constexpr bool enable_keys     = ((mode & NF_ENABLE_KEY_PARTIONING) != 0);
 
 public:
   NetworkFlowNode()
-    : state(0)
+    : key_state(0)
     , height(0)
     , level_index(0)
     , reduction(0)
@@ -34,11 +39,15 @@ public:
     if(reduction_mode)
       return reduction < 0;
     else
-      return state != 0;
+      return state() != 0;
+  }
+
+  unsigned int state() const {
+    return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
   }
 
 public:
-  int state;
+  unsigned int key_state;
 
   // The height for the push-relabel thing
   typedef unsigned int level_index_type;
@@ -65,7 +74,7 @@ protected:
                    "Partition-based excess only allowed in non-simple mode.");
 
     if(adjustment_mode) 
-      assert_equal(partition, state);
+      assert_equal(partition, key_state & 0x1);
   }
 
 public: 
@@ -148,11 +157,11 @@ protected:
         assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), 2*edges[i]);
 
       if(simple_mode || adjustment_mode) {
-        if(this->state != 0 && nn->state == 0) {
+        if(this->state() != 0 && nn->state() == 0) {
           assert_geq(alpha[i], 0);
           assert_leq(nn->alpha[rev_idx], 0);
         } 
-        else if (this->state == 0 && nn->state != 0) {
+        else if (this->state() == 0 && nn->state() != 0) {
           assert_leq(alpha[i], 0);
           assert_geq(nn->alpha[rev_idx], 0);
         }
@@ -190,15 +199,23 @@ public:
     // }
 
     // All we need to do should be to set the lattice 
-    assert(state == 0 || state == 1);
+    assert(state() == 0 || state() == 1);
 
-    switch(start_state) {
-    case 0: assert_equal(state, start_state); state = 1; break;
-    case 1: assert_equal(state, start_state); state = 0; break;
-    case 2: state = !state; break;
-    default: break;
+    if(enable_keys) {
+      switch(start_state) {
+      case 0: assert_equal(state(), start_state); key_state |= 1; break;
+      case 1: assert_equal(state(), start_state); key_state &= (~((unsigned int)(1))); break;
+      case 2: key_state ^= 0x1; break;
+      default: break;
+      }
+    } else {
+      switch(start_state) {
+      case 0: assert_equal(state(), start_state); key_state = 1; break;
+      case 1: assert_equal(state(), start_state); key_state = 0; break;
+      case 2: key_state = !key_state; break;
+      default: break;
+      }
     }
-
 #ifndef NDEBUG
 
     _debugVerifyNodeConsistency(lattice);
@@ -217,7 +234,7 @@ public:
     dest->template checkPartitioning<partition>();
 
     assert(&(*dest) == &(*lattice.neighbor(this, ei)));
-    assert_equal(dest->state, partition);
+    assert_equal(dest->state(), partition);
     assert_leq(amount, pushCapacity<partition>(ei));
   
     _debugVerifyNodeConsistency(lattice);

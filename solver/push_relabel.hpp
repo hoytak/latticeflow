@@ -44,6 +44,7 @@ private:
 public:
   PRFlow(KernelLattice& _lattice)
     : lattice(_lattice)
+    , key(0)
     , top_level(1)
     , step_array(lattice.jumpArray())
     , num_flips(0)
@@ -74,6 +75,7 @@ private:
 
   KernelLattice& lattice;
   vector<Level> levels;
+  unsigned int key;
 
   size_t top_level;
   size_t top_level_with_excess;
@@ -100,14 +102,14 @@ private:
 
       assert_equal(n->level_index, i);
       assert_equal(n->height, level);
-      assert_equal(n->state, partition);
+      assert_equal(n->state(), partition);
       all_nodes.insert(n);
 
       if(check_heights) {
         for(uint j = 0; j < kernel_size; ++j) {
           node_ptr nn = n + step_array[j];
 
-          if(nn->state == partition && pushCapacity(n, nn, j) > 0) {
+          if(nn->key_state == key && pushCapacity(n, nn, j) > 0) {
             // if(!(nn->height >= level - 1))
             //  cout << "n = " << (n - lattice.begin()) << "nn = " << (nn - lattice.begin()) << endl;
             assert_geq(nn->height, level - 1);
@@ -128,7 +130,7 @@ private:
     for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
       assert_lt(n->height, levels.size());
 
-      if(n->state == partition && n->height == 0)
+      if(n->key_state == key && n->height == 0)
         assert_leq(excess(n), 0);
       
       if(eligible(n) && excess(n) < 0) {
@@ -137,7 +139,6 @@ private:
         assert_equal(n->height, 0);
       }
     }
-
 
     if(check_all_nodes_in_level) {
       for(size_t i = 1; i <= top_level; ++i) {
@@ -195,9 +196,8 @@ private:
   }
 
   inline bool eligible(const node_ptr& n) const {
-    return n->state == partition;
+    return n->key_state == key;
   }
-
 
   template <typename NodePtrIterator>
   void hotStart(const NodePtrIterator& start, const NodePtrIterator& end) {
@@ -1153,7 +1153,7 @@ public:
       vector<node_ptr> active_nodes;
 
       for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
-        if(n->state == partition && n->excess() > 0) {
+        if(n->state() == partition && n->excess() > 0) {
           ++starting_size;
           active_nodes.push_back(n);
         }
@@ -1182,10 +1182,21 @@ public:
   }
 
   template <typename NodePtrIterator>
-  bool run(const NodePtrIterator& start, const NodePtrIterator& end) {
+  bool run(const NodePtrIterator& start, const NodePtrIterator& end, int _key = 0) {
     // First do a simple iteration
     size_t set_size = 0;
     size_t starting_size = 0;
+
+    // The key works 
+    unsigned int key = (_key << 1) + partition;
+
+    // First go through and set the state to the proper node.  all
+    // these are currently eligible
+    for(NodePtrIterator it = start; it != end; ++it) {
+      // Set these nodes to the given key...
+      node_ptr n = *it;
+      n->key_state = key;
+    }
 
     if(OptPolicy::init_hotstart()) {
       hotStart(start, end);
@@ -1204,7 +1215,7 @@ public:
 
         ++set_size;
 
-        if(n->state == partition && n->excess() > 0) {
+        if(eligible(n) && n->excess() > 0) {
           ++starting_size;
           active_nodes.push_back(n);
         }

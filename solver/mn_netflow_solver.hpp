@@ -2,6 +2,7 @@
 #define _MN_NETFLOW_SOLVER_H_
 
 #include "push_relabel.hpp"
+#include "network_flow_node.hpp"
 #include <list>
 #include <deque>
 #include "timetracker.hpp"
@@ -33,7 +34,8 @@ public:
     TimeTracker tt;
     tt.start();
 
-    PRFlow<dtype, KernelLattice, 0, 2> pr_flow(lattice);
+    PRFlow<dtype, KernelLattice, 0, 
+           NF_ON_BY_REDUCTION | NF_ENABLE_KEY_PARTIONING | NF_ADJUSTMENT_MODE> pr_flow(lattice);
     vector<dtype> reduction_adjustments(lattice.size(), 0);
     deque<list<node_ptr> > queue;
 
@@ -92,7 +94,7 @@ public:
           for(auto it = nl.begin(); it != nl.end();) {
             node_ptr n = *it;
 
-            if(n->state == 1) {
+            if(n->state()) {
               queue.back().splice(queue.back().end(), nl, it++);
             } else
               ++it;
@@ -110,7 +112,7 @@ public:
        
       for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
         if(lattice.withinBounds(n)) {
-          if(n->state == 0) 
+          if(!(n->state()))
             zero_list.push_back(n);
           else
             queue.back().push_back(n);
@@ -124,7 +126,7 @@ public:
     while(!queue.empty()) {
        
       for(node_ptr n : queue.front()) {
-        assert(n->state == 1);
+        assert(n->state());
         n->template flipNode<1>(lattice);
       }
        
