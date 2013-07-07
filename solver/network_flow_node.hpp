@@ -8,7 +8,7 @@
 #define NF_ENABLE_KEY_PARTIONING (1 << 1)
 #define NF_ADJUSTMENT_MODE       (1 << 2)
 
-template <typename Kernel, typename dtype, int mode>
+template <typename Kernel, typename dtype, int mode> 
 class NetworkFlowNode {
 
 private:
@@ -35,19 +35,33 @@ public:
 
   //////////////////////////////////////////////////
   // Helper methods that tie in other things...
-  bool on() const { 
+  inline bool on() const { 
     if(reduction_mode)
       return reduction < 0;
     else
       return state() != 0;
   }
 
-  unsigned int state() const {
+  inline unsigned int state() const {
     return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
   }
 
-public:
+  inline void setKeyState(unsigned int key, bool is_on) {
+    key_state = ((key + 1) << 1) + (is_on ? 1 : 0);
+  }
+
+  inline void clearKey() {
+    key_state &= 0x1;
+  }
+
+  inline bool matchesKey(unsigned int key) const {
+    return (key_state >> 1) == key + 1;
+  }
+
+protected: 
   unsigned int key_state;
+
+public:
 
   // The height for the push-relabel thing
   typedef unsigned int level_index_type;
@@ -78,7 +92,8 @@ protected:
   }
 
 public: 
-    
+  
+  ////////////////////////////////////////////////////////////////////////////////
   // Note that excess, in this case, is defined in relation to the
   // push-relabel algorithm; so excess-flow corresponds to deficit in
   // the reduction.  
@@ -102,6 +117,16 @@ public:
     } else {
       return alpha[ei];
     }
+  }
+
+  // This function only works if it is known the other node is in another region
+  inline dtype capacityOfSaturated(int ei) const {
+    dtype v = abs(alpha[ei]);
+
+    if(DEBUG_MODE)
+      assert_equal(v, edges[ei]);
+
+    return v;
   }
 
   template <int partition=0> inline bool pushSaturated(int ei) const {

@@ -380,10 +380,6 @@ public:
     return diff_arrays[i];
   }
 
-  double geocutEdgeWeight(size_t i) const {
-    return geocut_edge_weights[i];
-  }
-
   long jump(size_t i) const {
     assert_lt(i, kernel_size);
     return index_jumps[i];
@@ -430,6 +426,23 @@ public:
 
   inline index_vect neighborCoords(size_t n_idx, unsigned int ei) const {
     return this->getCoords(neighbor(n_idx, ei));
+  }
+
+  inline double neighborL2Dist(unsigned int ei) const {
+    index_vect src = this->getCoords(this->begin());
+    index_vect dest = this->neighborCoords(this->begin(), ei);
+    long r = 0;
+
+    for(unsigned int i = 0; i < n_dimensions; ++i) {
+      long v = long(src) - long(dest);
+      r += v*v;
+    }
+
+    return sqrt(double(r));
+  }
+
+  inline double geocutEdgeWeight(size_t i) const {
+    return geocut_edge_weights[i];
   }
 
 private:
