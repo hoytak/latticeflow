@@ -7,7 +7,7 @@
 namespace latticeQBP {
   
   using namespace std;
-  using boost::multiprecision::cpp_int;
+  using namespace boost::multiprecision;
 
   ////////////////////////////////////////////////////////////////
   // This could be optimized more.  Now 
@@ -22,13 +22,13 @@ namespace latticeQBP {
 
     static constexpr bool uses_long_long = (sizeof(long long) > sizeof(dtype)); 
 
-    void add(dtype v) {
+    inline void add(dtype v, size_t count = 1) {
       if(uses_long_long)
         ll_sum_value += v;
       else
         inf_int_sum_value += v;
 
-      ++n_values;
+      n_values += count;
     }
 
     void value() const {
@@ -55,7 +55,7 @@ namespace latticeQBP {
     }
 
   public:
-    void valueRoundedUp() const {
+    inline void valueRoundedUp() const {
       if(uses_long_long)
         return _valueRoundedUp(ll_sum_value);
       else
@@ -68,5 +68,51 @@ namespace latticeQBP {
     size_t n_values;
   };
 
+#ifndef NDEBUG
+  
+  template <typename dtype> class CompType {};
+
+  template <> class CompType<int32_t> {
+    typedef int64_t Type;
+  };
+
+  template <> class CompType<int64_t> {
+    typedef checked_int128_t Type;
+  };
+
+#ifdef HAVE__int128_t
+  template <> class CompType<__int128_t> {
+    typedef checked_int256_t Type;
+  };
+#endif
+
+#else
+
+  template <typename dtype> class CompType {};
+
+  template <> class CompType<int32_t> {
+    typedef int64_t Type;
+  };
+
+#ifdef HAVE__int128_t
+  template <> class CompType<int64_t> {
+    typedef __int128_t Type;
+  };
+#else
+  template <> class CompType<int64_t> {
+    typedef int128_t Type;
+  };
+#endif
+
+#ifdef HAVE__int128_t
+  template <> class CompType<__int128_t> {
+    typedef int256_t Type;
+  };
+#endif
+  
+#endif
+
 }; 
+
 #endif /* _NUMERICAL_H_ */
+

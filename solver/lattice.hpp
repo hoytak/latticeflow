@@ -302,6 +302,7 @@ public:
   typedef typename Base::value_cptr value_cptr;
   typedef typename Base::value_direct_ptr value_direct_ptr;
   typedef typename Base::value_direct_cptr value_direct_cptr;
+  typedef typename Base::value_type value_type;
 
   static constexpr unsigned int n_dimensions = _n_dimensions;
 

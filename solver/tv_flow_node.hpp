@@ -2,8 +2,10 @@
 #define _TV_FLOW_NODE_H_
 
 #include "network_flow_node.hpp"
-#include <algorithm>
 #include "array_wrapper.hpp"
+#include "numerical.hpp"
+
+#include <algorithm>
 
 namespace latticeQBP {
 
@@ -28,6 +30,8 @@ namespace latticeQBP {
     dtype current_fv_offset;
 
   public:
+    typedef typename CompType<dtype>::Type comp_type;
+
     static int constexpr n_bits_function_room = 8;
     static int constexpr n_bits_lambda_max = sizeof(dtype)*1;
 
@@ -47,11 +51,21 @@ namespace latticeQBP {
     }
 
     static inline dtype multFVLambda(dtype fv, dtype lm) {
-      assert_leq(abs(fv), (dtype(1) << (n_bits_function_precision + 6) ) );
+      assert_leq(abs(fv), (dtype(1) << (n_bits_function_precision + n_bits_function_room) ) );
       assert_geq(lm, 0);
-      assert_leq(lm, (dtype(1) << (n_bits_lambda_precision + 3) ));
+      assert_leq(lm, (dtype(1) << (n_bits_lambda_precision + n_bits_lambda_max) ));
 
       return (fv * lm) >> n_bits_lambda_precision;
+    }
+
+    static inline dtype getLambdaFromQuotient(comp_type numer, comp_type denom) {
+      numer <<= n_bits_lambda_precision;
+      numer /= denom;
+      
+      assert_geq(numer, 0);
+      assert_leq(numer, (dtype(1) << (n_bits_lambda_precision + n_bits_lambda_max) ));
+      
+      return dtype(numer);
     }
 
     dtype fv() const {

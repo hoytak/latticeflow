@@ -8,10 +8,11 @@
 #define NF_ENABLE_KEY_PARTIONING (1 << 1)
 #define NF_ADJUSTMENT_MODE       (1 << 2)
 
-template <typename Kernel, typename dtype, int mode> 
+template <typename Kernel, typename dtype, int _mode> 
 class NetworkFlowNode {
 
-private:
+public:
+  static constexpr int  mode            = _mode;
   static constexpr bool simple_mode     = (mode == 0);
   static constexpr bool reduction_mode  = ((mode & NF_ON_BY_REDUCTION) != 0);
   static constexpr bool adjustment_mode = ((mode & NF_ADJUSTMENT_MODE) != 0);
@@ -46,8 +47,21 @@ public:
     return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
   }
 
-  inline void setKeyState(unsigned int key, bool is_on) {
-    key_state = ((key + 1) << 1) + (is_on ? 1 : 0);
+  template <int partition, typename Lattice> 
+  inline void setKeyState(Lattice& lattice, unsigned int key) {
+    static_assert(partition == 0 || partition == 1,
+                  "Partition is the reference state; must be either 0 or 1.");
+
+    if( (key_state & 0x1) != partition)
+      this->template flipNode<1 - partition>(lattice);
+
+    assert_equal((key_state & 0x1), partition);
+
+    key_state = ((key + 1) << 1) | partition;
+  }
+
+  inline void setKey(unsigned int key) {
+    key_state |= ((key + 1) << 1);
   }
 
   inline void clearKey() {

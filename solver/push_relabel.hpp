@@ -27,15 +27,23 @@ namespace latticeQBP {
 
   using namespace std;
 
-  template <typename dtype, typename KernelLattice, int partition, int mode> class PRFlow {
+  template <typename dtype, typename KernelLattice, int partition> class PRFlow {
   private:
 
-    static constexpr bool adjustment_mode = (mode == 0);
-    static constexpr bool simple_mode = (mode == 1);
-    static constexpr bool separate_partition_mode = (mode == 2);
+    static_assert(partition == 0 || partition == 1, 
+                  "partition must be 0 or 1.");
 
     typedef typename KernelLattice::Kernel Kernel;
     typedef KernelOptimizationPolicy<Kernel> OptPolicy; 
+                  
+    typedef typename KernelLattice::value_type Node;
+
+    // Pull in the computation types 
+
+    static constexpr bool simple_mode     = Node::simple_mode;
+    static constexpr bool reduction_mode  = Node::reduction_mode;
+    static constexpr bool adjustment_mode = Node::adjustment_mode;
+    static constexpr bool enable_keys     = Node::enable_keys;
 
   public:
     PRFlow(KernelLattice& _lattice)
@@ -716,7 +724,6 @@ namespace latticeQBP {
       node_ptr node;
       level_index_type height;
       bool has_excess;
-
     };
 
     size_t restructureFromNode(node_ptr seed_node) {
@@ -1183,9 +1190,14 @@ namespace latticeQBP {
       return false;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////
+    // stuff for working on specific sections.
+
+
     template <typename NodePtrIterator>  
-    void prepareSection(const NodePtrIterator& start, 
-                        const NodePtrIterator& end, int _key = 0) {
+    inline void prepareSection(const NodePtrIterator& start, 
+                               const NodePtrIterator& end, 
+                               int key = 0, bool clean_state = true) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1193,7 +1205,12 @@ namespace latticeQBP {
     
         // Set these nodes to the given key and partition
         node_ptr n = *it;
-        n->setKeyState(key, partition);
+        if(clean_state) {
+          n->template setKeyState<partition>(lattice, key);
+        } else {
+          assert_equal(n->state(), partition);
+          n->setKey(key);
+        }
       }
 
       // All that's needed here; just prepares things for runSection
@@ -1252,10 +1269,10 @@ namespace latticeQBP {
     void initQueue(size_t reserve_size = 0) {
       if(reserve_size != 0)
         initStorage(reserve_size);
-    
+      
       top_level = 1;
       top_level_with_excess = 0;
-
+      
       num_flips = 0;
     }
 
@@ -1304,9 +1321,15 @@ namespace latticeQBP {
         for(uint ei = 0; ei < kernel_size; ++ei) {
           node_ptr nn = n + step_array[ei];
           if(nn->matchesKey(key)) {
-            if(nn->on() == is_on) {
+            if(nn->state() == is_on) {
               nodes.push_back(nn);
             } else {
+              if(DEBUG_MODE) {
+                if(is_on) {
+                  assert_lt(n->level(), nn->level());
+                }
+              }
+
               cut_value += capacityOfSaturated(n, nn, ei); 
             }
           }
@@ -1344,12 +1367,14 @@ namespace latticeQBP {
           piv.push_back(_addPartition(n, key));
       }
 
-      // TODO: Flip things? 
-
-      // All that's needed here; just prepares things for runSection
+      for(auto it : piv) {
+        if(it->is_on != partition) {
+          for(node_ptr n : it->nodes) {
+            n->template flipNode<1 - partition>(lattice);
+          }
+        }
+      }
     }
-
-
   };
 };
 #endif
