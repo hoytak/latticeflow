@@ -4,7 +4,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // A Kernel wrapper that should be used based on the previous.
 
-#include "../array_wrapper.hpp"
+#include "../common.hpp"
 #include <algorithm>
 
 template <int d>

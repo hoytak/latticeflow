@@ -1,7 +1,0 @@
-template <typename dtype> 
-struct fixed_sorter<dtype, %(size)s> {
-  static inline void sort(typename Array<dtype, %(size)d>::iterator start, 
-			  typename Array<dtype, %(size)d>::iterator end) {
-%(swaps)s
-  }
-};

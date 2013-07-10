@@ -1,0 +1,1 @@
+      conditional_swap(*(start + %(idx1)d), *(start + %(idx2)d));
