@@ -96,8 +96,11 @@ namespace latticeQBP {
       dtype zero_reference;
       dtype partition_size;
 
+      comp_type qii_sum;
+
       // These are absolute values
       dtype gamma_sum;
+
     }; 
 
     template <typename ForwardIterator>
@@ -378,53 +381,33 @@ namespace latticeQBP {
       if(!cut_ptr->any_cut) 
         return DetailedSplitInfo({false, 0, nullptr});
 
-      struct PartInfo {
-        comp_type qii_sum, gamma_sum;
-      };
+      vector<RegionInformation> p_info(cut_ptr->partitions.size());
 
-      const auto& piv = cut_ptr->partitions;
-      vector<PartInfo> p_info(piv.size());
-
-      // calculate the slope and intercept terms 
-      size_t R_size = 0;
-
-      for(size_t i = 0; i < piv.size(); ++i) {
-        const auto& pt = piv[i];
-        PartInfo& pi = p_info[i];
-        pi = {0,0};
-
-        R_size += pt->nodes.size();
-
-        comp_type lm_qii_sum = 0,  total_val = 0;
-
-        for(node_ptr n : piv->nodes) {
-          lm_qii_sum += n->cfv();
-          pi.qii_sum += n->fv();
-          total_val += n->fv_predict();
-        }
-          
-        pi.gamma_sum = (total_val
-                        - lm_qii_sum
-                        - (piv->is_on ? 1 : -1)*piv->cut_value);
-
+      for(size_t i = 0; i < cut_ptr->partitions.size(); ++i) {
+        const auto& pt = cut_ptr->partitions[i];
+        p_info[i] = getRegionInfo(pt.begin(), pt.end(), lambda);
       }
 
       // Get the rest of the components to calculate the shape
       comp_type qii_total = 0;
       comp_type gamma_total = 0;
 
-      for(const PartInfo& pi : p_info) {
-        qii_total += pi.qii_sum;
-        gamma_total += pi.gamma_sum;
+      for(const RegionInformation& ri : p_info) {
+        qii_total += ri.qii_sum;
+        gamma_total += ri.gamma_sum;
       }
 
       // Now go through and see which one has the largest lambda 
       dtype max_lambda_so_far = 0;
 
-      for(const PartInfo& pi : p_info) {
-        comp_type lambda_coeff = R_size * comp_type(pi.qii_sum)   - pi.size * qii_total;
-        comp_type lambda_intcp = R_size * comp_type(pi.gamma_sum) - pi.size * gamma_total;
-        comp_type cut = R_size * comp_type(pi.pt->cut_value);
+      for(size_t i = 0; i < cut_ptr->partitions.size(); ++i) {
+
+        const RegionInformation& ri = p_info[i];
+        size_t R_size = ri.partition_size;
+
+        comp_type lambda_coeff = R_size * ri.qii_sum   - ri.size * qii_total;
+        comp_type lambda_intcp = R_size * comp_type(ri.gamma_sum) - ri.size * gamma_total;
+        comp_type cut = R_size * comp_type(ri.pt->cut_value);
 
         dtype calc_lambda; 
 
@@ -437,8 +420,8 @@ namespace latticeQBP {
         // hits the cut.
 
 
-        if(  (pi.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
-             || (!pi.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ) {
+        if(  (ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
+             || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ) {
 
           // This means it is not the part that contains the
           // blocking flow. 
