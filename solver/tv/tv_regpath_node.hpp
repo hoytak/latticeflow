@@ -283,7 +283,8 @@ namespace latticeQBP {
       dtype split_lambda;
       dtype split_ub;
     };
-    
+
+
     SplitInfo calculateSplit(dtype current_lambda) const {
 
       if(n_nodes == 1) {
@@ -310,31 +311,157 @@ namespace latticeQBP {
           lambda_calc_lb = max(p->first, lambda_calc_lb);
         }
       }
+      
+      DetailedSplitInfo dsi, last_dsi;
+      dtype lambda_calc = lambda_calc_lb;
+      bool cut_exists = false;
 
       while(true) {
-        // Calculate the split point...
-        ci.solver.setRegionToLambda(ci.nodes.start(), ci.nodes.end(), lambda_calc_lb);
-      
-        // Now see if it can be solved at that lambda
-        ci.solver.runSection(ci.nodes.start(), ci.nodes.end(), ci.key);
-        auto cut_ptr = ci.solver.runPartitionedSection(ci.nodes.start(), ci.nodes.end(), ci.key);
+        last_dsi = dsi;
+        dsi = _calculateSingleSplit(lambda_calc);
 
-        if(cut_ptr->any_cut) {
-          
+        if(!dsi.any_cut)
+          break;
+        else
+          cut_exists = true;
 
+        assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
+        assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-
+        if(DEBUG_MODE) {
+          auto dsi2 = _calculateSingleSplit(dsi.lambda_of_split_capacity - 1);
+          assert_equal(dsi2->lambda_of_split_capacity, dsi->lambda_of_split_capacity);
         }
+
+        lambda_calc = dsi.lambda_of_split_capacity;
       }
 
-
-
       // Store that information in the computation structure
-      
-      
+      if(cut_exists) {
+        assert(last_dsi.any_cut);
+        
+        ci.split_cut = last_dsi.cut_ptr;
 
+      } else {
+        ci.split_calculation_done_to_lambda = lambda_calc_lb;
+        ci.lambda_of_split = -1;
+        return SplitInfo({false, -1, lambda_calc_lb});
+      }
     }
 
+  private:
+
+
+    struct DetailedSplitInfo {
+      bool split_occurs;
+      
+      // This gives the exact lambda of this cut; if it is one less
+      // than this, then the cut will form.  Above this, there may be
+      // a new cut, but at least this one won't form.
+      dtype lambda_of_split_capacity;
+
+      typename TV_PR_Class::cutinfo_ptr cut;
+    };      
+
+
+    DetailedSplitInfo _calculateSingleSplit(dtype lambda) {
+
+      const ConstructionInfo& ci = *constructionInfo();
+
+      // Calculate the split point...
+      ci.solver.setRegionToLambda(ci.nodes.start(), ci.nodes.end(), lambda);
+      
+      // Now see if it can be solved at that lambda
+      ci.solver.runSection(ci.nodes.start(), ci.nodes.end(), ci.key);
+      auto cut_ptr = ci.solver.runPartitionedSection(ci.nodes.start(), ci.nodes.end(), ci.key);
+
+      if(!cut_ptr->any_cut) 
+        return DetailedSplitInfo({false, 0, nullptr});
+
+      struct PartInfo {
+        comp_type qii_sum, gamma_sum;
+      };
+
+      const auto& piv = cut_ptr->partitions;
+      vector<PartInfo> p_info(piv.size());
+
+      // calculate the slope and intercept terms 
+      size_t R_size = 0;
+
+      for(size_t i = 0; i < piv.size(); ++i) {
+        const auto& pt = piv[i];
+        PartInfo& pi = p_info[i];
+        pi = {0,0};
+
+        R_size += pt->nodes.size();
+
+        comp_type lm_qii_sum = 0,  total_val = 0;
+
+        for(node_ptr n : piv->nodes) {
+          lm_qii_sum += n->cfv();
+          pi.qii_sum += n->fv();
+          total_val += n->fv_predict();
+        }
+          
+        pi.gamma_sum = (total_val
+                        - lm_qii_sum
+                        - (piv->is_on ? 1 : -1)*piv->cut_value);
+
+      }
+
+      // Get the rest of the components to calculate the shape
+      comp_type qii_total = 0;
+      comp_type gamma_total = 0;
+
+      for(const PartInfo& pi : p_info) {
+        qii_total += pi.qii_sum;
+        gamma_total += pi.gamma_sum;
+      }
+
+      // Now go through and see which one has the largest lambda 
+      dtype max_lambda_so_far = 0;
+
+      for(const PartInfo& pi : p_info) {
+        comp_type lambda_coeff = R_size * comp_type(pi.qii_sum)   - pi.size * qii_total;
+        comp_type lambda_intcp = R_size * comp_type(pi.gamma_sum) - pi.size * gamma_total;
+        comp_type cut = R_size * comp_type(pi.pt->cut_value);
+
+        dtype calc_lambda; 
+
+        // is_on being true means that this partition was on the
+        // high end, so at the lambda = 0 end, it's got too much
+        // flow if this is the blocking cut section.  This means
+        // that the incoming flow must decrease with increasing
+        // lambda, and that the original intercept term must be
+        // positive.  Thus we are looking for the point where it
+        // hits the cut.
+
+
+        if(  (pi.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
+             || (!pi.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ) {
+
+          // This means it is not the part that contains the
+          // blocking flow. 
+          continue;
+        }
+            
+        calc_lambda = Node::getLambdaFromQuotient(abs(lambda_intcp) - cut, abs(lambda_coeff));
+
+        assert_leq(calc_lambda, rhs_lambda);
+
+        if(DEBUG_MODE && piv.size() == 2 && &pi == &(p_info[1])) {
+          // These should be approximately the same 
+          assert_equal(calc_lambda, max_lambda_so_far);
+        }
+          
+        max_lambda_so_far = max(calc_lambda, max_lambda_so_far);
+      }
+
+      return DetailedSplitInfo({true, max_lambda_so_far, cut_ptr, max_lambda_so_far});
+    }
+
+
+  public:
     void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2) {
       // Applies the split
       
@@ -420,9 +547,8 @@ namespace latticeQBP {
       assert_leq(join_lambda, r2->rhs_lambda);
 
       if(0 < join_lambda && join_lambda < current_lambda) {
-        join_queue.push(JoinPoint(join_lambda, rps1, rps2));
-        rps1->registerJoinPoint(join_lambda, rps2);
-        rps2->registerJoinPoint(join_lambda, rps1);
+        r1->registerJoinPoint(join_lambda, r2);
+        r2->registerJoinPoint(join_lambda, r1);
         return join_lambda;
       } else {
         return -1;

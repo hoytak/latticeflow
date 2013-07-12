@@ -209,8 +209,8 @@ namespace latticeQBP {
       auto isStillValid = [&, current_lambda](TVRegPathSegment *rps) {
         assert_neq(rps, nullptr);
         if(rps->lhs_lambda != -1) {
-          assert_geq(current_lambda, rps1->lhs_lambda);
-          assert(rps1->lhs_mode != TVRegPathSegment::Unset);
+          assert_geq(current_lambda, rps->lhs_lambda);
+          assert(rps->lhs_mode != TVRegPathSegment::Unset);
           return false;
         }
       };
@@ -227,49 +227,53 @@ namespace latticeQBP {
           continue;
 
         switch(fp.mode) {
-        case FunPoint::Join:
-          TVRegPathSegment* rps1 = fp.rps1;
-          TVRegPathSegment* rps2 = fp.rps2;
+        case FunPoint::Join: 
+          {
+            TVRegPathSegment* rps1 = fp.rps1;
+            TVRegPathSegment* rps2 = fp.rps2;
 
-          TVRegPathSegment* new_rps = getNewTVRegPathSegment();
+            TVRegPathSegment* new_rps = getNewTVRegPathSegment();
 
-          TVRegPathSegment::join(current_lambda, new_rps, rps1, rps2);
+            TVRegPathSegment::join(current_lambda, new_rps, rps1, rps2);
 
-          rps1->deactivate();
-          rps2->deactivate();
+            rps1->deactivate();
+            rps2->deactivate();
 
-          activateNewLine(new_rps);
+            activateNewLine(new_rps);
 
-          break;
-
+            break;
+          }
         case FunPoint::Split:
-          TVRegPathSegment* rps = fp.rps1;
-          assert(fp.rps2 == nullptr);
+          {
+            TVRegPathSegment* rps = fp.rps1;
+            assert(fp.rps2 == nullptr);
 
-          assert_equal(current_lambda, rps->constructionInfo()->lambda_of_split);
+            assert_equal(current_lambda, rps->constructionInfo()->lambda_of_split);
 
-          TVRegPathSegment* new_rps1 = getNewTVRegPathSegment();
-          TVRegPathSegment* new_rps2 = getNewTVRegPathSegment();
+            TVRegPathSegment* new_rps1 = getNewTVRegPathSegment();
+            TVRegPathSegment* new_rps2 = getNewTVRegPathSegment();
 
-          rps->applySplit(new_rps1, new_rps2);
+            rps->applySplit(new_rps1, new_rps2);
 
-          rps->deactivate();
+            rps->deactivate();
 
-          activateNewLine(new_rps1);
-          activateNewLine(new_rps2);
+            activateNewLine(new_rps1);
+            activateNewLine(new_rps2);
 
-          break;
-
+            break;
+          }
         case FunPoint::SplitUB:
-          TVRegPathSegment* rps = fp.rps1;          
-          assert(fp.rps2 == nullptr);
+          {
+            TVRegPathSegment* rps = fp.rps1;          
+            assert(fp.rps2 == nullptr);
 
-          assert_equal(current_lambda, 
-                       rps->constructionInfo()->split_calculation_done_to_lambda);
+            assert_equal(current_lambda, 
+                         rps->constructionInfo()->split_calculation_done_to_lambda);
 
-          registerPossibleSplit(rps);
+            registerPossibleSplit(rps);
 
-          break;
+            break;
+          }
         }
       }
 
