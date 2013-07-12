@@ -68,7 +68,7 @@ namespace latticeQBP {
 
     typedef unsigned int uint;
     static constexpr uint kernel_size = KernelLattice::kernel_size;
-    constexpr uint reverseIndex(uint idx) {return lattice.reverseIndex(idx);}
+    static constexpr uint reverseIndex(uint idx) {return KernelLattice::reverseIndex(idx);}
 
     struct Level {
       vector<node_ptr> nodes;

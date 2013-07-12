@@ -64,7 +64,7 @@ public:
   PossibleNeighbor() : data(0) {}
 
   PossibleNeighbor(level_index_type h, int idx) 
-    : data(_dataValue(h, index)) 
+    : data(_dataValue(h, index())) 
   {
     assert_equal(h, height());
     assert_equal(idx, index());

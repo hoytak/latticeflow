@@ -36,14 +36,8 @@ namespace latticeQBP {
     template <typename ForwardIterator, typename RPSKeyLookupFunction> 
     void setupAsInitial(const ForwardIterator& start, 
                         const ForwardIterator& end,
-                        dtype solved_lamba,
-                        const RPSKeyLookupFunction& key_lookup
-                        ) {
-      n_nodes = 0;
-      for(ForwardIterator it = start; it != end; ++it) {
-        (*it)->setKey(constructionInfo()->key);
-        ++n_nodes;
-      }
+                        dtype solved_lamba) {
+      syncKey(start, end);
       
       assert(nodeset.empty());
       nodeset.insert(start, end);
@@ -52,9 +46,6 @@ namespace latticeQBP {
       rhs_mode = Initial;
 
       updateLevelInformation(start, end);
-
-      // Add up the 
-
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -131,6 +122,17 @@ namespace latticeQBP {
       ri.gamma_sum = (ri.r_sum_d - ri.lm_qii_sum_d);
 
       return ri;
+    }
+
+    template <typename ForwardIterator>
+    void syncKey(const ForwardIterator& start, 
+                 const ForwardIterator& end) {
+
+      n_nodes = 0;
+      for(ForwardIterator it = start; it != end; ++it) {
+        (*it)->setKey(key);
+        ++n_nodes;
+      }
     }
 
     template <typename ForwardIterator>
@@ -366,7 +368,6 @@ namespace latticeQBP {
       typename TV_PR_Class::cutinfo_ptr cut;
     };      
 
-
     DetailedSplitInfo _calculateSingleSplit(dtype lambda) {
 
       const ConstructionInfo& ci = *constructionInfo();
@@ -445,9 +446,13 @@ namespace latticeQBP {
 
 
   public:
-    void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2) {
-      // Applies the split
+    void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2, dtype check_lambda) {
       
+      const auto& ci = *constructionInfo();
+
+      assert_equal(check_lambda, ci.lambda_of_split);
+      
+      // First, ensure that the 
 
     } 
 
@@ -498,6 +503,9 @@ namespace latticeQBP {
       rps2->lhs_mode = Join;
       rps2->lhs_lambda = join_lambda;
       rps2->lhs_nodes = {dest, 0};
+
+      // Now go through and make sure that the lattice is entirely 
+
     }
 
     static inline dtype calculateJoins(TVRegPathSegment* r1,

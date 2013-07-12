@@ -143,6 +143,15 @@ namespace latticeQBP {
       return cut;
     }
 
+    void applyPartioningCut(cutinfo_ptr cut, uint key) {
+      for(auto cutedge : cut->cut_edges) {
+        node_ptr n = cutedge.first;
+        uint ei = cutedge.second;
+        node_ptr dest = n + Base::step_array[ei];
+        n->template saturate<0>(Base::lattice, dest, ei);
+      }
+    }
+
     ////////////////////////////////////////////////////////////////////////////////
     // Method for walking the lattice and picking out sections.  This
     // can only be called from an external function; cannot be done while solving

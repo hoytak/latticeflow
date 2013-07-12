@@ -322,6 +322,11 @@ namespace latticeQBP {
 #endif
     }
 
+    template <int partition, typename Lattice, typename _node_ptr> 
+    inline void saturate(Lattice& lattice, const _node_ptr& dest, unsigned int ei) {
+      pushExcess<partition>(lattice, dest, ei, max(pushCapacity<partition>(ei), dtype(0)));
+    }
+
     template <typename Lattice> 
     class NodeFiller {
     public:
