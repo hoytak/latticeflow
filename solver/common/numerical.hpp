@@ -2,117 +2,116 @@
 #define _NUMERICAL_H_
 
 #include <cstdint>
+
+#ifndef EMACS_FLYMAKE
 #include <boost/multiprecision/cpp_int.hpp>
+#endif
 
 namespace latticeQBP {
   
   using namespace std;
+
+#ifndef EMACS_FLYMAKE
   using namespace boost::multiprecision;
+#endif
 
-  ////////////////////////////////////////////////////////////////
-  // This could be optimized more.  Now 
-  template <typename dtype> class StableAverage
-  {
-  public:
-    StableAverage()
-      : n_values(0)
-      , inf_int_sum_value(0)
-      , ll_sum_value(0)
-    {}
+#ifdef EMACS_FLYMAKE
 
-    static constexpr bool uses_long_long = (sizeof(long long) > sizeof(dtype)); 
+  template <typename dtype> class CompType { typedef dtype Type; };
+  template <typename dtype> class DTypeMap { typedef dtype Type; };
 
-    inline void add(dtype v, size_t count = 1) {
-      if(uses_long_long)
-        ll_sum_value += v;
-      else
-        inf_int_sum_value += v;
-
-      n_values += count;
-    }
-
-    void value() const {
-      if(uses_long_long)
-        return dtype(ll_sum_value / n_values);
-      else
-        return dtype(inf_int_sum_value / n_values);
-    }
-
-  private:
-    template <typename int_type> 
-    inline dtype _valueRoundedUp(int_type& v) {
-      // Try to avoid any copy operations of the inf int type
-
-      if(v > 0)
-        v += (n_values - 1);
-
-      dtype average = value();
-
-      if(v > 0)
-        v -= (n_values - 1);
-
-      return average;
-    }
-
-  public:
-    inline void valueRoundedUp() const {
-      if(uses_long_long)
-        return _valueRoundedUp(ll_sum_value);
-      else
-        return _valueRoundedUp(inf_int_sum_value);
-    }
-
-  private:
-    cpp_int inf_int_sum_value;
-    long long ll_sum_value;
-    size_t n_values;
-  };
+#else
 
 #ifndef NDEBUG
   
   template <typename dtype> class CompType {};
 
-  template <> class CompType<int32_t> {
-    typedef int64_t Type;
-  };
-
-  template <> class CompType<int64_t> {
-    typedef checked_int128_t Type;
-  };
+  template <> class CompType<int32_t> { typedef int64_t Type;          };
+  template <> class CompType<int64_t> { typedef checked_int128_t Type; };
 
 #ifdef HAVE__int128_t
-  template <> class CompType<__int128_t> {
-    typedef checked_int256_t Type;
-  };
+  template <> class CompType<__int128_t> { typedef checked_int256_t Type; };
 #endif
 
-#else
+#else // NDEBUG defined
 
   template <typename dtype> class CompType {};
 
-  template <> class CompType<int32_t> {
-    typedef int64_t Type;
-  };
+  template <> class CompType<int32_t> { typedef int64_t Type; };
 
 #ifdef HAVE__int128_t
-  template <> class CompType<int64_t> {
-    typedef __int128_t Type;
-  };
+  template <> class CompType<int64_t> { typedef __int128_t Type; };
 #else
-  template <> class CompType<int64_t> {
-    typedef int128_t Type;
-  };
+  template <> class CompType<int64_t> { typedef int128_t Type; };
 #endif
 
 #ifdef HAVE__int128_t
-  template <> class CompType<__int128_t> {
-    typedef int256_t Type;
-  };
+  template <> class CompType<__int128_t> { typedef int256_t Type; };
+#else
+  template <> class CompType<int128_t> { typedef int256_t Type; };
 #endif
   
 #endif
 
+  ////////////////////////////////////////////////////////////////////////////////
+  // Now the reverse types
+  
+#ifndef NDEBUG
+  
+  template <typename comp_type> class DTypeMap {};
+
+  template <> class DTypeMap<int64_t> { typedef int32_t Type;          };
+  template <> class DTypeMap<checked_int128_t> { typedef int64_t Type; };
+
+#ifdef HAVE__int128_t
+  template <> class DTypeMap<checked_int256_t> { typedef __int128_t Type; };
+#else
+  template <> class DTypeMap<checked_int256_t> { typedef int128_t Type; };
+#endif
+
+#else // NDEBUG defined
+
+  template <typename dtype> class DType {};
+
+  template <> class DTypeMap<int64_t> { typedef int32_t Type; };
+
+#ifdef HAVE__int128_t
+  template <> class DTypeMap<__int128_t> { typedef int64_t Type; };
+#else
+  template <> class DTypeMap<int128_t> { typedef int64_t Type; };
+#endif
+
+#ifdef HAVE__int128_t
+  template <> class DTypeMap<int256_t> { typedef __int128_t Type; };
+#else
+  template <> class DTypeMap<int256_t> { typedef int128_t Type; };
+#endif
+  
+#endif
+
+#endif
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // Now casting and other low level stuff
+
+  template <typename CompType> 
+  static inline typename DTypeMap<CompType>::Type toDType(const CompType& c) {
+    typedef typename DTypeMap<CompType>::Type dtype;
+    
+    dtype t = dtype(c);
+    assert_equal(CompType(t), c);
+    return t;
+  }
+
+  template <typename CompType> 
+  static inline typename DTypeMap<CompType>::Type ceilAverage(CompType sum, size_t n) {
+    if(sum > 0) sum += (n-1);
+    return toDType(sum / n);
+  }
+
+
 }; 
+
 
 #endif /* _NUMERICAL_H_ */
 

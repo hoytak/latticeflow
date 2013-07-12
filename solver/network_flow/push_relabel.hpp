@@ -1220,6 +1220,8 @@ namespace latticeQBP {
       size_t set_size = 0;
       size_t starting_size = 0;
 
+      key = _key;
+
       if(OptPolicy::init_hotstart()) {
         hotStart(start, end);
         if(OptPolicy::init_quickflow()) quickFlow();

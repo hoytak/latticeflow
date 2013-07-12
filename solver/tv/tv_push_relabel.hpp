@@ -4,6 +4,8 @@
 #include "../common.hpp"
 #include "../network_flow/push_relabel.hpp"
 
+#include <unordered_set>
+
 namespace latticeQBP {
 
   using namespace std;  
@@ -35,75 +37,110 @@ namespace latticeQBP {
 
     typedef shared_ptr<PartitionInfo> partitioninfo_ptr;
 
-  protected:
-    partitioninfo_ptr _addPartition(node_ptr n, uint key) {
-      PartitionInfo* pi = new PartitionInfo;
-
-      bool is_on              = pi->is_on     = n->on();
-      dtype& cut_value        = pi->cut_value = 0;
-      vector<node_ptr>& nodes = pi->nodes;
-
-      nodes.push_back(n);
-
-      for(size_t n_idx = 0; n_idx < nodes.size(); ++n_idx) {
-        node_ptr n = nodes[n_idx];
-
-        for(uint ei = 0; ei < kernel_size; ++ei) {
-          node_ptr nn = n + Base::step_array[ei];
-          if(nn->matchesKey(key)) {
-            if(nn->state() == is_on) {
-              nodes.push_back(nn);
-            } else {
-              if(DEBUG_MODE) {
-                if(is_on) {
-                  assert_lt(n->level(), nn->level());
-                }
-              }
-
-              cut_value += capacityOfSaturated(n, nn, ei); 
-            }
-          }
-        }
-
-        n->clearKey();
-      }
-
-      return partitioninfo_ptr(pi);
-    }
-
   public:
+
+    struct CutInfo {
+      bool any_cut;
+      vector<partitioninfo_ptr> partitions;
+      vector<pair<node_ptr, uint> > cut_edges;
+    };
+
+    typedef shared_ptr<CutInfo> cutinfo_ptr;
+
     template <typename NodePtrIterator>  
-    vector<partitioninfo_ptr> cleanupAndGetBlocks(
-       const NodePtrIterator& start, const NodePtrIterator& end, uint key = 0) {
+    cutinfo_ptr runPartitionedSection(const NodePtrIterator& start, 
+                                      const NodePtrIterator& end, uint key) {
 
       if(DEBUG_MODE) {
         for(NodePtrIterator it = start; it != end; ++it) {
           node_ptr n = *it;
           assert(n->matchesKey(key));
+          assert(n->height == 0);
+          assert(n->state() == 0);
         }
       }
 
-      vector<partitioninfo_ptr> piv;
+      runSection(start, end, key);
+
+      bool any_on = false;
+      for(NodePtrIterator it = start; it != end; ++it) {
+        if( (*it)->state() ) {
+          any_on = true;
+          break;
+        }
+      }
+
+      cutinfo_ptr cut = cutinfo_ptr(new CutInfo);
+      cut->any_cut = any_on;
+      
+      if(!any_on)
+        return cut;
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
       for(NodePtrIterator it = start; it != end; ++it) {
-    
-        // Set these nodes to the given key and partition
-        node_ptr n = *it;
-        if(!n->matchesKey(key))
-          continue;
-        else
-          piv.push_back(_addPartition(n, key));
-      }
+        node_ptr n = *it;    
 
-      for(auto it : piv) {
-        if(it->is_on != 0) {
-          for(node_ptr n : it->nodes) {
-            n->template flipNode<1>(Base::lattice);
+        assert(n->matchesKey(key));
+        
+        if(!(n->height)) 
+          continue;
+
+        // Okay, it's a new partition!!!  Pirate poodles!  
+
+        partitioninfo_ptr pi = partitioninfo_ptr(new PartitionInfo);
+
+        bool is_on = pi->is_on = n->on();
+        vector<node_ptr>& nodes = pi->nodes;
+
+        nodes.push_back(n);
+        n->height = 1;
+
+        // Go through and fill this partition
+        for(size_t n_idx = 0; n_idx < nodes.size(); ++n_idx) {
+          node_ptr n2 = nodes[n_idx];
+          n2->height = 1;
+
+          for(uint ei = 0; ei < kernel_size; ++ei) {
+            node_ptr nn = n2 + Base::step_array[ei];
+
+            if(nn->height != 0 || !nn->matchesKey(key))
+              continue;
+            
+            if(nn->state() == is_on) {
+              nodes.push_back(nn);
+            } else {
+
+              if(DEBUG_MODE) {
+                if(is_on) {
+                  assert_lt(n2->level(), nn->level());
+                } else {
+                  assert_gt(n2->level(), nn->level());
+                }
+              }
+
+              pi->cut_value += capacityOfSaturated(n2, nn, ei); 
+
+              if(is_on) 
+                cut->cut_edges.emplace_back(n2, ei);
+            }
           }
         }
+        
+        cut->partitions.push_back(pi);
       }
+
+      // Finally, clean up 
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = *it;    
+
+        assert(n->matchesKey(key));
+        assert_eq(n->height, 1);
+
+        n->height = 0;
+      }
+      
+      return cut;
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -163,10 +200,69 @@ namespace latticeQBP {
       return s;
     }
 
-    // template <typename RegisterNodePair> {
-      
+    inline bool nodeIsOrphan(node_ptr n) const {
+      for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
+        node_ptr nn = n + Base::step_array[ei];
+          
+        if(pushCapacity(n, nn, ei) 
+           + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+          return false;
+        }
 
-    // }
+        return true;
+      }
+    }
+
+    template <typename RegisterNodePair> 
+    void constructNeighborhoodKeyPairs(RegisterNodePair& pair_reg) const {
+
+      unordered_set<uint64_t> seen_keys;
+
+      auto gen_key = [](uint key1, uint key2){
+        return (uint64_t(min(key1, key2)) << 32) | (uint64_t(max(key1, key2)));
+      };
+
+      for(node_ptr n : Base::lattice) {
+        for(uint ei = 0; ei < Base::lattice.kernel_positive_size; ++ei) {
+          node_ptr nn = n + Base::step_array[ei];
+
+          if(pushCapacity(n, nn, ei) + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+            auto ret = seen_keys.insert(gen_key(n->key(), nn->key()));
+
+            if(ret.second) { 
+              // The element was inserted; hasn't been seen before
+              pair_reg(n, nn);
+            }
+          }
+        }
+      }
+    }
+
+    
+    template <typename NodePtrIterator>  
+    void setRegionToLambda(const NodePtrIterator& start, 
+                           const NodePtrIterator& end, 
+                           dtype lambda) {
+      
+      comp_type fv_avg = 0;
+      size_t n_sum = 0;
+
+      for(auto it = start; it != end; ++it) {
+        node_ptr n = (*it);
+
+        n->setFunctionValue(Base::lattice, 0, lambda); 
+
+        fv_avg += n->fv_predict();
+        ++n_sum;
+      }
+
+      dtype fv_offset = ceilAverage(fv_avg, n_sum);
+
+      for(auto it = start; it != end; ++it) {
+        (*it)->setOffset(Base::lattice, fv_offset);
+      }
+    }
+
   };
 
 }; 

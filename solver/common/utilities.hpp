@@ -105,6 +105,4 @@ Array<dtype, 3> make_array_3(const dtype& v0, const dtype& v1, const dtype& v2) 
   return a;
 }
 
-
-
 #endif /* _UTILITIES_H_ */

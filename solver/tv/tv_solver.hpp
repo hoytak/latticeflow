@@ -165,21 +165,6 @@ namespace latticeQBP {
 
       while(true) { 
 
-        StableAverage<dtype> fv_avg;
-      
-        for(ForwardIterator it = it_start; it != it_end; ++it) {
-          node_ptr n = (*it);
-          n->setFunctionValue(lattice, 0, min_lambda); 
-          fv_avg.add(n->fv_predict());
-        }
-      
-        dtype fv_offset = fv_avg.valueRoundedUp();
-
-        for(ForwardIterator it = it_start; it != it_end; ++it) {
-          node_ptr n = (*it);
-          n->setOffset(lattice, fv_offset);
-        }
-
         const uint key = 1021;
 
         pr_solver.prepareSection(it_start, it_end, key);
