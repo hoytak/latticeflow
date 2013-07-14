@@ -25,12 +25,13 @@ namespace latticeQBP {
 
   using namespace std;
 
-  template <typename dtype, typename KernelLattice, int partition> class PRFlow {
+  template <typename dtype, typename _KernelLattice, int partition> class PRFlow {
   protected:
 
     static_assert(partition == 0 || partition == 1, 
                   "partition must be 0 or 1.");
 
+    typedef _KernelLattice KernelLattice;
     typedef typename KernelLattice::Kernel Kernel;
     typedef KernelOptimizationPolicy<Kernel> OptPolicy; 
                   

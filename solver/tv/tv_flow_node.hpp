@@ -22,12 +22,12 @@ namespace latticeQBP {
       : base_fv(0)
       , current_fv(0)
     {}
-
+    
   protected:
     dtype base_fv;
     dtype current_fv;
     dtype current_fv_offset;
-
+ 
   public:
     typedef typename CompType<dtype>::Type comp_type;
 
@@ -142,4 +142,15 @@ namespace latticeQBP {
 
   };
 };
+
+#ifdef EMACS_FLYMAKE
+
+#include "../kernels/kernels.hpp"
+
+namespace latticeQBP {
+  template class TVFlowNode<Star2d_4, long>;
+};
+
+#endif
+
 #endif /* _TV_FLOW_NODE_H_ */

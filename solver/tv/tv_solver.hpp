@@ -4,7 +4,8 @@
 #include "../kernels/kernels.hpp"
 #include "../common.hpp"
 #include "../lattices/lattice.hpp"
-#include "tv_flow_node.hpp"
+#include "../parametricflow/mn_netflow_solver.hpp"
+#include "tv_regpath.hpp"
 #include "tv_push_relabel.hpp"
 
 #include <cmath>
@@ -38,17 +39,18 @@ namespace latticeQBP {
     typedef typename Lattice::value_ptr node_ptr; 
     typedef typename CompType<dtype>::Type comp_type;
     typedef TV_PRFlow<dtype, Lattice> PRSolver;
+    typedef TVRegPathManager<dtype, PRSolver> TVRegPathManager;
 
+    
   private:
 
     ////////////////////////////////////////////////////////////////////////////////
     // General information
     size_t nx, ny;
     double *function;
-
     Lattice lattice;
-
     dtype max_lambda;
+    TVRegPathManager reg_path;
 
   public:
 
@@ -57,7 +59,7 @@ namespace latticeQBP {
       , ny(_ny)
       , function(_function)
       , lattice(index_vect({nx, ny}))
-      , pr_solver(lattice)
+      , reg_path(lattice)
     {
       ////////////////////////////////////////////////////////////
       // Initialize the lattice 
@@ -68,8 +70,6 @@ namespace latticeQBP {
       }
       
       Node::initTVLattice(lattice);
-
-      // Now we're ready to go...
     }
 
 
@@ -128,211 +128,9 @@ namespace latticeQBP {
     ////////////////////////////////////////
     // Functions to test things. 
     
-    dtype pathIntersection(RegPathSegment* rhs1, RegPathSegment* rhs2) const {
-      // This function returns the lambda value at which the two paths
-      // join, or zero if they never cross.
-      return 0;
-    }
-
-    ////////////////////////////////////////////////////////////
-    // Adding nodes in there 
-
-    typedef typename RegPathSegment::Mode RPSMode;
-
-    template <typename ForwardIterator> 
-    void addPivot(ForwardIterator it_start, ForwardIterator it_end, 
-                  dtype node_rhs_lambda,
-                  RPSMode rhs_mode)
-    {
-      
-      RegPathSegment* rps = getNewRegPathSegment();
-
-      // First, go through and check all the other paths to see if any
-      // will join this one.  If so, then 
-
-
-
-
-
-      ////////////////////////////////////////////////////////////////////////////////
-      // First, see if it's possible to solve the transhipment problem
-      // at the lowest possible lambda
-
-      typedef typename PRSolver::partitioninfo_ptr partitioninfo_ptr;
-
-      dtype min_lambda = known_join_lambda;
-      vector<partitioninfo_ptr> current_partition_info_split;
-
-      while(true) { 
-
-        const uint key = 1021;
-
-        pr_solver.prepareSection(it_start, it_end, key);
-        pr_solver.runSection(it_start, it_end, key);
-        vector<partitioninfo_ptr> piv = pr_solver.cleanupAndGetBlocks(it_start, it_end, key);      
-        // See if we've found the correct lower bound on the lambda
-        if(piv.size() == 1)
-          break;
-        
-        // Okay, now recallibrate the lambda needed to correspond to the minimum breaking point. 
-        current_partition_info_split = piv;
-
-        // Need a set of equations to calculate the 
-
-        struct PartInfo {
-          partitioninfo_ptr pt;
-          dtype qii_sum, gamma_sum;
-        };
-
-        // calculate the slope and intercept terms 
-        size_t R_size = 0;
-        for(const partitioninfo_ptr& pt : piv)
-          R_size += pt->nodes.size();
-
-        vector<PartInfo> p_info(piv.size());
-
-        for(size_t i = 0; i < piv.size(); ++i) {
-          const partitioninfo_ptr& pt = piv[i];
-          PartInfo& pi = p_info[i];
-
-          pi = {pt, 0, 0};
-
-          dtype lm_qii_sum = 0, qii_sum = 0, total_val = 0;
-
-          for(node_ptr n : piv->nodes) {
-
-            // Subtracting by fv_avg is for numerical stability
-            lm_qii_sum += n->cfv() - fv_avg;
-
-            pi.qii_sum += n->fv();
-
-            total_val += n->fv_predict() - fv_avg;
-          }
-          
-          pi.gamma_sum = (total_val
-                          - lm_qii_sum
-                          - (piv->is_on ? 1 : -1)*piv->cut_value);
-
-        }
-
-        // Get the rest of the components to calculate the shape
-        comp_type qii_total = 0;
-        comp_type gamma_total = 0;
-
-        for(const PartInfo& pi : p_info) {
-          qii_total += pi.qii_sum;
-          gamma_total += pi.gamma_sum;
-        }
-
-        // Now go through and see which one has the largest lambda 
-        dtype max_lambda_so_far = 0;
-
-        for(const PartInfo& pi : p_info) {
-          comp_type lambda_coeff = R_size * comp_type(pi.qii_sum)   - pi.size * qii_total;
-          comp_type lambda_intcp = R_size * comp_type(pi.gamma_sum) - pi.size * gamma_total;
-          comp_type cut = R_size * comp_type(pi.pt->cut_value);
-
-          dtype calc_lambda; 
-
-          // is_on being true means that this partition was on the
-          // high end, so at the lambda = 0 end, it's got too much
-          // flow if this is the blocking cut section.  This means
-          // that the incoming flow must decrease with increasing
-          // lambda, and that the original intercept term must be
-          // positive.  Thus we are looking for the point where it
-          // hits the cut.
-
-
-          if(  (pi.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
-               || (!pi.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ) {
-
-            // This means it is not the part that contains the
-            // blocking flow. 
-            continue;
-          }
-            
-          calc_lambda = Node::getLambdaFromQuotient(abs(lambda_intcp) - cut, abs(lambda_coeff));
-
-          assert_leq(calc_lambda, node_rhs_lambda);
-
-          if(DEBUG_MODE && piv.size() == 2 && &pi == &(p_info[1])) {
-            // These should be approximately the same 
-            assert_equal(calc_lambda, max_lambda_so_far);
-          }
-          
-          max_lambda_so_far = max(calc_lambda, max_lambda_so_far);
-        }
-        
-        // Now, attempt to recalculate 
-        min_lambda = max_lambda_so_far + 1;
-
-      } // Go back and try the cut again
-      
-      // At this point, we know that the 
-      
-
-    }
                      
     ////////////////////////////////////////////////////////////////////////////////
     // Information from the 
-
-
-    template <typename ForwardIterator> 
-     get(ForwardIterator it_start, ForwardIterator it_end) {
-
-
-
-    template <typename ForwardIterator> 
-    void addStartingNode(ForwardIterator it_start, ForwardIterator it_end) {
-      
-      
-
-    }
-
-
-
-
-
-    ////////////////////////////////////////
-    // Now for setting up the initial set.
-
-    void fillIn() {
-
-
-    }
-
-
-    RegPathSegment* newInitialRegPathSegment(dtype lambda, 
-
-
-
-    template <typename ForwardIterator> 
-    void _addInitialSet
-
-
-    void initSetsAtMaxLambda() { 
-      
-      deque<deque<node_ptr> > queue; 
-      vector< 
-
-
-
-
-    }
-
-    // This calculates the TV for the 
-    void run(double _max_lambda) {
-
-      max_lambda = Node::toLmDType(_max_lambda);
-
-      // First, solve it as a reduction at this lambda
-      initSetsAtMaxLambda();
-      
-
-      // Now, for each of these sets, run a 
-      
-
-    }
 
   };
 

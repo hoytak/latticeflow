@@ -86,39 +86,38 @@ namespace latticeQBP {
       // The null one is for the dead nodes on the perimeters 
       TVRegPathSegment *null_rps = getNewTVRegPathSegment();
 
-      for(node_ptr seed_node = lattice.begin(); seed_node != lattice.begin(); ++seed_node) {
+      for(node_ptr n = lattice.begin(); n != lattice.begin(); ++n) {
 
         TVRegPathSegment *rps;
 
-        if(unlikely(seed_node->keyIsClear())) {
+        if(unlikely(n->keyIsClear())) {
 
-          if(solver.nodeIsOrphan(seed_node)) {
+          if(solver.nodeIsOrphan(n)) {
             rps = null_rps;
           } else {
 
-            dtype lvl = seed_node->level();
+            dtype lvl = n->level();
 
             vector<node_ptr> region = solver.walkConnectedRegion
-              (seed_node, 
-               [lvl](node_ptr nn) { return abs(lvl - nn->level()) <= 1; } );
+              (n, [lvl](node_ptr nn) { return abs(lvl - nn->level()) <= 1; } );
 
             rps = getNewTVRegPathSegment();
         
             rps->setupAsInitial(solved_lamba, region.begin(), region.end());
 
-            assert(rps == lookupRPSFromKey(seed_node->key()));
+            assert(rps == lookupRPSFromKey(n->key()));
 
             initial_rps_nodes.push_back(rps);
           }
 
         } else {
-          rps = lookupRPSFromKey(seed_node->key());
+          rps = lookupRPSFromKey(n->key());
           
           // Create the new region; setting all the sections to the
           // correct key. 
         }
 
-        node_map_at_lambda_max[seed_node - lattice.begin()] = rps;
+        node_map_at_lambda_max[n - lattice.begin()] = rps;
       }
 
       ////////////////////////////////////////////////////////////////////////////////
@@ -234,7 +233,7 @@ namespace latticeQBP {
 
             TVRegPathSegment* new_rps = getNewTVRegPathSegment();
 
-            TVRegPathSegment::join(current_lambda, new_rps, rps1, rps2);
+            new_rps->setupFromJoin(current_lambda, rps1, rps2);
 
             rps1->deactivate();
             rps2->deactivate();

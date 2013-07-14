@@ -10,14 +10,16 @@ namespace latticeQBP {
 
   using namespace std;  
   
-  template <typename dtype, typename KernelLattice>
-  class TV_PRFlow : public PRFlow<dtype, KernelLattice, 0> {
+  template <typename dtype, typename _KernelLattice>
+  class TV_PRFlow : public PRFlow<dtype, _KernelLattice, 0> {
   public:
     
-    typedef PRFlow<dtype, KernelLattice, 0> Base;
+    typedef PRFlow<dtype, _KernelLattice, 0> Base;
+    typedef typename Base::KernelLattice KernelLattice;
     typedef typename Base::node_ptr node_ptr;
     typedef typename Base::node_cptr node_cptr;
-    typedef typename CompType<dtype>::comp_type comp_type;
+    typedef typename Base::Node Node;
+    typedef typename CompType<dtype>::Type comp_type;
 
     typedef unsigned int uint;
     static constexpr uint kernel_size = KernelLattice::kernel_size;    
@@ -31,7 +33,6 @@ namespace latticeQBP {
 
     struct PartitionInfo {
       bool is_on;
-      dtype cut_value;
       vector<node_ptr> nodes;
     };
 
@@ -40,8 +41,11 @@ namespace latticeQBP {
   public:
 
     struct CutInfo {
+      CutInfo() : partitions({nullptr, nullptr}) {}
+
       bool any_cut;
-      vector<partitioninfo_ptr> partitions;
+      Array<partitioninfo_ptr, 2> partitions;
+      dtype cut_value;
       vector<pair<node_ptr, uint> > cut_edges;
     };
 
@@ -50,17 +54,15 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     cutinfo_ptr runPartitionedSection(const NodePtrIterator& start, 
                                       const NodePtrIterator& end, uint key) {
-
-      if(DEBUG_MODE) {
-        for(NodePtrIterator it = start; it != end; ++it) {
-          node_ptr n = *it;
-          assert(n->matchesKey(key));
-          assert(n->height == 0);
-          assert(n->state() == 0);
-        }
+        
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = *it;
+        assert(n->matchesKey(key));
+        assert(n->height == 0);
+        assert(n->state() == 0);
       }
 
-      runSection(start, end, key);
+      Base::runSection(start, end, key);
 
       bool any_on = false;
       for(NodePtrIterator it = start; it != end; ++it) {
@@ -75,6 +77,13 @@ namespace latticeQBP {
       
       if(!any_on)
         return cut;
+      
+      cut->partitions = {partitioninfo_ptr(new PartitionInfo), 
+                         partitioninfo_ptr(new PartitionInfo)};
+
+      cut->partitions[0].is_on = false;
+      cut->partitions[1].is_on = true;
+      cut->cut_value = 0;
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -83,61 +92,19 @@ namespace latticeQBP {
 
         assert(n->matchesKey(key));
         
-        if(!(n->height)) 
-          continue;
+        bool is_on = n->state();
+        
+        cut->partitions[is_on ? 0 : 1].nodes.push_back(n);
 
-        // Okay, it's a new partition!!!  Pirate poodles!  
-
-        partitioninfo_ptr pi = partitioninfo_ptr(new PartitionInfo);
-
-        bool is_on = pi->is_on = n->on();
-        vector<node_ptr>& nodes = pi->nodes;
-
-        nodes.push_back(n);
-        n->height = 1;
-
-        // Go through and fill this partition
-        for(size_t n_idx = 0; n_idx < nodes.size(); ++n_idx) {
-          node_ptr n2 = nodes[n_idx];
-          n2->height = 1;
-
-          for(uint ei = 0; ei < kernel_size; ++ei) {
-            node_ptr nn = n2 + Base::step_array[ei];
-
-            if(nn->height != 0 || !nn->matchesKey(key))
-              continue;
-            
-            if(nn->state() == is_on) {
-              nodes.push_back(nn);
-            } else {
-
-              if(DEBUG_MODE) {
-                if(is_on) {
-                  assert_lt(n2->level(), nn->level());
-                } else {
-                  assert_gt(n2->level(), nn->level());
-                }
-              }
-
-              pi->cut_value += capacityOfSaturated(n2, nn, ei); 
-
-              if(is_on) 
-                cut->cut_edges.emplace_back(n2, ei);
-            }
+        // Now see about the cut.
+        for(uint ei = 0; ei < kernel_size; ++ei) {
+          node_ptr nn = n + Base::step_array[ei];
+          
+          if(nn->matchesKey(key) && nn->state() != is_on) {
+            cut->cut_value += capacityOfSaturated(n, nn, ei); 
+            cut->cut_edges.push_back(make_pair(n, ei));
           }
         }
-        
-        cut->partitions.push_back(pi);
-      }
-
-      // Finally, clean up 
-      for(NodePtrIterator it = start; it != end; ++it) {
-        node_ptr n = *it;    
-
-        assert(n->matchesKey(key));
-        assert_eq(n->height, 1);
-
-        n->height = 0;
       }
       
       return cut;
@@ -148,6 +115,8 @@ namespace latticeQBP {
         node_ptr n = cutedge.first;
         uint ei = cutedge.second;
         node_ptr dest = n + Base::step_array[ei];
+        assert(n->matchesKey(key));
+        assert(dest->matchesKey(key));
         n->template saturate<0>(Base::lattice, dest, ei);
       }
     }
@@ -213,13 +182,11 @@ namespace latticeQBP {
       for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
         node_ptr nn = n + Base::step_array[ei];
           
-        if(pushCapacity(n, nn, ei) 
-           + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+        if(Base::pushCapacity(n, nn, ei) + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) 
           return false;
-        }
-
-        return true;
       }
+
+      return true;
     }
 
     template <typename RegisterNodePair> 
@@ -247,6 +214,23 @@ namespace latticeQBP {
       }
     }
 
+    template <typename ForwardIterator, typename RegisterNode> 
+    void constructNeighborhoodSet(const ForwardIterator& start, const ForwardIterator& end, 
+                                  uint key, RegisterNode& reg_node) const {
+
+      for(ForwardIterator it = start; it != end; ++it) {
+        node_ptr n = (*it);
+        
+        for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
+          node_ptr nn = n + Base::step_array[ei];
+
+          if(pushCapacity(n, nn, ei) + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+            reg_node(nn);
+          }
+        }
+      }
+      
+    }
     
     template <typename NodePtrIterator>  
     void setRegionToLambda(const NodePtrIterator& start, 
@@ -275,5 +259,23 @@ namespace latticeQBP {
   };
 
 }; 
+
+
+#ifdef EMACS_FLYMAKE
+
+#include "../kernels/kernels.hpp"
+#include "../lattices/lattice.hpp"
+#include "tv_flow_node.hpp" 
+
+namespace latticeQBP {
+  typedef KernelLattice<TVFlowNode<Star2d_4, long>, 2, Star2d_4> _TV_PRFlow_TestLattice;
+  typedef TV_PRFlow<long, _TV_PRFlow_TestLattice> _TV_PRFlow_Test;
+
+  template class TV_PRFlow<long, _TV_PRFlow_TestLattice>;
+};
+
+#endif
+
+
 
 #endif /* _TV_PUSH_RELABEL_H_ */

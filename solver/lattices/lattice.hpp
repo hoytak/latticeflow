@@ -312,11 +312,11 @@ namespace latticeQBP {
     static constexpr unsigned int kernelSize() { return Kernel::size; }
     static constexpr unsigned int kernelPositiveSize() { return Kernel::positive_size; }
 
-    inline constexpr bool isPositiveDirection(unsigned int ei) {
+    static constexpr bool isPositiveDirection(unsigned int ei) {
       return Kernel::isPositiveDirection(ei);
     }
 
-    inline constexpr unsigned int reverseIndex(unsigned int ei) { 
+    static constexpr unsigned int reverseIndex(unsigned int ei) { 
       return Kernel::reverseIndex(ei);
     }
 
