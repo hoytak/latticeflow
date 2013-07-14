@@ -397,8 +397,8 @@ namespace latticeQBP {
         return DetailedSplitInfo({false, 0, nullptr});
       
       Array<RegionInformation, 2> p_info = {
-        getRegionInfo(piv[0].begin(), piv[0].end(), lambda_lb),
-        getRegionInfo(piv[1].begin(), piv[1].end(), lambda_lb),
+        getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
+        getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
       };
 
       // Get the rest of the components to calculate the shape
@@ -410,12 +410,12 @@ namespace latticeQBP {
 
       typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
 
-      auto calcLambda = [&, qii_total, gamma_total](const RegionInformation& ri, const PartitionInfo& pi) {
+      auto calcLambda = [&, qii_total, gamma_total, cut_ptr](const RegionInformation& ri, const PartitionInfo& pi) {
         size_t R_size = ri.partition_size;
 
-        comp_type lambda_coeff = R_size * ri.qii_sum   - ri.size * qii_total;
-        comp_type lambda_intcp = R_size * comp_type(ri.gamma_sum) - ri.size * gamma_total;
-        comp_type cut = R_size * comp_type(ri.pt->cut_value);
+        comp_type lambda_coeff = R_size * ri.qii_sum   - R_size * qii_total;
+        comp_type lambda_intcp = R_size * comp_type(ri.gamma_sum) - R_size * gamma_total;
+        comp_type cut = R_size * comp_type(cut_ptr->cut_value);
 
         // is_on being true means that this partition was on the
         // high end, so at the lambda = 0 end, it's got too much
@@ -425,8 +425,8 @@ namespace latticeQBP {
         // positive.  Thus we are looking for the point where it
         // hits the cut.
 
-        assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
-                  || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
+        // assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
+        //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
             
         dtype calc_lambda = Node::getLambdaFromQuotient(abs(lambda_intcp) - cut, abs(lambda_coeff));
 
