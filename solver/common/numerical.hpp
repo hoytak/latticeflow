@@ -65,7 +65,7 @@ namespace latticeQBP {
 
 #else // NDEBUG defined
 
-  template <typename dtype> struct DType {};
+  template <typename dtype> struct DTypeMap {};
 
   template <> struct DTypeMap<int64_t> { typedef int32_t Type; };
 

@@ -1,5 +1,6 @@
 from configure import chooseOption, filterOptions, addOption
 import cpp11x
+import os
 
 def setupCompilerFlags(ctx, cxx11support = False):
 
@@ -10,9 +11,19 @@ def setupCompilerFlags(ctx, cxx11support = False):
     if cxx11support:
         cpp11x.setupCXX11(ctx)
 
+
+    ############################################################
+    # Set up the compiler options to include libraries
+
+    include_path = os.getenv("INCLUDE_PATH")
+
+    if include_path is not None:
+        ip_includes = [s.strip() for s in include_path.split(':') if s.strip()]
+        ctx.env.append_value('INCLUDES', ip_includes)
+
     ############################################################
     #  Set up the options for gcc
-    if compiler in ["g++", "gcc"]:
+    if compiler in ["g++", "gcc", "clang", "clang++"]:
 
         compiler_common_options = [cpp11x.cxx11_flag, '-Wall', '-g', '-fpic']
         linker_common_options   = [cpp11x.cxx11_flag, '-Wall', '-g', '-fpic']
