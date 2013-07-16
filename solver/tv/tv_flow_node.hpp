@@ -42,6 +42,10 @@ namespace latticeQBP {
       return dtype(round(fv * double(dtype(1) << n_bits_function_precision)));
     }
 
+    static inline double toFValue(dtype fv) {
+      return double(fv) / double(dtype(1) << n_bits_function_precision);
+    }
+
     static inline dtype toLmDType(double lm) {
       assert_geq(0, lm);
       assert_leq(lm, double(dtype(1) << n_bits_lambda_max));
@@ -55,7 +59,8 @@ namespace latticeQBP {
       assert_geq(lm, 0);
       assert_leq(lm, (T(1) << (n_bits_lambda_precision + n_bits_lambda_max) ));
 
-      return (fv * lm) >> n_bits_lambda_precision;
+      // Rounds up to nearest value; This ensures that 0 <==> 0.0
+      return (fv * lm + ( (T(1) << (n_bits_lambda_precision)) - 1) ) >> n_bits_lambda_precision;
     }
 
     template <typename T>

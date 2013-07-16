@@ -8,5 +8,6 @@
 #include "common/rng.hpp"
 #include "common/timetracker.hpp"
 #include "common/utilities.hpp"
+#include "common/simple_setup.hpp"
 
 #endif /* _COMMON_H_ */

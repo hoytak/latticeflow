@@ -5,7 +5,7 @@
 
 #include "../common.hpp"
 #include "energy_base.hpp"
-#include "mn_reduction_policies.hpp"
+#include "../parametricflow/mn_reduction_policies.hpp"
 #include "network_flow_policy.hpp"
 
 namespace latticeQBP {
@@ -66,7 +66,7 @@ namespace latticeQBP {
 
 #ifdef ENABLE_BOYKOV_KOLMOGOROV_GC_CODE 
 
-#include "bk_code_wrapper.hpp"
+#include "../bk_graphcuts.hpp"
 
   template <int n_dimensions, typename Kernel, typename dtype = long>
   class BKGCEnergyMinimizer 

@@ -15,16 +15,16 @@ namespace latticeQBP {
   public:
     
     typedef PRFlow<dtype, _KernelLattice, 0> Base;
-    typedef typename Base::KernelLattice KernelLattice;
+    typedef typename Base::Lattice Lattice;
     typedef typename Base::node_ptr node_ptr;
     typedef typename Base::node_cptr node_cptr;
     typedef typename Base::Node Node;
     typedef typename CompType<dtype>::Type comp_type;
 
     typedef unsigned int uint;
-    static constexpr uint kernel_size = KernelLattice::kernel_size;    
+    static constexpr uint kernel_size = Lattice::kernel_size;    
 
-    TV_PRFlow(KernelLattice& lattice) 
+    TV_PRFlow(Lattice& lattice) 
       : Base(lattice)
     {}
 
@@ -127,7 +127,7 @@ namespace latticeQBP {
 
     template <typename UnaryNodeCriterionFunction> 
     vector<node_ptr>  
-    walkConnectedRegion(node_ptr seed_node, UnaryNodeCriterionFunction& test_f) {
+    walkConnectedRegion(node_ptr seed_node, const UnaryNodeCriterionFunction& test_f) {
       
       if(DEBUG_MODE) {
         for(node_ptr n : Base::lattice) {
@@ -255,6 +255,13 @@ namespace latticeQBP {
         (*it)->setOffset(Base::lattice, fv_offset);
       }
     }
+
+    void setInitialEdgeValues() {
+      
+
+
+    }
+
 
   };
 

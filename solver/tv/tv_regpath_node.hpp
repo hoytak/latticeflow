@@ -10,16 +10,52 @@
 #include <vector>
 
 namespace latticeQBP {
+
+
+  ////////////////////////////////////////////////////////////
+  // If rhs_mode == Terminal:
+  //    
+  //    - nodeset gives the set of nodes along this path.  
+  //    
+  //    - rhs_nodes are both Null
+  //    
+  // 
+  // If rhs_mode == Join:
+  //    
+  //    - nodeset is empty.  It is assumed to be a join of the two 
+  //      nodes in rhs_nodes. 
+  //    
+  //
+  // If rhs_mode == Split:
+  //    
+  //    - nodeset gives the nodes split off along this path.
+  // 
+  //    - If nodeset is empty, then rhs_lambda == lhs_lambda, and
+  //      it's an intermediate structure of a 3+ way split.
+  //    
+  //    - rhs_nodes[0] gives the node that was split; rhs_nodes[1] is null.
+  //    
+  // 
+  // Same with lhs, except two nodes for a split and one for a join. 
+  //
+  // Note that it is possible for lhs_lambda == rhs_lambda.  If
+  // this happens, then the split / join is of more than one set
+  // at the same lambda.  This is a rare occurance, so don't
+  // optimize for it.
+  //
+  // While things are building, the nodeset contains the current
+  // nodes for both the join and split cases.  But it's then
+  // cleared out when the lhs is decided. 
+
   
   using namespace std;
 
   template <typename dtype, typename TV_PR_Class> class TVRegPathSegment {
   public:
-    typedef typename TV_PR_Class::KernelLattice Lattice;
+    typedef typename TV_PR_Class::Lattice Lattice;
     typedef typename TV_PR_Class::Node Node;    
     typedef typename TV_PR_Class::node_ptr node_ptr;    
     typedef typename CompType<dtype>::Type comp_type;
-    
 
     typedef enum  {Unset, Initial, Join, Split} Mode;    
 
@@ -55,7 +91,6 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // Internal data 
     
-  private: 
 
     ////////////////////////////////////////////////////////////////////////////////
     // Stuff for tracking things 
@@ -64,6 +99,8 @@ namespace latticeQBP {
 
     ////////////////////////////////////////////////////////////////////////////////
     // DIRECTIONAL INFORMATION for testing 
+
+  private: 
 
     // These are shifted by lambda_precision_bits to maintain some
     // additional numerical accuracy.
@@ -76,6 +113,7 @@ namespace latticeQBP {
     template <typename T>
     static inline T deadjust_r(T r) { return r / (T(1) << Node::n_bits_lambda_precision); }
 
+  public:
     inline dtype get_r_AtLambda(dtype lambda) const {
       auto mult = [](dtype x, dtype lm){
         return Node::template multFVLambda<comp_type>(x, lm);};
@@ -84,6 +122,7 @@ namespace latticeQBP {
                               + mult(adjusted_r_at_1 - adjusted_r_at_0, lambda)));
     }
 
+  private:
     struct RegionInformation {
       
       // These are referenced from the base zero_reference.  
@@ -102,7 +141,7 @@ namespace latticeQBP {
     inline RegionInformation getRegionInfo(const ForwardIterator& start, 
                                            const ForwardIterator& end, 
                                            dtype check_lambda
-                                           ) {
+                                           ) const {
 
       RegionInformation ri = {0,0,0,0,0,0};
 
@@ -280,8 +319,8 @@ namespace latticeQBP {
 
         // Ensure it is not in any neighborhood maps
         for(TVRegPathSegment* rps : ci.neighbors) {
-          assert(rps->constructionInfo()->neighbors.find(this) 
-                 == rps->constructionInfo()->neighbors.end());
+          assert(rps->neighbors().find(this) 
+                 == rps->neighbors().end());
         }
       }
 
@@ -356,6 +395,7 @@ namespace latticeQBP {
         assert(last_dsi.split_occurs);
         
         ci.split_information = last_dsi.cut;
+        return SplitInfo({true, lambda_calc, lambda_calc_lb});
 
       } else {
         ci.split_calculation_done_to_lambda = lambda_calc_lb;
@@ -410,7 +450,7 @@ namespace latticeQBP {
 
       typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
 
-      auto calcLambda = [&, qii_total, gamma_total, cut_ptr](const RegionInformation& ri, const PartitionInfo& pi) {
+      auto calcLambda = [&, qii_total, gamma_total, cut_ptr](const RegionInformation& ri) {
         size_t R_size = ri.partition_size;
 
         comp_type lambda_coeff = R_size * ri.qii_sum   - R_size * qii_total;
@@ -436,10 +476,10 @@ namespace latticeQBP {
         return calc_lambda;
       };
 
-      dtype calc_lambda = calcLambda(p_info[0], piv[0]);
+      dtype calc_lambda = calcLambda(p_info[0]);
       
-      assert_equal(calc_lambda, calcLambda(p_info[1], piv[1]));
-
+      assert_equal(calc_lambda, calcLambda(p_info[1]));
+      
       return DetailedSplitInfo({true, calc_lambda, cut_ptr});
     }
 
@@ -474,8 +514,9 @@ namespace latticeQBP {
                                          });
     }
 
-    template 
-    void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2, dtype lambda) {
+    template <typename RPSLookupFunction>
+    void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2, dtype lambda, 
+                    const RPSLookupFunction& rpsLookup) {
       
       const auto& ci = *constructionInfo();
 
@@ -483,18 +524,25 @@ namespace latticeQBP {
       
       // First, ensure that the cut is applied to the section so the
       // appropriate edges are saturated.
-      ci.solver.applyPartioningCut(ci.cut_ptr, ci.key);
+      ci.solver.applyPartioningCut(ci.split_information, ci.key);
       
       // Split up the nodes
-      const auto& piv = ci.cut_ptr->partitions;
+      const auto& piv = ci.split_information->partitions;
 
-      dest1->setupAsSplit(piv[0].start(), piv[0].end(), lambda);
-      dest2->setupAsSplit(piv[1].start(), piv[1].end(), lambda);
+      dest1->setupFromSplit(piv[0].start(), piv[0].end(), this, lambda, rpsLookup);
+      dest2->setupFromSplit(piv[1].start(), piv[1].end(), this, lambda, rpsLookup);
       
       // Now clean this one up
       lhs_lambda = lambda;
       lhs_mode = Split;
-      lhs_nodes = {dest1, dest2};
+
+      size_t s1 = dest1->constructionInfo()->nodeset.size();
+      size_t s2 = dest2->constructionInfo()->nodeset.size();
+
+      if(s1 < s2)
+        lhs_nodes = {dest1, dest2};
+      else
+        lhs_nodes = {dest2, dest1};
     } 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -506,20 +554,27 @@ namespace latticeQBP {
                        TVRegPathSegment *rps1, 
                        TVRegPathSegment *rps2) {
 
-      assert(rps2->neighbor_keys.find(rps1->key) != rps2->neighbor_keys.end());
-      assert(rps1->neighbor_keys.find(rps2->key) != rps1->neighbor_keys.end());
+      const auto& ci1 = *(rps1->constructionInfo());
+      const auto& ci2 = *(rps2->constructionInfo());
+      auto& ci = *constructionInfo();
 
-      assert_equal(lambdaOfJoin(rps1, rps2, false), join_lambda);
-      assert_equal(lambdaOfJoin(rps2, rps1, false), join_lambda);
+      if(DEBUG_MODE) {
+
+        assert(ci2.neighbors.find(rps1) != ci2.neighbors.end());
+        assert(ci1.neighbors.find(rps2) != ci1.neighbors.end());
+        
+        assert_equal(lambdaOfJoin(rps1, rps2), join_lambda);
+        assert_equal(lambdaOfJoin(rps2, rps1), join_lambda);
+      }
 
       // Pull in the nodes in the previous two segments
-      assert(nodeset.empty());
-      nodeset.resize(rps1->nodeset.size() + rps2->nodeset.size());
-      merge(rps1->nodeset.begin(), rps1->nodeset.end(), 
-            rps2->nodeset.begin(), rps2->nodeset.end(), 
-            nodeset.begin());
+      assert(ci.nodeset.empty());
+      ci.nodeset.resize(ci1.nodeset.size() + ci2.nodeset.size());
+      merge(ci1.nodeset.begin(), ci1.nodeset.end(), 
+            ci2.nodeset.begin(), ci2.nodeset.end(), 
+            ci.nodeset.begin());
 
-      syncKey(nodeset.start(), nodeset.end());
+      syncKey(ci.nodeset.begin(), ci.nodeset.end());
 
       // Set up the initial parts
       rhs_mode = Join;
@@ -529,16 +584,10 @@ namespace latticeQBP {
       assert_equal(rps1->get_r_AtLambda(join_lambda), 
                    rps2->get_r_AtLambda(join_lambda));
 
-      ConstructionInfo& ci = *constructionInfo();
-      ConstructionInfo& rps1_ci = *(rps1->constructionInfo());
-      ConstructionInfo& rps2_ci = *(rps2->constructionInfo());
-
       // Get the neighbors together.
-      ci.neighbors = rps1_ci.neighbors + rps2_ci.neighbors;
+      ci.neighbors = ci1.neighbors; 
+      ci.neighbors.insert(ci2.neighbors.begin(), ci2.neighbors.end());
       
-      // ci.neighbors.insert(rps2->constructionInfo()->neighbors.begin(), 
-      //                  rps2->constructionInfo()->neighbors.end());
-
       ci.neighbors.erase(rps1);
       ci.neighbors.erase(rps2);
 
@@ -559,7 +608,7 @@ namespace latticeQBP {
       rps2->lhs_lambda = join_lambda;
       rps2->lhs_nodes = {this, 0};
 
-      updateLevelInformation(nodeset.start(), nodeset.end());
+      updateLevelInformation(ci.nodeset.begin(), ci.nodeset.end(), join_lambda);
 
       // Check a bunch of stuff
       assert_equal(get_r_AtLambda(rhs_lambda), rps1->get_r_AtLambda(rps1->lhs_lambda));
@@ -567,21 +616,12 @@ namespace latticeQBP {
 
     }
 
-    static inline dtype calculateJoins(TVRegPathSegment* r1,
-                                       TVRegPathSegment* r2,
-                                       dtype current_lambda) {
+    static inline dtype lambdaOfJoin(TVRegPathSegment* r1,
+                                     TVRegPathSegment* r2,
+                                     dtype current_lambda = -1) {
 
-      if(DEBUG_MODE) {
-        assert(r1->neighbors.find(r2) != r1->neighbors.end());
-        assert(r2->neighbors.find(r1) != r2->neighbors.end());
-      }
-
-      // Return the lambda at which these two segments join, or -1 if
-      // they do not join at all.
-
-      // Do the fast check first
       if( (r1->adjusted_r_at_0 < r2->adjusted_r_at_0) 
-          == (r1->adjusted_r_at_r1 < r2->adjusted_r_at_r1) )
+          == (r1->adjusted_r_at_1 < r2->adjusted_r_at_1) )
         return -1;
       
       comp_type r10 = r1->adjusted_r_at_0;
@@ -589,67 +629,62 @@ namespace latticeQBP {
       comp_type r11 = r1->adjusted_r_at_1;
       comp_type r21 = r2->adjusted_r_at_1;
 
-      comp_type adj_join_lambda = getLambdaFromQuotient(r11 - r10, (r20 - r10) - (r21 - r11));
+      comp_type adj_join_lambda = Node::getLambdaFromQuotient(r11 - r10, (r20 - r10) - (r21 - r11));
       dtype join_lambda = Node::castToLambda(deadjust_r(adj_join_lambda));
       
       assert(join_lambda != 0);
       assert_leq(join_lambda, r1->rhs_lambda);
       assert_leq(join_lambda, r2->rhs_lambda);
 
-      if(0 < join_lambda && join_lambda < current_lambda) {
-        r1->registerJoinPoint(join_lambda, r2);
-        r2->registerJoinPoint(join_lambda, r1);
-        return join_lambda;
-      } else {
-        return -1;
+      if(current_lambda != -1) {
+        assert_leq(current_lambda, r1->rhs_lambda);
+        assert_leq(current_lambda, r2->rhs_lambda);
+        
+        // We've missed something if it's in this range
+        assert_leq(current_lambda, join_lambda);
       }
+      
+      return (0 < join_lambda && join_lambda <= current_lambda) ? join_lambda : -1;
     }
 
+    static inline dtype calculateJoins(TVRegPathSegment* r1,
+                                       TVRegPathSegment* r2,
+                                       dtype current_lambda) {
 
+      if(DEBUG_MODE) {
+        const auto& ci1nb = r1->neighbors();
+        const auto& ci2nb = r2->neighbors();
+
+        assert(ci2nb.find(r1) != ci2nb.end());
+        assert(ci1nb.find(r2) != ci1nb.end());
+      }
+
+      // Return the lambda at which these two segments join, or -1 if
+      // they do not join at all.
+
+      dtype join_lambda = lambdaOfJoin(r1, r2, current_lambda);
+
+      if(join_lambda != -1) {
+        r1->registerJoinPoint(join_lambda, r2);
+        r2->registerJoinPoint(join_lambda, r1);
+      }
+       
+      return join_lambda;
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
     // General node data
-  private:
 
-
-    ////////////////////////////////////////////////////////////
-    // If rhs_mode == Terminal:
-    //    
-    //    - nodeset gives the set of nodes along this path.  
-    //    
-    //    - rhs_nodes are both Null
-    //    
-    // 
-    // If rhs_mode == Join:
-    //    
-    //    - nodeset is empty.  It is assumed to be a join of the two 
-    //      nodes in rhs_nodes. 
-    //    
-    //
-    // If rhs_mode == Split:
-    //    
-    //    - nodeset gives the nodes split off along this path.
-    // 
-    //    - If nodeset is empty, then rhs_lambda == lhs_lambda, and
-    //      it's an intermediate structure of a 3+ way split.
-    //    
-    //    - rhs_nodes[0] gives the node that was split; rhs_nodes[1] is null.
-    //    
-    // 
-    // Same with lhs, except two nodes for a split and one for a join. 
-    //
-    // Note that it is possible for lhs_lambda == rhs_lambda.  If
-    // this happens, then the split / join is of more than one set
-    // at the same lambda.  This is a rare occurance, so don't
-    // optimize for it.
-    //
-    // While things are building, the nodeset contains the current
-    // nodes for both the join and split cases.  But it's then
-    // cleared out when the lhs is decided. 
-      
+  public:
     size_t n_nodes;
 
     vector<node_ptr> nodeset;
+
+    bool containsNode(node_ptr n) const {
+      assert(!nodeset.empty());
+      
+      return binary_search(nodeset.begin(), nodeset.end(), n);
+    }
       
     // This is set up 
     Array<TVRegPathSegment*, 2> rhs_nodes;

@@ -20,7 +20,7 @@ Array<size_t, nd> dim_vector_factors(const Array<size_t, nd>& a) {
 }
 
 template <typename dtype, int nd>
-Array<dtype, nd + 1> append(const Array<dtype, nd>& a, dtype v) {
+Array<dtype, nd + 1> concat(const Array<dtype, nd>& a, dtype v) {
 
   Array<dtype, nd+1> ret;
 
@@ -28,6 +28,33 @@ Array<dtype, nd + 1> append(const Array<dtype, nd>& a, dtype v) {
     ret[i] = a[i];
 
   ret[nd] = v;
+
+  return ret;
+}
+
+template <typename dtype, int nd>
+Array<dtype, nd + 1> concat(dtype v, const Array<dtype, nd>& a) {
+
+  Array<dtype, nd+1> ret;
+
+  ret[0] = v;
+
+  for(size_t i = 0; i < nd; ++i)
+    ret[i+1] = a[i];
+
+  return ret;
+}
+
+template <typename dtype, int nd1, int nd2>
+Array<dtype, nd1 + nd2> concat(const Array<dtype, nd1>& a1, const Array<dtype, nd2>& a2) {
+
+  Array<dtype, nd1 + nd2> ret;
+
+  for(int i = 0; i < nd1; ++i)
+    ret[i] = a1[i];
+
+  for(int i = 0; i < nd2; ++i)
+    ret[i+nd1] = a2[i];
 
   return ret;
 }

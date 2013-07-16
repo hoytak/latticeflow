@@ -2,27 +2,30 @@
 #define _MN_REDUCTION_POLICIES_H_
 
 #include "mn_netflow_solver.hpp"
-#include "network_flow_node.hpp"
-#include "lattice.hpp"
-#include "simple_setup.hpp"
+#include "../network_flow/network_flow_node.hpp"
+#include "../lattices/kernellattice.hpp"
+#include "../common.hpp"
 
-template <int _n_dimensions, typename _Kernel, typename _dtype> 
-struct _NetFlowReductionMinimizationPolicy {
+namespace latticeQBP {
 
-  // constexpr int n_dimensions() {return _n_dimensions; }
+  template <int _n_dimensions, typename _Kernel, typename _dtype> 
+    struct _NetFlowReductionMinimizationPolicy {
 
-  typedef _Kernel Kernel;
-  typedef NetworkFlowNode<_Kernel, _dtype, 2> Node;
-  typedef _dtype dtype;
+    // constexpr int n_dimensions() {return _n_dimensions; }
 
-  typedef KernelLattice<Node, _n_dimensions, _Kernel> Lattice;
+    typedef _Kernel Kernel;
+    typedef NetworkFlowNode<_Kernel, _dtype, 2> Node;
+    typedef _dtype dtype;
 
-  typedef typename Node::template NodeFiller<Lattice> Filler;
+    typedef KernelLattice<Node, _n_dimensions, _Kernel> Lattice;
 
-  typedef NoSetup<Lattice> Setup;
+    typedef typename Node::template NodeFiller<Lattice> Filler;
+
+    typedef NoSetup<Lattice> Setup;
   
-  typedef NetflowReductionSolver<dtype, Lattice> Solver;
-};
+    typedef NetflowReductionSolver<dtype, Lattice> Solver;
+  };
 
+};
 
 #endif /* _NETWORK_FLOW_POLICY_H_ */

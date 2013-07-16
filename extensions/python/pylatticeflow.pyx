@@ -6,7 +6,7 @@ from cython cimport view
 from cPickle import dumps
 from hashlib import md5
 
-cdef extern from "factory.hpp"  namespace "latticeQBP":
+cdef extern from "interface.hpp"  namespace "latticeQBP":
 
     cdef cppclass LatticeFlowInterface:
 
@@ -40,7 +40,7 @@ cdef extern from "factory.hpp"  namespace "latticeQBP":
     vector[string] validKernelNames()
     vector[string] validSolverNames()
 
-cdef extern from "tv_solver.hpp":
+cdef extern from "tv/tv_solver.hpp":
 
     vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, long long>" (
         size_t nx, size_t ny, double *function, double lm)

@@ -31,11 +31,11 @@ namespace latticeQBP {
     static_assert(partition == 0 || partition == 1, 
                   "partition must be 0 or 1.");
 
-    typedef _KernelLattice KernelLattice;
-    typedef typename KernelLattice::Kernel Kernel;
+    typedef _KernelLattice Lattice;
+    typedef typename Lattice::Kernel Kernel;
     typedef KernelOptimizationPolicy<Kernel> OptPolicy; 
                   
-    typedef typename KernelLattice::value_type Node;
+    typedef typename Lattice::value_type Node;
 
     // Pull in the computation types 
 
@@ -45,7 +45,7 @@ namespace latticeQBP {
     static constexpr bool enable_keys     = Node::enable_keys;
 
   public:
-    PRFlow(KernelLattice& _lattice)
+    PRFlow(Lattice& _lattice)
       : lattice(_lattice)
       , key(0)
       , top_level(1)
@@ -62,21 +62,21 @@ namespace latticeQBP {
     }
  
   protected:
-    typedef typename KernelLattice::value_ptr node_ptr;
-    typedef typename KernelLattice::value_direct_ptr node_dptr;
-    typedef typename KernelLattice::value_cptr node_cptr;
-    typedef typename KernelLattice::value_type::level_index_type level_index_type;
+    typedef typename Lattice::value_ptr node_ptr;
+    typedef typename Lattice::value_direct_ptr node_dptr;
+    typedef typename Lattice::value_cptr node_cptr;
+    typedef typename Lattice::value_type::level_index_type level_index_type;
 
     typedef unsigned int uint;
-    static constexpr uint kernel_size = KernelLattice::kernel_size;
-    static constexpr uint reverseIndex(uint idx) {return KernelLattice::reverseIndex(idx);}
+    static constexpr uint kernel_size = Lattice::kernel_size;
+    static constexpr uint reverseIndex(uint idx) {return Lattice::reverseIndex(idx);}
 
     struct Level {
       vector<node_ptr> nodes;
       vector<node_ptr> active_nodes;
     };
 
-    KernelLattice& lattice;
+    Lattice& lattice;
     vector<Level> levels;
     unsigned int key;
 

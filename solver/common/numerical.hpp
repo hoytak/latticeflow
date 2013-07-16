@@ -2,18 +2,12 @@
 #define _NUMERICAL_H_
 
 #include <cstdint>
-
-#ifndef EMACS_FLYMAKE
 #include <boost/multiprecision/cpp_int.hpp>
-#endif
 
 namespace latticeQBP {
   
   using namespace std;
-
-#ifndef EMACS_FLYMAKE
   using namespace boost::multiprecision;
-#endif
 
 #ifdef EMACS_FLYMAKE
 
