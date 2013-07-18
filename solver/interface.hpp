@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-
 namespace latticeQBP {
   using std::vector;
   using std::string;

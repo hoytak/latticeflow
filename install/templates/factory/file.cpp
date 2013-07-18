@@ -1,7 +1,6 @@
-#include "factory.hpp"
 #include "direct_interface.hpp"
 #include "../kernels/kernels.hpp"
-#include "../array_wrapper.hpp"
+#include "../common.hpp"
 #include "../solvers.hpp"
 
 #include <vector>

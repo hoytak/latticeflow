@@ -167,11 +167,11 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // Iteration
 
-    class KLatticeVertexIterator {
+    class VertexIterator {
     public:
       typedef value_ptr node_ptr;    
     
-      KLatticeVertexIterator(KernelLattice& _lattice) 
+      VertexIterator(KernelLattice& _lattice) 
         : lattice(_lattice)
         , node_idx_iter(lattice.indexIterator())
       {}
@@ -194,7 +194,7 @@ namespace latticeQBP {
 
       inline bool done() const { return node_idx_iter.done(); }
 
-      KLatticeVertexIterator& operator++() {
+      VertexIterator& operator++() {
         assert(!node_idx_iter.done());
         node_idx_iter.increment();
         return *this;
@@ -205,12 +205,12 @@ namespace latticeQBP {
       BoundedIndexIterator<n_dimensions> node_idx_iter;
     };
 
-    class KLatticeEdgeIterator {
+    class EdgeIterator {
     public:
 
       typedef  value_ptr node_ptr;    
 
-      KLatticeEdgeIterator(KernelLattice& _lattice) 
+      EdgeIterator(KernelLattice& _lattice) 
         : lattice(_lattice)
         , node_idx_iter(lattice.indexIterator())
         , node_idx_target_iters(lattice.fullIndexIterator())
@@ -269,7 +269,7 @@ namespace latticeQBP {
         return lattice.geocutEdgeWeight(edgeIndex());
       }
 
-      const KLatticeEdgeIterator& operator++() {
+      const EdgeIterator& operator++() {
       
         do {
           if(unlikely(done()))
@@ -308,12 +308,12 @@ namespace latticeQBP {
       size_t node_target_iter_index;
     };
 
-    KLatticeVertexIterator vertexIterator() {
-      return KLatticeVertexIterator(*this);
+    VertexIterator vertexIterator() {
+      return VertexIterator(*this);
     }
 
-    KLatticeEdgeIterator edgeIterator() {
-      return KLatticeEdgeIterator(*this);
+    EdgeIterator edgeIterator() {
+      return EdgeIterator(*this);
     }
 
   private:

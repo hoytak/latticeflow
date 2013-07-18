@@ -57,7 +57,7 @@ namespace latticeQBP {
             dtype r_max = nl.front()->reduction;
 
             for(node_ptr n : nl) {
-              assert_equal(n->state, 0);
+              assert_equal(n->state(), 0);
               r_total += n->reduction;
               r_min = min(r_min, n->reduction);
               r_max = max(r_max, n->reduction);
@@ -87,7 +87,9 @@ namespace latticeQBP {
               reduction_adjustments[lattice.index(n)] -= r_shift;
             }
 
-            pr_flow.run(nl.begin(), nl.end());
+            pr_flow.prepareSection(nl.begin(), nl.end());
+
+            pr_flow.runSection(nl.begin(), nl.end());
 
             if(likely(!queue.back().empty()))
               queue.push_back(list<node_ptr>());
@@ -138,7 +140,7 @@ namespace latticeQBP {
 
       for(auto& n : lattice) {
         if(lattice.withinBounds(&n)) {
-          assert_equal(n.state, 1);
+          assert_equal(n.state(), 1);
           n.adjustReduction(-reduction_adjustments[lattice.index(&n)]);
         }
       }

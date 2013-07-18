@@ -1,7 +1,7 @@
 #ifndef _PUSH_RELABEL_H_
 #define _PUSH_RELABEL_H_
 
-#define HAVE_OUTPUT 0
+#define HAVE_OUTPUT 1
 
 #define NO_EXCESS    0
 #define HAS_EXCESS   1
@@ -112,7 +112,7 @@ namespace latticeQBP {
           for(uint j = 0; j < kernel_size; ++j) {
             node_ptr nn = n + step_array[j];
 
-            if(nn->key_state == key && pushCapacity(n, nn, j) > 0) {
+            if(eligible(nn) && pushCapacity(n, nn, j) > 0) {
               // if(!(nn->height >= level - 1))
               //  cout << "n = " << (n - lattice.begin()) << "nn = " << (nn - lattice.begin()) << endl;
               assert_geq(nn->height, level - 1);
@@ -133,7 +133,7 @@ namespace latticeQBP {
       for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
         assert_lt(n->height, levels.size());
 
-        if(n->key_state == key && n->height == 0)
+        if(eligible(n) && n->height == 0)
           assert_leq(excess(n), 0);
       
         if(eligible(n) && excess(n) < 0) {
@@ -199,14 +199,23 @@ namespace latticeQBP {
     }
 
     inline bool eligible(const node_ptr& n) const {
-      return n->key_state == key;
+      return n->_isKeyState(key);
     }
 
     template <typename NodePtrIterator>
     void hotStart(const NodePtrIterator& start, const NodePtrIterator& end) {
-    
+
+#if HAVE_OUTPUT
       TimeTracker tt;
       tt.start();
+
+      cerr << "Nodes: ";
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = lattice.resolve(*it);
+        cerr << lattice.index(n) << ",";
+      }
+      cerr << endl;
+#endif 
 
       initQueue();
 
@@ -311,8 +320,9 @@ namespace latticeQBP {
       for(node_ptr n : original_nodes) 
         n->height = 0;
 
-      if(HAVE_OUTPUT)
-        cout << "Time taken in hotstart = " << tt.asString() << endl;
+#if HAVE_OUTPUT
+      cout << "Time taken in hotstart = " << tt.asString() << endl;
+#endif
     }
 
     bool quickFlow() {
@@ -475,7 +485,7 @@ namespace latticeQBP {
       base_level_empty = lv.nodes.empty();
 
       assert_gt(excess(new_node), 0);
-      assert_equal(new_node->state, partition);
+      assert_equal(new_node->state(), partition);
 
       _debug_VerifyAccurateLevel(top_level_with_excess);
     
@@ -558,7 +568,7 @@ namespace latticeQBP {
     }
 
     inline void nodeNowHasExcess(node_ptr n) {
-      assert_equal(n->state, partition);
+      assert_equal(n->state(), partition);
       assert_gt(excess(n), 0);
     
       levels[n->height].active_nodes.push_back(n);
@@ -1196,7 +1206,7 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     inline void prepareSection(const NodePtrIterator& start, 
                                const NodePtrIterator& end, 
-                               int key = 0, bool clean_state = true) {
+                               int _key = 0, bool clean_state = false) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1205,12 +1215,14 @@ namespace latticeQBP {
         // Set these nodes to the given key and partition
         node_ptr n = *it;
         if(clean_state) {
-          n->template setKeyState<partition>(lattice, key);
+          n->template setKeyState<partition>(lattice, _key);
         } else {
           assert_equal(n->state(), partition);
-          n->setKey(key);
+          n->setKey(_key);
         }
       }
+
+      key = Node::template makeKeyState<partition>(key);
 
       // All that's needed here; just prepares things for runSection
     }
@@ -1231,7 +1243,6 @@ namespace latticeQBP {
           clearLevels();       
           hotStart(start, end);
         }
-
       } else {
         vector<node_ptr> active_nodes;
 
@@ -1253,10 +1264,11 @@ namespace latticeQBP {
         }
       }
 
+
       _run();
 
 #ifndef NDEBUG
-      cout << "Partition " << partition
+      cerr << "Partition " << partition
            << ": Set size = " << set_size << "; queue start size = " 
            << starting_size << "; " << num_flips << " total flips. " << endl;
 #endif

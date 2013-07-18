@@ -49,8 +49,13 @@ namespace latticeQBP {
       return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
     }
 
+    template <int partition>
+    static inline unsigned int makeKeyState(unsigned int key) {
+      return ((key + 1) << 1) | partition;
+    }
+
     template <int partition, typename Lattice> 
-    inline void setKeyState(Lattice& lattice, unsigned int key) {
+    inline unsigned int setKeyState(Lattice& lattice, unsigned int key) {
       static_assert(partition == 0 || partition == 1,
                     "Partition is the reference state; must be either 0 or 1.");
 
@@ -59,7 +64,13 @@ namespace latticeQBP {
 
       assert_equal((key_state & 0x1), partition);
 
-      key_state = ((key + 1) << 1) | partition;
+      key_state = makeKeyState<partition>(key);
+      
+      return key_state;
+    }
+    
+    inline bool _isKeyState(unsigned int _key_state) const {
+      return key_state == _key_state;
     }
 
     inline void setKey(unsigned int key) {

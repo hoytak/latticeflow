@@ -62,7 +62,7 @@ namespace latticeQBP {
 
       UnaryFillingIterator(Lattice& _lattice) 
         : VertexIterator(_lattice)
-        , filler(lattice)
+        , filler(_lattice)
       {
       }
 

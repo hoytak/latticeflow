@@ -40,9 +40,13 @@ cdef extern from "interface.hpp"  namespace "latticeQBP":
     vector[string] validKernelNames()
     vector[string] validSolverNames()
 
+cdef extern from "kernels/kernels.hpp" namespace "latticeQBP":
+    cdef cppclass Star2d_4:
+        pass
+    
 cdef extern from "tv/tv_solver.hpp":
 
-    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long long>" (
+    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
         size_t nx, size_t ny, double *function, double lm)
     
 cdef extern from "math.h":

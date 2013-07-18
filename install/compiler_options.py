@@ -11,7 +11,6 @@ def setupCompilerFlags(ctx, cxx11support = False):
     if cxx11support:
         cpp11x.setupCXX11(ctx)
 
-
     ############################################################
     # Set up the compiler options to include libraries
 

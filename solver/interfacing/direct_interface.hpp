@@ -2,7 +2,7 @@
 #define _DIRECT_INTERFACE_H_
 
 #include "../interface.hpp"
-#include "../timetracker.hpp"
+#include "../common.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Now the interface high level class.

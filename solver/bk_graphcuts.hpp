@@ -1,9 +1,13 @@
 #ifndef _BK_CODE_WRAPPER_H_
 #define _BK_CODE_WRAPPER_H_
 
+#ifdef EMACS_FLYMAKE
+#define ENABLE_BOYKOV_KOLMOGOROV_GC_CODE
+#endif
+
 #ifdef ENABLE_BOYKOV_KOLMOGOROV_GC_CODE
 
-#include "lattice.hpp"
+#include "lattices/kernellattice.hpp"
 #include "bk_graphcuts/bk_energy.hpp"
 
 namespace latticeQBP {
