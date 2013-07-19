@@ -3,7 +3,7 @@
 
 #include "../common.hpp"
 #include "../lattices/kernellattice.hpp"
-#include "../parametricflow/mn_netflow_solver.hpp"
+#include "../solvers.hpp"
 #include "../energy_minimization/energy.hpp"
 #include "tv_flow_node.hpp"
 #include "tv_push_relabel.hpp"
@@ -89,10 +89,11 @@ namespace latticeQBP {
 
       // Solve the initial path; this can be swapped out later with a more efficient routine.
       for(auto& n : lattice)
-        n.setFunctionValue(lattice, 0, initial_lambda);
+        n.setOffsetAndScale(lattice, 0, initial_lambda);
       
-      NetflowReductionSolver<dtype, Lattice> nrs(lattice);
+      ParametricFlowSolver<dtype, Lattice> nrs(lattice);
       nrs.run();
+
 
       // Now build the whole regularization path
       _constructInitialRegPathsFromSolvedLattice(initial_lambda);
@@ -496,8 +497,6 @@ namespace latticeQBP {
 
     double min_x = *min_element(function, function + nx*ny);
     double max_x = *max_element(function, function + nx*ny);
-
-    double w = max_x - min_x;
 
     const double conversion_factor = 
       (double(dtype(1) << (sizeof(dtype)*8 - 16))

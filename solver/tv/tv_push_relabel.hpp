@@ -9,7 +9,7 @@
 namespace latticeQBP {
 
   using namespace std;  
-  
+
   template <typename dtype, typename _KernelLattice>
   class TV_PRFlow : public PRFlow<dtype, _KernelLattice, 0> {
   public:
@@ -255,23 +255,14 @@ namespace latticeQBP {
         (*it)->setOffset(Base::lattice, fv_offset);
       }
     }
-
-    void setInitialEdgeValues() {
-      
-
-
-    }
-
-
   };
 
 }; 
 
-
 #ifdef EMACS_FLYMAKE
 
 #include "../kernels/kernels.hpp"
-#include "../lattices/lattice.hpp"
+#include "../lattices/kernellattice.hpp"
 #include "tv_flow_node.hpp" 
 
 namespace latticeQBP {

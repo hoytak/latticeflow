@@ -119,15 +119,11 @@ namespace latticeQBP {
       return n_idx + index_jumps[ei];
     }
 
-    value_ptr neighbor(value_ptr n, unsigned int ei) {
-      return n + index_jumps[ei];
-    }
-
     value_cptr neighbor(value_cptr n, unsigned int ei) const {
       return n + index_jumps[ei];
     }
 
-    value_direct_ptr neighbor(value_direct_ptr n, unsigned int ei) {
+    value_ptr neighbor(value_ptr n, unsigned int ei) {
       return n + index_jumps[ei];
     }
 
@@ -135,11 +131,15 @@ namespace latticeQBP {
       return n + index_jumps[ei];
     }
 
-    inline index_vect neighborCoords(value_cptr n, unsigned int ei) const {
-      return this->getCoords(neighbor(n, ei));
+    value_direct_ptr neighbor(value_direct_ptr n, unsigned int ei) {
+      return n + index_jumps[ei];
     }
 
     inline index_vect neighborCoords(value_direct_cptr n, unsigned int ei) const {
+      return this->getCoords(neighbor(n, ei));
+    }
+
+    inline index_vect neighborCoords(value_cptr n, unsigned int ei) const {
       return this->getCoords(neighbor(n, ei));
     }
 

@@ -3,35 +3,40 @@
 
 #include <iostream>
 
-#include "../common.hpp"
 #include "energy_base.hpp"
-#include "../parametricflow/mn_reduction_policies.hpp"
-#include "network_flow_policy.hpp"
+#include "bk_graphcuts.hpp"
+#include "../network_flow/push_relabel.hpp" 
+#include "../network_flow/network_flow_node.hpp"
+#include "../lattices/kernellattice.hpp"
+#include "../common.hpp"
 
 namespace latticeQBP {
 
   using namespace std;
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // LatticeEnergyMinimizer
+  template <int _n_dimensions, typename _Kernel, typename _dtype> 
+  struct _ReductionMinimizationPolicy {
 
-  template <int n_dimensions, typename Kernel, typename dtype = long>
-  class LatticeEnergyMinimizer 
-    : public LatticeEnergyBase<_SimpleMinimizationPolicy<n_dimensions, Kernel, dtype> >
-  {
-  public:
-    typedef LatticeEnergyBase<_SimpleMinimizationPolicy<n_dimensions, Kernel, dtype> > Base;
-    typedef typename Base::index_vect index_vect;
+    // constexpr int n_dimensions() {return _n_dimensions; }
 
-    LatticeEnergyMinimizer(const index_vect& dimensions) : Base(dimensions) {}
+    typedef _Kernel Kernel;
+    typedef NetworkFlowNode<Kernel, _dtype, NFNodeDefaultPolicy> Node;
+    typedef _dtype dtype;
+
+    typedef KernelLattice<Node, _n_dimensions, Kernel> Lattice;
+
+    typedef typename Node::template NodeFiller<Lattice> Filler;
+
+    typedef NoSetup<Lattice> Setup;
+  
+    typedef PRFlow<dtype, Lattice, 0> Solver;
   };
-
 
   ////////////////////////////////////////////////////////////////////////////////
   // LatticeEnergyAdjuster
 
   template <int n_dimensions, typename Kernel, typename dtype = long>
-  class LatticeEnergyAdjuster
+  class LatticeEnergyMinimizer
     : public LatticeEnergyBase<_ReductionMinimizationPolicy<n_dimensions, Kernel, dtype> >
   {
   public:
@@ -39,34 +44,13 @@ namespace latticeQBP {
     typedef LatticeEnergyBase<_ReductionMinimizationPolicy<n_dimensions, Kernel, dtype> > Base;
     typedef typename Base::index_vect index_vect;
 
-    LatticeEnergyAdjuster(const index_vect& dimensions) : Base(dimensions) {}
+    LatticeEnergyMinimizer(const index_vect& dimensions) : Base(dimensions) {}
   };
 
   ////////////////////////////////////////////////////////////////////////////////
   // NetFlowLatticeEnergyReductions
 
-  template <int n_dimensions, typename Kernel, typename dtype = long>
-  class LatticeLevelReductions 
-    : public LatticeEnergyBase<_NetFlowReductionMinimizationPolicy<n_dimensions, Kernel, dtype> >
-  {
-
-  public:
-    typedef LatticeEnergyBase<_NetFlowReductionMinimizationPolicy<n_dimensions, Kernel, dtype> > Base;   
-    typedef typename Base::index_vect index_vect;
-
-    LatticeLevelReductions(const index_vect& dimensions)
-      : Base(dimensions)
-    {}
-
-    double level(const index_vect& node_index) const {
-      return Base::lattice(node_index)->level();
-    }
-
-  };
-
 #ifdef ENABLE_BOYKOV_KOLMOGOROV_GC_CODE 
-
-#include "../bk_graphcuts.hpp"
 
   template <int n_dimensions, typename Kernel, typename dtype = long>
   class BKGCEnergyMinimizer 

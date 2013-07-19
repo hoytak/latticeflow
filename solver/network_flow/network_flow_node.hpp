@@ -4,21 +4,29 @@
 
 #include "../common.hpp"
 
-#define NF_ON_BY_REDUCTION       (1 << 0)
-#define NF_ENABLE_KEY_PARTIONING (1 << 1)
-#define NF_ADJUSTMENT_MODE       (1 << 2)
-
 namespace latticeQBP {
 
-  template <typename Kernel, typename dtype, int _mode> 
+  ////////////////////////////////////////////////////////////////////////////////
+  // BASE POLICY 
+
+  struct NFNodeDefaultPolicy {
+    static constexpr bool on_by_reduction = false;
+    static constexpr bool enable_key_partitioning = false;
+    static constexpr bool adjustment_mode = true;
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // NetworkFlowNode
+
+  template <typename Kernel, typename dtype, typename Policy>
   class NetworkFlowNode {
 
   public:
-    static constexpr int  mode            = _mode;
-    static constexpr bool simple_mode     = (mode == 0);
-    static constexpr bool reduction_mode  = ((mode & NF_ON_BY_REDUCTION) != 0);
-    static constexpr bool adjustment_mode = ((mode & NF_ADJUSTMENT_MODE) != 0);
-    static constexpr bool enable_keys     = ((mode & NF_ENABLE_KEY_PARTIONING) != 0);
+    static constexpr bool reduction_mode  = Policy::on_by_reduction;
+    static constexpr bool adjustment_mode = Policy::adjustment_mode;
+    static constexpr bool enable_keys     = Policy::enable_key_partitioning;
+
+    static constexpr bool simple_mode     = !(reduction_mode || adjustment_mode || enable_keys);
 
   public:
     NetworkFlowNode()
@@ -126,7 +134,7 @@ namespace latticeQBP {
         assert_equal(partition, key_state & 0x1);
     }
 
-  public: 
+  public:
   
     ////////////////////////////////////////////////////////////////////////////////
     // Note that excess, in this case, is defined in relation to the
@@ -196,7 +204,7 @@ namespace latticeQBP {
       // dtype r_compare = 2*q;
 
       for(size_t i = 0; i < lattice.kernelSize(); ++i) {
-        auto nn = lattice.neighbor(this, i);
+        const auto& nn = lattice.neighbor(this, i);
 
         if(!lattice.isValidNode(nn))
           continue;
@@ -252,10 +260,10 @@ namespace latticeQBP {
         lattice.neighbor(this, i)->_debugVerifyNodeConsistency(lattice);
   
 #endif
-    
+
       // if(!simple_mode || DEBUG_MODE) {
-      for(size_t i = 0; i < lattice.kernel_size; ++i)  
-        lattice.neighbor(this, i)->alpha[lattice.reverseIndex(i)] *= -1;
+      for(size_t i = 0; i < lattice.kernel_size; ++i)
+        lattice.neighbor(typename LatticeType::value_direct_ptr(this), i)->alpha[lattice.reverseIndex(i)] *= -1;
       // }
 
       // All we need to do should be to set the lattice 

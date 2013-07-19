@@ -38,8 +38,6 @@ namespace latticeQBP {
     typedef typename Lattice::value_type Node;
 
     // Pull in the computation types 
-
-    static constexpr bool simple_mode     = Node::simple_mode;
     static constexpr bool reduction_mode  = Node::reduction_mode;
     static constexpr bool adjustment_mode = Node::adjustment_mode;
     static constexpr bool enable_keys     = Node::enable_keys;
@@ -1152,6 +1150,16 @@ namespace latticeQBP {
 
     ////////////////////////////////////////////////////////////////////////////////
     // higher level control structures
+
+    void initQueue(size_t reserve_size = 0) {
+      if(reserve_size != 0)
+        initStorage(reserve_size);
+      
+      top_level = 1;
+      top_level_with_excess = 0;
+      
+      num_flips = 0;
+    }
   
   public:
 
@@ -1206,7 +1214,7 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     inline void prepareSection(const NodePtrIterator& start, 
                                const NodePtrIterator& end, 
-                               int _key = 0, bool clean_state = false) {
+                               int _key = 0, bool do_state_cleaning = false) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1214,7 +1222,7 @@ namespace latticeQBP {
     
         // Set these nodes to the given key and partition
         node_ptr n = *it;
-        if(clean_state) {
+        if(do_state_cleaning) {
           n->template setKeyState<partition>(lattice, _key);
         } else {
           assert_equal(n->state(), partition);
@@ -1279,22 +1287,13 @@ namespace latticeQBP {
       return false;
     }
 
-    void initQueue(size_t reserve_size = 0) {
-      if(reserve_size != 0)
-        initStorage(reserve_size);
-      
-      top_level = 1;
-      top_level_with_excess = 0;
-      
-      num_flips = 0;
-    }
-
     ////////////////////////////////////////////////////////////////////////////////
     // Additional utilities for some particular operations 
 
     template <typename NodePtrIterator>  
-    void cleanupSection(const NodePtrIterator& start, 
-                        const NodePtrIterator& end, int _key = 0) {
+    inline void cleanupSection(const NodePtrIterator& start, 
+                               const NodePtrIterator& end, 
+                               int _key = 0, bool do_state_cleaning = true) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1303,6 +1302,11 @@ namespace latticeQBP {
         // Set these nodes to the given key and partition
         node_ptr n = *it;
         assert(n->matchesKey(_key));
+
+        if(do_state_cleaning && n->state() != partition) 
+          n->template flipNode<(1 - partition)>(lattice);
+
+        assert_equal(n->state(), partition);
         n->clearKey();
       }
     }

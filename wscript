@@ -150,7 +150,6 @@ def __process_options(ctx):
     ################################################################################
     # Set up the solver list
     ctx.env.solver_list = ["LatticeEnergyMinimizer",
-                           "LatticeEnergyAdjuster",
                            "LatticeLevelReductions"
                            ]
 

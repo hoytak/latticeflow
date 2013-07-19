@@ -112,7 +112,7 @@ namespace latticeQBP {
         : Base(_lattice)
         , filler(_lattice)
       {
-      }
+      } 
 
       Filler filler;
     };

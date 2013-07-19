@@ -2,7 +2,6 @@
 #define _TV_REGPATH_NODE_H_
 
 #include "../common.hpp"
-#include "tv_flow_node.hpp"
 #include "tv_push_relabel.hpp"
 
 #include <set>
@@ -116,7 +115,7 @@ namespace latticeQBP {
   public:
     inline dtype get_r_AtLambda(dtype lambda) const {
       auto mult = [](dtype x, dtype lm){
-        return Node::template multFVLambda<comp_type>(x, lm);};
+        return Node::template multFVScale<comp_type>(x, lm);};
 
       return dtype(deadjust_r(mult(adjusted_r_at_0, 1) 
                               + mult(adjusted_r_at_1 - adjusted_r_at_0, lambda)));
@@ -468,7 +467,7 @@ namespace latticeQBP {
         // assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
         //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
             
-        dtype calc_lambda = Node::getLambdaFromQuotient(abs(lambda_intcp) - cut, abs(lambda_coeff));
+        dtype calc_lambda = Node::getScaleFromQuotient(abs(lambda_intcp) - cut, abs(lambda_coeff));
 
         assert_geq(calc_lambda, 0);
         assert_leq(calc_lambda, rhs_lambda);
@@ -629,8 +628,8 @@ namespace latticeQBP {
       comp_type r11 = r1->adjusted_r_at_1;
       comp_type r21 = r2->adjusted_r_at_1;
 
-      comp_type adj_join_lambda = Node::getLambdaFromQuotient(r11 - r10, (r20 - r10) - (r21 - r11));
-      dtype join_lambda = Node::castToLambda(deadjust_r(adj_join_lambda));
+      comp_type adj_join_lambda = Node::getScaleFromQuotient(r11 - r10, (r20 - r10) - (r21 - r11));
+      dtype join_lambda = Node::castToScale(deadjust_r(adj_join_lambda));
       
       assert(join_lambda != 0);
       assert_leq(join_lambda, r1->rhs_lambda);

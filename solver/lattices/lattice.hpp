@@ -126,6 +126,12 @@ namespace latticeQBP {
       return begin() + idx;
     }
 
+    template <typename... Pos>
+    inline value_ptr operator()(const Pos&... idxargs,
+                                typename std::enable_if<sizeof...(Pos) == nd>::type* = 0) {
+      return (*this)(index_vect(idxargs...));
+    }
+
     inline value_ptr operator()(const index_vect& idxv) const {
       return ptr(idxv);
     }
@@ -136,12 +142,6 @@ namespace latticeQBP {
 
     inline value_ptr operator()(const BoundedIndexIterator<nd>& it) const {
       return ptr(it.coords());
-    }
-
-    template <typename... Pos>
-    inline value_ptr operator()(const Pos&... idxargs,
-                                typename std::enable_if<sizeof...(Pos) == nd>::type* = 0) {
-      return (*this)(index_vect(idxargs...));
     }
 
     inline value_ptr operator()(size_t idx) const {
