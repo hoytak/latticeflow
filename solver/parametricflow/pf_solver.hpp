@@ -30,7 +30,7 @@ namespace latticeQBP {
     {
     }
 
-    void run() {
+    vector<vector<node_ptr> > run() {
 
       if(HAVE_OUTPUT)
         cout << "Setting up model." << endl;
@@ -121,7 +121,10 @@ namespace latticeQBP {
 
         if(mid_point != 0 && mid_point != (ls_range.end - ls_range.start)) {
           queue.push_back({ls_range.start, ls_range.start + mid_point});
+          boundaries.push_back(ls_range.start - ls_points.begin());
+
           queue.push_back({ls_range.start + mid_point, ls_range.end});
+          boundaries.push_back( (ls_range.start - ls_points.begin()) + mid_point);
         }
 
         // Now clean up the graph
@@ -131,8 +134,21 @@ namespace latticeQBP {
         ++key;
       }
 
+      size_t n_level_sets = boundaries.size();
+      boundaries.push_back(ls_points.size());
+
       if(HAVE_OUTPUT)
         cout << "Finished running model in " << tt.asString() << "." << endl;
+
+      // Now just convert these to keysets 
+      vector<vector<node_ptr> > level_sets(n_level_sets);
+      
+      for(size_t i = 0; i < n_level_sets; ++i) {
+        level_sets[i] = vector<node_ptr>(ls_points.begin() + boundaries[i],
+                                         ls_points.begin() + boundaries[i+1]);
+      }
+      
+      return level_sets;
     }
   };
 };

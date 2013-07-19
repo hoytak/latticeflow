@@ -22,7 +22,7 @@ namespace latticeQBP {
     typedef typename CompType<dtype>::Type comp_type;
 
     typedef unsigned int uint;
-    static constexpr uint kernel_size = Lattice::kernel_size;    
+    static constexpr uint kernel_size = Lattice::kernel_size;
 
     TV_PRFlow(Lattice& lattice) 
       : Base(lattice)
@@ -54,13 +54,15 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     cutinfo_ptr runPartitionedSection(const NodePtrIterator& start, 
                                       const NodePtrIterator& end, uint key) {
-        
+
+#ifndef NDEBUG        
       for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = *it;
         assert(n->matchesKey(key));
         assert(n->height == 0);
         assert(n->state() == 0);
       }
+#endif
 
       Base::runSection(start, end, key);
 
@@ -78,11 +80,12 @@ namespace latticeQBP {
       if(!any_on)
         return cut;
       
-      cut->partitions = {partitioninfo_ptr(new PartitionInfo), 
-                         partitioninfo_ptr(new PartitionInfo)};
+      cut->partitions[0] = partitioninfo_ptr(new PartitionInfo);
+      cut->partitions[0]->is_on = false;
 
-      cut->partitions[0].is_on = false;
-      cut->partitions[1].is_on = true;
+      cut->partitions[1] = partitioninfo_ptr(new PartitionInfo);
+      cut->partitions[1]->is_on = true;
+
       cut->cut_value = 0;
 
       // First go through and set the state to the proper node.  all
@@ -94,7 +97,7 @@ namespace latticeQBP {
         
         bool is_on = n->state();
         
-        cut->partitions[is_on ? 0 : 1].nodes.push_back(n);
+        cut->partitions[is_on ? 0 : 1]->nodes.push_back(n);
 
         // Now see about the cut.
         for(uint ei = 0; ei < kernel_size; ++ei) {
@@ -130,8 +133,8 @@ namespace latticeQBP {
     walkConnectedRegion(node_ptr seed_node, const UnaryNodeCriterionFunction& test_f) {
       
       if(DEBUG_MODE) {
-        for(node_ptr n : Base::lattice) {
-          assert_eq(n->height, 0);
+        for(const auto& n : Base::lattice) {
+          assert_equal(n.height, 0);
         }
       }
       
@@ -147,8 +150,9 @@ namespace latticeQBP {
           node_ptr nn = n + Base::step_array[ei];
           
           if(nn->height == 0
-             && (pushCapacity(n, nn, ei) + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0)
-             && (test_f(n, nn))) {
+             && (Base::pushCapacity(n, nn, ei) 
+                 + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0)
+             && (test_f(nn))) {
            
             nn->height = 1;
             nodes.push_back(nn);
@@ -160,8 +164,8 @@ namespace latticeQBP {
         n->height = 0;
 
       if(DEBUG_MODE) {
-        for(node_ptr n : Base::lattice) {
-          assert_eq(n->height, 0);
+        for(const auto& n : Base::lattice) {
+          assert_equal(n.height, 0);
         }
       }
 
@@ -198,11 +202,12 @@ namespace latticeQBP {
         return (uint64_t(min(key1, key2)) << 32) | (uint64_t(max(key1, key2)));
       };
 
-      for(node_ptr n : Base::lattice) {
+      for(node_ptr n = Base::lattice.begin(); n != Base::lattice.end(); ++n) {
         for(uint ei = 0; ei < Base::lattice.kernel_positive_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
-          if(pushCapacity(n, nn, ei) + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+          if(Base::pushCapacity(n, nn, ei) 
+             + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
             auto ret = seen_keys.insert(gen_key(n->key(), nn->key()));
 
             if(ret.second) { 
@@ -216,7 +221,7 @@ namespace latticeQBP {
 
     template <typename ForwardIterator, typename RegisterNode> 
     void constructNeighborhoodSet(const ForwardIterator& start, const ForwardIterator& end, 
-                                  uint key, RegisterNode& reg_node) const {
+                                  uint key, const RegisterNode& reg_node) const {
 
       for(ForwardIterator it = start; it != end; ++it) {
         node_ptr n = (*it);
@@ -224,7 +229,8 @@ namespace latticeQBP {
         for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
-          if(pushCapacity(n, nn, ei) + pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
+          if(Base::pushCapacity(n, nn, ei) 
+             + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
             reg_node(nn);
           }
         }
@@ -243,9 +249,9 @@ namespace latticeQBP {
       for(auto it = start; it != end; ++it) {
         node_ptr n = (*it);
 
-        n->setFunctionValue(Base::lattice, 0, lambda); 
+        n->setOffsetAndScale(Base::lattice, 0, lambda); 
 
-        fv_avg += n->fv_predict();
+        fv_avg += n->cfv_predict();
         ++n_sum;
       }
 

@@ -6,9 +6,7 @@
 #define ENABLE_BOYKOV_KOLMOGOROV_GC_CODE
 #endif
 
-#include "bk_graphcuts.hpp"
-
-#include "energy_minimization/energy.hpp"
+#include "solvers.hpp"
 #include "common.hpp"
 #include "lattices/indexing.hpp"
 #include "kernels/kernels.hpp"

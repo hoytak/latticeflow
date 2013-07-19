@@ -47,12 +47,12 @@ namespace latticeQBP {
 
     TVSolver(index_vect dimensions)
       : lattice(dimensions)
-      , solver(lattice)
-      , calculated_lambda(-1)
-      , node_map_at_lambda_max(lattice.shape())
       , function_set(false)
       , v_min(0)
       , v_max(0)
+      , solver(lattice)
+      , calculated_lambda(-1)
+      , node_map_at_lambda_max(lattice.shape())
     {
     }
 
@@ -69,7 +69,6 @@ namespace latticeQBP {
 
       for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
         
-        index_vect c1 = edge_it.latticeCoordOf1();
         size_t idx_src = edge_it.nodeIndexOf1();
         size_t idx_dest = edge_it.nodeIndexOf2();
 
@@ -90,13 +89,12 @@ namespace latticeQBP {
       // Solve the initial path; this can be swapped out later with a more efficient routine.
       for(auto& n : lattice)
         n.setOffsetAndScale(lattice, 0, initial_lambda);
-      
-      ParametricFlowSolver<dtype, Lattice> nrs(lattice);
-      nrs.run();
-
+            
+      ParametricFlowSolver<dtype, Lattice> pfs(lattice);
+      vector<vector<node_ptr> > levelset_maps = pfs.run();
 
       // Now build the whole regularization path
-      _constructInitialRegPathsFromSolvedLattice(initial_lambda);
+      _constructInitialRegPathsFromSolvedLattice(levelset_maps, initial_lambda);
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -189,54 +187,32 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // INITIAL: methods for constructing the initial reg paths
 
-    void _constructInitialRegPathsFromSolvedLattice(dtype solved_lamba) {
+    void _constructInitialRegPathsFromSolvedLattice(
+        const vector<vector<node_ptr> >& level_sets, dtype solved_lamba) {
 
-      if(DEBUG_MODE) {
-        for(auto& n : lattice) 
+#ifndef NDEBUG
+        for(auto& n : lattice)
           assert(n.keyIsClear());
-      }
+#endif
 
       ////////////////////////////////////////////////////////////////////////////////
       // Build an initial set of regions at the primary lambda value
 
       vector<_TVRegPathSegment*> initial_rps_nodes;
 
-      // The null one is for the dead nodes on the perimeters 
-      _TVRegPathSegment *null_rps = getNew_TVRegPathSegment();
+      for(const auto& nv : level_sets) {
+        _TVRegPathSegment *rps = getNew_TVRegPathSegment();        
 
-      for(auto it = node_map_at_lambda_max.indexIterator(); !it.done(); ++it) {
-
-        node_ptr n = lattice(it);
-        _TVRegPathSegment *rps;
-
-        if(unlikely(n->keyIsClear())) {
-
-          if(solver.nodeIsOrphan(n)) {
-            rps = null_rps;
-          } else {
-
-            dtype lvl = n->level();
-
-            vector<node_ptr> region = solver.walkConnectedRegion
-              (n, [lvl](node_ptr nn) { return abs(lvl - nn->level()) <= 1; } );
-
-            rps = getNew_TVRegPathSegment();
+        rps->setupAsInitial(nv.begin(), nv.end(), solved_lamba);
         
-            rps->setupAsInitial(region.begin(), region.end(), solved_lamba);
+        initial_rps_nodes.push_back(rps);
 
-            assert(rps == lookupRPSFromKey(n->key()));
+        for(node_ptr n : nv) {
+          n->setKey(rps->constructionInfo()->key);
+          assert(rps == lookupRPSFromKey(n->key()));
 
-            initial_rps_nodes.push_back(rps);
-          }
-
-        } else {
-          rps = lookupRPSFromKey(n->key());
-          
-          // Create the new region; setting all the sections to the
-          // correct key. 
+          node_map_at_lambda_max[n - lattice.begin()] = rps;
         }
-
-        node_map_at_lambda_max[it] = rps;
       }
 
       ////////////////////////////////////////////////////////////////////////////////
@@ -377,7 +353,7 @@ namespace latticeQBP {
             _TVRegPathSegment* new_rps2 = getNew_TVRegPathSegment();
 
             rps->applySplit(new_rps1, new_rps2, current_lambda, 
-                            [&, this](uint k) {return lookupRPSFromKey(k); });
+                            [&, this](uint k) {return this->lookupRPSFromKey(k); });
 
             rps->deactivate();
 
@@ -566,5 +542,8 @@ namespace latticeQBP {
 };
 #endif
 
+namespace latticeQBP {
+  template class TVSolver<Full2d_4, int>;
+};
 
 #endif /* _TV_REGPATH_H_ */

@@ -4,7 +4,7 @@
 #include "common/array_wrapper.hpp"
 #include "common/code_optimizations.hpp"
 #include "common/debug.hpp"
-#include "common/numerical.hpp"
+#include "common/type_processing.hpp"
 #include "common/rng.hpp"
 #include "common/timetracker.hpp"
 #include "common/utilities.hpp"

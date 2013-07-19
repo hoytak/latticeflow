@@ -205,7 +205,7 @@ namespace latticeQBP {
 
     template <class Lattice> 
     void _adjustValueInLattice(Lattice& lattice, dtype delta) {
-      typename Base::template NodeFiller<Lattice>(lattice).addE1(lattice.resolve(this), 0, _weight.mult(delta)); 
+      typename Base::template NodeFiller<Lattice>(lattice).addE1(this, 0, _weight.mult(delta)); 
     }
 
     ////////////////////////////////////////////////////////////////////////////////

@@ -238,7 +238,7 @@ namespace latticeQBP {
 
       if(check_neighbors) {
         for(size_t i = 0; i < lattice.kernelSize(); ++i) {
-          auto nn = lattice.neighbor(this, i);
+          const auto& nn = lattice.neighbor((const decltype(this))this, i);
           if(!lattice.isValidNode(nn))
             continue;
           nn->_debugVerifyNodeConsistency(lattice, false);
@@ -356,7 +356,8 @@ namespace latticeQBP {
         : lattice(_lattice)
       {}
 
-      inline void addE1(node_ptr n, dtype e0, dtype e1) const {
+      template <typename NodePtr>
+      inline void addE1(const NodePtr& n, dtype e0, dtype e1) const {
         dtype q = e1 - e0;
 
         assert(lattice.withinBounds(n));
@@ -373,7 +374,8 @@ namespace latticeQBP {
 
       }
 
-      inline void addE2(node_ptr n1, node_ptr n2, uint ei, 
+      template <typename NodePtr>
+      inline void addE2(const NodePtr& n1, const NodePtr& n2, uint ei, 
                         dtype e00, dtype e01, dtype e10, dtype e11) const {
 
         // cout << "Adding nodes " << lattice._tag(n1) << ", " << lattice._tag(n2) << ", ei = " << ei << endl;
