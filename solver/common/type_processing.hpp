@@ -106,9 +106,10 @@ namespace latticeQBP {
   }
 
   template <typename CompType> 
-  static inline typename DTypeMap<CompType>::Type ceilAverage(CompType sum, size_t n) {
+  static inline typename DTypeMap<CompType>::Type ceilAverage(CompType sum, long n) {
     if(sum > 0) sum += (n-1);
-    return toDType<CompType>(sum / n);
+    sum /= n;
+    return toDType(sum);
   }
 
 

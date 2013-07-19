@@ -179,7 +179,7 @@ namespace latticeQBP {
 
       n_nodes = 0;
       for(ForwardIterator it = start; it != end; ++it) {
-        (*it)->setKey(ci.key);
+        (*it)->template setKey<0>(ci.key);
         ++n_nodes;
       }
     }

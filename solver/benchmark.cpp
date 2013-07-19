@@ -16,7 +16,7 @@ typedef long dtype;
 using namespace latticeQBP;
 
 //#define _LatticeEnergy NetFlowLatticeEnergyReductions
-#define _LatticeEnergy LatticeEnergyMinimizer
+#define _LatticeEnergy LatticeLevelReductions
 
 #include <boost/lexical_cast.hpp>
 #include <string>

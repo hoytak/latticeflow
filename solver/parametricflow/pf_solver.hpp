@@ -41,6 +41,7 @@ namespace latticeQBP {
 #endif
       // Set up the solver
       NFSolver nf_solver(lattice);
+      nf_solver.disablePrinting();
 
       vector<node_ptr> ls_points;
       typedef typename vector<node_ptr>::iterator vn_iter;
@@ -71,8 +72,15 @@ namespace latticeQBP {
         assert(ls_range.start != ls_range.end);
 
         // Set them to their initial value
-        if(Node::setToMeanReductionPoint(lattice, ls_range.start, ls_range.end))
+        if(Node::setToMeanReductionPoint(lattice, ls_range.start, ls_range.end)) {
+          // cout << "Done with reductions on nodes: ";
+          // sort(ls_range.start, ls_range.end);
+          // for(vn_iter it = ls_range.start; it != ls_range.end; ++it) {
+          //   cout << ((*it) - lattice.begin()) << ",";
+          // }
+          // cout << endl;
           continue;
+        }
 
         // Run it 
         nf_solver.prepareSection(ls_range.start, ls_range.end, key, false);
@@ -84,26 +92,39 @@ namespace latticeQBP {
 
         long mid_point = 0;
 
+        assert(it_fwd != it_bck);
+
         while(true) {
+          // cerr << "Fwd: starting; at ." << (it_fwd - ls_range.start) << endl;
+          // cerr << "Bck starting; at ." << (it_bck - ls_range.start) << endl;
+          
+          assert(it_fwd != it_bck);
+
           while( (*it_fwd)->state() == 0 ) {
             ++it_fwd;
-            if(unlikely(it_bck == it_fwd)) {
+            if(unlikely(it_bck == it_fwd))
               goto separation_done;
-            }
+            // cerr << "ran fwd; at ." << (it_fwd - ls_range.start) << endl;
+ 
           }
+          
+          // cerr << "Done" << endl;
 
           while( (*it_bck)->state() == 1 ) {
             --it_bck;
             if(unlikely(it_bck == it_fwd)) 
               goto separation_done;
+            // cerr << "ran back; at ." << (it_bck - ls_range.start) << endl;
           }
           
+          // cerr << "Done" << endl;
           swap(*it_fwd, *it_bck);
           ++it_fwd;
+
           if(it_fwd == it_bck) {
           separation_done:;
             
-            if((*it_bck)->state() == 0)
+            if(it_bck != ls_range.end && (*it_bck)->state() == 0)
               ++it_bck;
             
             if(DEBUG_MODE) {            
@@ -114,28 +135,45 @@ namespace latticeQBP {
                 assert((*it)->state() == 1);
             }
   
-            mid_point = (it_fwd - ls_range.start);
+            mid_point = (it_bck - ls_range.start);
             break;
           }
         }
 
-        if(mid_point != 0 && mid_point != (ls_range.end - ls_range.start)) {
-          queue.push_back({ls_range.start, ls_range.start + mid_point});
-          boundaries.push_back(ls_range.start - ls_points.begin());
+        // cout << "Adding mid_point = [" << mid_point 
+        //      << "/" << (ls_range.end - ls_range.start) << endl;
 
-          queue.push_back({ls_range.start + mid_point, ls_range.end});
-          boundaries.push_back( (ls_range.start - ls_points.begin()) + mid_point);
-        }
+        size_t top_idx = (ls_range.end - ls_range.start); 
+
+        if(mid_point > 0)
+          queue.push_back({ls_range.start, ls_range.start + mid_point});
+
+        if(mid_point < top_idx) 
+          queue.push_back({ls_range.start + mid_point, ls_range.end});          
+        
+        if(mid_point > 0 && mid_point < top_idx)
+          boundaries.push_back(mid_point + (ls_range.start - ls_points.begin()));
 
         // Now clean up the graph
+        for(vn_iter it = ls_range.start; it != ls_range.end; ++it) {
+          node_ptr n = *it;
+          if(n->state()) 
+            n->template flipNode<1>(lattice);
+        }
+        
         nf_solver.cleanupSection(ls_range.start, ls_range.end, key);
         
         // Next key
         ++key;
       }
 
+      // Go through and reset all the offset stuff
+      for(vn_iter it = ls_points.begin(); it != ls_points.end(); ++it) 
+        (*it)->setOffset(lattice, 0);
+
       size_t n_level_sets = boundaries.size();
       boundaries.push_back(ls_points.size());
+      sort(boundaries.begin(), boundaries.end());
 
       if(HAVE_OUTPUT)
         cout << "Finished running model in " << tt.asString() << "." << endl;
@@ -146,6 +184,7 @@ namespace latticeQBP {
       for(size_t i = 0; i < n_level_sets; ++i) {
         level_sets[i] = vector<node_ptr>(ls_points.begin() + boundaries[i],
                                          ls_points.begin() + boundaries[i+1]);
+        sort(level_sets[i].begin(), level_sets[i].end());
       }
       
       return level_sets;

@@ -181,6 +181,34 @@ namespace latticeQBP {
     }
 
     template <class Lattice> 
+    void _debug_checkLevelsetMethodsNode(Lattice& lattice) {
+#ifndef NDEBUG
+      dtype cfo = current_fv_offset;
+      dtype _cfv_predict = cfv_predict();
+      dtype _cfv = cfv();
+
+      setOffset(lattice, 0);
+      
+      assert_equal(current_fv_offset, 0);
+      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(cfv(), _cfv);
+
+      setOffset(lattice, 56323);
+      
+      assert_equal(current_fv_offset, 56323);
+      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(cfv(), _cfv);
+
+      setOffset(lattice, cfo);
+
+      assert_equal(current_fv_offset, cfo);
+      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(cfv(), _cfv);
+#endif      
+    }
+
+
+    template <class Lattice> 
     void setOffsetAndScale(Lattice& lattice, dtype fv_offset, dtype scale)
     {
       assert(Policy::using_scales);
@@ -221,34 +249,59 @@ namespace latticeQBP {
       assert(start != end);
 
       comp_type r_sum = 0;
-      size_t count = 0;
-      dtype r_min = (*start)->level();
-      dtype r_max = (*start)->level();
+      double count = 0;
+      dtype r_min = (*start)->cfv_predict();
+      dtype r_max = (*start)->cfv_predict();
+
+      // cout << "Reductions = ";
 
       // TO DO: implement this with weights
       for(ForwardNodePtrIterator it = start; it != end; ++it) {
         auto n = *it;
+        n->_debug_checkLevelsetMethodsNode(lattice);
         dtype r = n->cfv_predict();
         r_sum += r;
         r_min = min(r_min, r);
         r_max = max(r_max, r);
-        ++count;
+        count += 1;
+
+        // cout << r << ",";
       }
+
+      // cout << endl;
+
+      // cout << "r_max = " << r_max << "; r_min = " << r_min << endl;
 
       if(r_max - r_min <= 1)
         return true;
       
       dtype r_new = dtype(ceil(double(r_sum) / count));
 
+      // cout << "r_sum = " << r_sum << "; r_new = " << r_new;
+
       // To accomidate the case where flow still needs to be
-      // redistributed, but it rounds to an end point.
+      // redistributed, but it rounds to an end point.  
       if(r_new == r_max)
         --r_new;
 
+      // cout << "; r_new_final = " << r_new << endl;
+
+      double base_level = 0; 
+
+      // cout << "Levels: ";
+
       for(ForwardNodePtrIterator it = start; it != end; ++it) {
         auto n = *it;
+        n->_debug_checkLevelsetMethodsNode(lattice);
         n->setOffset(lattice, r_new);
+        n->_debug_checkLevelsetMethodsNode(lattice);
+        base_level += n->level();
+
+        // cout << n->level() << ",";
       }
+      // cout << endl;
+
+      // cout << "base_level = " << (base_level / count) << endl;
 
       return false;
     }

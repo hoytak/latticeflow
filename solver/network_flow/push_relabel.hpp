@@ -52,6 +52,7 @@ namespace latticeQBP {
       , top_level(1)
       , step_array(lattice.jumpArray())
       , num_flips(0)
+      , disable_printing(false)
       , visited_nodes(OptPolicy::run_topology_restructure() 
                       ? 2*max(lattice.dimensions()) + 25 : 0)
       , level_heap(OptPolicy::run_topology_restructure() 
@@ -90,9 +91,17 @@ namespace latticeQBP {
 
     vector<node_ptr> node_buffer;
 
+    bool disable_printing;
+
     ////////////////////////////////////////////////////////////////////////////////
     // Debug and consistency checks
 
+  public:
+    void disablePrinting() {
+      disable_printing = true;
+    }
+
+  protected:
 #ifndef NDEBUG
 
     void _debug_VerifyAccurateLevel(size_t level, bool check_heights = false) {
@@ -210,12 +219,12 @@ namespace latticeQBP {
       TimeTracker tt;
       tt.start();
 
-      cerr << "Nodes: ";
-      for(NodePtrIterator it = start; it != end; ++it) {
-        node_ptr n = lattice.resolve(*it);
-        cerr << lattice.index(n) << ",";
-      }
-      cerr << endl;
+      // // cerr << "Nodes: ";
+      // for(NodePtrIterator it = start; it != end; ++it) {
+      //   node_ptr n = lattice.resolve(*it);
+      //   // cerr << lattice.index(n) << ",";
+      // }
+      // cerr << endl;
 #endif 
 
       initQueue();
@@ -322,7 +331,8 @@ namespace latticeQBP {
         n->height = 0;
 
 #if HAVE_OUTPUT
-      cout << "Time taken in hotstart = " << tt.asString() << endl;
+      if(!disable_printing)
+        cout << "Time taken in hotstart = " << tt.asString() << endl;
 #endif
     }
 
@@ -1197,7 +1207,7 @@ namespace latticeQBP {
 
       _run();
 
-      if(HAVE_OUTPUT)
+      if(HAVE_OUTPUT && !disable_printing)
         cout << "Partition " << partition
              << ": Start size = " << starting_size << ", simple runner eliminated "
              << easy_count << "; " << num_flips << "/" << lattice.sizeWithinBounds()
@@ -1229,11 +1239,11 @@ namespace latticeQBP {
           n->template setKeyState<partition>(lattice, _key);
         } else {
           assert_equal(n->state(), partition);
-          n->setKey(_key);
+          n->template setKey<partition>(_key);
         }
       }
 
-      key = Node::template makeKeyState<partition>(key);
+      key = Node::template makeKeyState<partition>(_key);
 
       // All that's needed here; just prepares things for runSection
     }
@@ -1244,7 +1254,18 @@ namespace latticeQBP {
       size_t set_size = 0;
       size_t starting_size = 0;
 
-      key = _key;
+#ifndef NDEBUG
+      bool has_excess = false;
+      for(auto it = start; it != end; ++it) {
+        node_ptr n = *it;
+        assert_equal(n->state(), 0);
+        assert_equal(n->key(), _key);
+        assert(eligible(n));
+        if(n->excess() > 0) 
+          has_excess = true;
+      }
+      assert(has_excess);
+#endif 
 
       if(OptPolicy::init_hotstart()) {
         hotStart(start, end);
@@ -1262,7 +1283,9 @@ namespace latticeQBP {
 
           ++set_size;
 
-          if(eligible(n) && n->excess() > 0) {
+          assert(eligible(n));
+
+          if(n->excess() > 0) {
             ++starting_size;
             active_nodes.push_back(n);
           }
@@ -1275,13 +1298,14 @@ namespace latticeQBP {
         }
       }
 
-
       _run();
 
 #ifndef NDEBUG
-      cerr << "Partition " << partition
-           << ": Set size = " << set_size << "; queue start size = " 
-           << starting_size << "; " << num_flips << " total flips. " << endl;
+      if(!disable_printing) {
+        cerr << "Partition " << partition
+             << ": Set size = " << set_size << "; queue start size = " 
+             << starting_size << "; " << num_flips << " total flips. " << endl;
+      }
 #endif
 
       if(starting_size == 0)

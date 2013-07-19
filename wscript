@@ -225,19 +225,23 @@ def build(ctx):
     ctx.stlib(source=main_source_files,
               target='stlatticeflow',
               lib          = ['m'],
-              install_path = join(ctx.options.prefix, 'lib'))
-
+              install_path = join(ctx.options.prefix, 'lib'),
+              cxxflags = cxxflags)
+    
     ctx.shlib(source=[],
               target='latticeflow',
               install_path = join(ctx.options.prefix, 'lib'),
               lib          = ['m'],
-              use = ['stlatticeflow']
+              use = ['stlatticeflow'],
+              cxxflags = cxxflags
               )
+
     if ctx.options.python:
         ctx(features = 'cxx cxxshlib pyext cython',
             source   = ['extensions/python/pylatticeflow.pyx'],
             target   = 'pylatticeflow',
-            use      = ['stlatticeflow']
+            use      = ['stlatticeflow'],
+            cxxflags = cxxflags
             )
 
     

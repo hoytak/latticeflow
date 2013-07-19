@@ -72,8 +72,7 @@ namespace latticeQBP {
         size_t idx_src = edge_it.nodeIndexOf1();
         size_t idx_dest = edge_it.nodeIndexOf2();
 
-        dtype pwf = Node::toFVDType(0.5*edge_it.geocutEdgeWeight() 
-                                    * abs(function[idx_src] - function[idx_dest]));
+        dtype pwf = Node::toFVDType(0.5*edge_it.geocutEdgeWeight()); 
         
         filler.addE2(edge_it.node1(), edge_it.node2(), edge_it.edgeIndex(), 0, pwf, pwf, 0);
       }
@@ -208,7 +207,7 @@ namespace latticeQBP {
         initial_rps_nodes.push_back(rps);
 
         for(node_ptr n : nv) {
-          n->setKey(rps->constructionInfo()->key);
+          n->template setKey<0>(rps->constructionInfo()->key);
           assert(rps == lookupRPSFromKey(n->key()));
 
           node_map_at_lambda_max[n - lattice.begin()] = rps;
