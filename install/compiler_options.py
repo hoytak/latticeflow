@@ -24,7 +24,8 @@ def setupCompilerFlags(ctx, cxx11support = False):
     #  Set up the options for gcc
     if compiler in ["g++", "gcc", "clang", "clang++"]:
 
-        compiler_common_options = [cpp11x.cxx11_flag, '-Wall', '-g', '-fpic']
+        compiler_common_options = [cpp11x.cxx11_flag, '-Wall', '-g', '-fpic',
+                                   '-Wno-unused-local-typedefs']
         linker_common_options   = [cpp11x.cxx11_flag, '-Wall', '-g', '-fpic']
 
         compiler_full_debug_options = ['-O0', '-Wno-strict-aliasing', '-fno-inline']

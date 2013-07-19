@@ -249,7 +249,11 @@ namespace latticeQBP {
       return true;
     }
 
-    bool withinBounds(const value_direct_cptr& vptr) const {
+    template <typename TT> 
+    bool withinBounds(const TT* t,
+                      typename enable_if<is_base_of<TT, value_type>::value>::type* = 0) const {
+      value_direct_cptr vptr = static_cast<value_direct_cptr>(t);
+      
       return withinBounds(indexer.getCoords(index(vptr)));
     }
 
@@ -285,19 +289,22 @@ namespace latticeQBP {
       return (idx < size());
     }
 
-    bool isValidNode(value_direct_cptr nn) const {
+    template <typename TT> 
+    bool isValidNode(const TT* t,
+                typename enable_if<is_base_of<TT, value_type>::value>::type* = 0) const {
+      value_direct_cptr nn = static_cast<value_direct_cptr>(t);
       return (nn >= &(*(data.begin()))) && (nn < &(*(data.end())));
     }
 
-    inline value_ptr resolve(value_direct_ptr vpt) {
+    inline value_ptr resolve(value_direct_ptr vpt) const {
       return begin_ptr + (vpt - &(*begin_ptr));
     }
 
-    inline value_ptr resolve(value_type& vpt) {
+    inline value_ptr resolve(value_type& vpt) const {
       return resolve(&vpt);
     }
 
-    inline value_ptr resolve(const value_ptr& vpt) {
+    inline value_ptr resolve(const value_ptr& vpt) const {
       return vpt;
     }
 

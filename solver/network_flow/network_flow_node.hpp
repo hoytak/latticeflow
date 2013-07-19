@@ -192,7 +192,7 @@ namespace latticeQBP {
   protected:
 
     template <typename Lattice>
-    void _debugVerifyNodeConsistency(const Lattice& lattice, bool check_neighbors = true) const { 
+    void _debugVerifyNodeConsistency(Lattice& lattice, bool check_neighbors = true) { 
 
 #ifndef NDEBUG
 
@@ -238,7 +238,7 @@ namespace latticeQBP {
 
       if(check_neighbors) {
         for(size_t i = 0; i < lattice.kernelSize(); ++i) {
-          const auto& nn = lattice.neighbor((const decltype(this))this, i);
+          auto nn = lattice.neighbor(this, i);
           if(!lattice.isValidNode(nn))
             continue;
           nn->_debugVerifyNodeConsistency(lattice, false);
@@ -352,7 +352,7 @@ namespace latticeQBP {
 
       typedef typename Lattice::value_ptr node_ptr;
 
-      NodeFiller(const Lattice& _lattice) 
+      NodeFiller(Lattice& _lattice) 
         : lattice(_lattice)
       {}
 
@@ -424,7 +424,7 @@ namespace latticeQBP {
 #endif
       }
     private:
-      const Lattice& lattice;
+      Lattice& lattice;
     };
   };
 

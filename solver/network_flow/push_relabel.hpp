@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 
 #include "../common.hpp"
 #include "level_heap.hpp"
@@ -30,6 +31,8 @@ namespace latticeQBP {
 
     static_assert(partition == 0 || partition == 1, 
                   "partition must be 0 or 1.");
+
+    static_assert(is_signed<dtype>::value, "dtype template parameter must be signed.");
 
     typedef _KernelLattice Lattice;
     typedef typename Lattice::Kernel Kernel;
@@ -653,7 +656,7 @@ namespace latticeQBP {
     }
 
     inline dtype capacityOfSaturated(const node_cptr& src, const node_cptr& dest, uint ei) const {
-      assert_neq(src->on(), dest->on());
+      assert_notequal(src->on(), dest->on());
 
       return src->capacityOfSaturated(ei);
     }

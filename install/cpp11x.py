@@ -8,7 +8,7 @@ def setupCXX11(ctx):
     global using_cxx11, cxx11_flag
 
     using_cxx11 = True
-    cxx11_flag = chooseOption(ctx, '-std=c++11x', '-std=c++0x')
+    cxx11_flag = chooseOption(ctx, '-std=c++11', '-std=c++0x')
 
 
 def checkCXX11features(ctx, required_features):

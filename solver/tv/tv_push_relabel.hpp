@@ -104,7 +104,7 @@ namespace latticeQBP {
           node_ptr nn = n + Base::step_array[ei];
           
           if(nn->matchesKey(key) && nn->state() != is_on) {
-            cut->cut_value += capacityOfSaturated(n, nn, ei); 
+            cut->cut_value += Base::capacityOfSaturated(n, nn, ei); 
             cut->cut_edges.push_back(make_pair(n, ei));
           }
         }

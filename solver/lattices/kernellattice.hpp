@@ -127,12 +127,20 @@ namespace latticeQBP {
       return n + index_jumps[ei];
     }
 
-    value_direct_cptr neighbor(value_direct_cptr n, unsigned int ei) const {
-      return n + index_jumps[ei];
+
+    template <typename TT> 
+    TT* neighbor(TT* vptr, unsigned int ei,
+                typename enable_if<is_base_of<TT, value_type>::value 
+                && !is_const<TT>::value>::type* = 0)
+    {
+      return static_cast<value_direct_ptr>(vptr) + index_jumps[ei];
     }
 
-    value_direct_ptr neighbor(value_direct_ptr n, unsigned int ei) {
-      return n + index_jumps[ei];
+    template <typename TT> 
+    const TT* neighbor(const TT* vptr, unsigned int ei,
+                      typename enable_if<is_base_of<TT, value_type>::value>::type* = 0) const
+    {
+      return static_cast<value_direct_cptr>(vptr) + index_jumps[ei];
     }
 
     inline index_vect neighborCoords(value_direct_cptr n, unsigned int ei) const {
