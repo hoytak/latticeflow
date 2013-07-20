@@ -47,19 +47,19 @@ cdef extern from "kernels/kernels.hpp" namespace "latticeQBP":
 cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
 
     vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
-        size_t nx, size_t ny, double *function, double lm)
+        size_t nx, size_t ny, double *function, double lm) nogil except +
 
     cdef cppclass FuncPathArray "latticeQBP::LatticeArray<double, 3>":
-        double at(size_t, size_t, size_t) nogil
+        double at(size_t, size_t, size_t) nogil except +
 
     ctypedef FuncPathArray* RegPathPtr
 
     RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
-        size_t nx, size_t ny, double *function, vector[double])
+        size_t nx, size_t ny, double *function, vector[double]) nogil except +
 
     
 cdef extern from "math.h":
-    double exp(double)
+    double exp(double) nogil 
 
 cpdef getKernelDimension(str kernel):
     cdef vector[string] names

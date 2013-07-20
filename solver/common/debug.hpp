@@ -7,6 +7,10 @@
 #undef assert
 #endif
 
+// #ifdef NDEBUG
+// #undef NDEBUG
+// #endif
+
 #ifndef NDEBUG
 
 #ifndef EMACS_FLYMAKE

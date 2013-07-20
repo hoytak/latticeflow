@@ -80,6 +80,9 @@ namespace latticeQBP {
 
       assert(ci.nodeset.empty());
       ci.nodeset = vector<node_ptr>(start, end);
+      assert(!ci.nodeset.empty());
+
+      assert_equal(set<node_ptr>(start, end).size(), ci.nodeset.size());
 
       syncKey(ci.nodeset.begin(), ci.nodeset.end());
       

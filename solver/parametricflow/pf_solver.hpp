@@ -185,6 +185,11 @@ namespace latticeQBP {
         level_sets[i] = vector<node_ptr>(ls_points.begin() + boundaries[i],
                                          ls_points.begin() + boundaries[i+1]);
         sort(level_sets[i].begin(), level_sets[i].end());
+        
+#ifndef NDEBUG
+        for(node_ptr n : level_sets[i])
+          assert(lattice.withinBounds(n));
+#endif
       }
       
       return level_sets;
