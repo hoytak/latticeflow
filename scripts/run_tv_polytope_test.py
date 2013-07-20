@@ -25,7 +25,7 @@ X -= X.mean()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0, 0.1, 100)
+lambdas = np.linspace(0, 0.25, 100)
 
 Xtv = np.empty( (lambdas.size, X.shape[0], X.shape[1]) )
 Rtv = np.empty( (lambdas.size, X.shape[0], X.shape[1]) )
@@ -163,14 +163,14 @@ if plot_type == "levels2":
     f = figure()
     a = f.add_subplot(111)
 
-    xc, yc = 20, 20
+    xc, yc = 0, 0
     lmi = int(lambdas.size * 0.25)
 
     col = []
 
     ymin, ymax = 0,0
 
-    for xi, yi in product(range(0, Rtv.shape[1], 5), range(0, Rtv.shape[2], 5)):
+    for xi, yi in product(range(0, Rtv.shape[1]), range(0, Rtv.shape[2])):
     #for xi, yi in product(range(0, 10), range(0, 10)):
         
         y = lambdas * Xtv[:,xi, yi]
@@ -178,7 +178,7 @@ if plot_type == "levels2":
         yref = lambdas * Xtv[:, xc, yc]
 
         if True or abs(y[:lmi] - yref[:lmi]).mean() < 0.00001:
-            col.append( np.vstack([lambdas, y]).T )
+#            col.append( np.vstack([lambdas, y]).T )
             ymin = min(ymin, y.min())
             ymax = max(ymax, y.max())
 

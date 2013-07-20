@@ -309,6 +309,10 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // For initializing the lattice 
 
+    void setBaseFunctionValueDirect(dtype x) {
+      base_fv = _weight.fvToNf(x);
+    }
+
     void setBaseFunctionValue(double x) {
       base_fv = _weight.fvToNf(toFVDType(x));
     }
@@ -322,6 +326,9 @@ namespace latticeQBP {
       return _weight.nfToFv(Base::level());
     }
 
+    dtype value() const {
+      return toFValue(level());
+    }
   };
 };
 

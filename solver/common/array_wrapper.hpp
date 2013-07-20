@@ -104,18 +104,16 @@ public:
   // Setting stuff
 
   template <typename T>
-  inline void set(std::initializer_list<T>& v, 
-                  typename std::enable_if<std::is_convertible<T, dtype>::value>::type* = 0){ 
-    for(size_t i = 0; i < _n_elements; ++i)
-      _data[i] = dtype(v[i]);
-  }
-
-  template <typename T>
   inline const Array& operator=(const T& v) {
     fill(_data, _data + _n_elements, dtype(v));
     return *this;
   }
 
+  template <typename T>
+  inline const Array& operator=(std::initializer_list<T>& v) {
+    for(size_t i = 0; i < _n_elements; ++i)
+      _data[i] = dtype(v[i]);
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // Various information

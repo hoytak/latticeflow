@@ -99,7 +99,8 @@ namespace latticeQBP {
     typedef T& value_ref;
     typedef const T& value_cref;
 
-    LatticeArray(const index_vect& _dimensions, const index_vect& edge_buffers = index_vect(0))
+    LatticeArray(const index_vect& _dimensions = index_vect(0), 
+                 const index_vect& edge_buffers = index_vect(0))
       : indexer( (_dimensions + edge_buffers) + Element<size_t>(0, 3*edge_buffers[0]))
       , bounds(_dimensions)
       , data(indexer.size())
@@ -108,7 +109,7 @@ namespace latticeQBP {
     {
     }
 
-    LatticeArray ( LatticeArray && ) = default;
+    LatticeArray(LatticeArray&& l) = default;
 
     inline value_ptr begin() const {
       return begin_ptr;
@@ -156,6 +157,16 @@ namespace latticeQBP {
     template <typename... Pos>
     inline value_ref operator[](const Pos&... pos) {
       return *(*this)(pos...);
+    }
+
+    template <typename... Pos>
+    inline value_cref at(const Pos&... pos) const {
+      return *(*this)(index_vect({pos...}));
+    }
+
+    template <typename... Pos>
+    inline value_ref at(const Pos&... pos) {
+      return *(*this)(index_vect({pos...}));
     }
 
     size_t index(value_cptr v) const {

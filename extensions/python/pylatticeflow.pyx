@@ -46,8 +46,14 @@ cdef extern from "kernels/kernels.hpp" namespace "latticeQBP":
     
 cdef extern from "tv/tv_solver.hpp":
 
-    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_12, long>" (
+    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
         size_t nx, size_t ny, double *function, double lm)
+
+    cdef cppclass FuncPathArray "latticeQBP::LatticeArray<double, 3>":
+        double at(size_t, size_t, size_t) nogil
+        
+    FuncPathArray _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
+        size_t nx, size_t ny, double *function, vector[double])
     
 cdef extern from "math.h":
     double exp(double)
@@ -437,6 +443,35 @@ def calculate2dTV(ar Xo, double flt):
     for yi in range(ny):
         for xi in range(nx):
             R[yi,xi] = Rv[yi*nx + xi]
+        
+    return R
+
+    
+def calculate2dTVPath(ar Xo, ar[double] lma):
+
+    cdef size_t i, j
+
+    cdef ar[double, ndim=2, mode='c'] X = np.ascontiguousarray(Xo, dtype='d')
+    cdef size_t nx = X.shape[1]
+    cdef size_t ny = X.shape[0]
+
+    cdef size_t n_lm = lma.shape[0]
+
+    cdef vector[double] lm_values = vector[double](n_lm)
+
+    for i in range(n_lm):
+        lm_values[i] = lma[i]
+
+    cdef FuncPathArray Rv = _calculate2dTV(nx, ny, &X[0,0], lm_values)
+
+    cdef ar[double, ndim=2, mode='c'] R = np.empty( (lm_values.size(), X.shape[0], X.shape[1]) )
+
+    cdef size_t li, yi, xi
+
+    for li in range(n_lm):
+        for yi in range(ny):
+            for xi in range(nx):
+                R[i,yi,xi] = Rv.at(li, yi, xi)
         
     return R
 

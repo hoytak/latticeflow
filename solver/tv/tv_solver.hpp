@@ -28,13 +28,15 @@ namespace latticeQBP {
     typedef KernelLattice<Node, Kernel::n_dimensions, Kernel> Lattice;
     typedef TV_PRFlow<dtype, Lattice> PRSolver;
 
+    static constexpr int n_dimensions = Lattice::n_dimensions;
+
     typedef typename Lattice::index_vect index_vect;
     typedef typename PRSolver::node_ptr node_ptr;    
     typedef TVRegPathSegment<dtype, PRSolver> _TVRegPathSegment;
 
     typedef typename _TVRegPathSegment::Mode RPSMode;
+    typedef LatticeArray<double, n_dimensions + 1> FuncPathArray;
 
-    static constexpr int n_dimensions = Lattice::n_dimensions;
 
     static_assert(Kernel::is_geocut_applicable,
                   "Kernel is not valid for GeoCuts or TV Minimization.");
@@ -62,17 +64,17 @@ namespace latticeQBP {
 
       for(auto it = lattice.indexIterator(); !it.done(); ++it) {
         const index_vect& idx = it.coords();
-        lattice(idx)->setBaseFunctionValue(function[it.boundedIndex()]);
+        lattice(idx)->setBaseFunctionValueDirect(toFVDType(function[it.boundedIndex()]));
       }
-
+      
       typename Node::template NodeFiller<Lattice> filler(lattice);
 
       for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
         
-        size_t idx_src = edge_it.nodeIndexOf1();
-        size_t idx_dest = edge_it.nodeIndexOf2();
+        // size_t idx_src = edge_it.nodeIndexOf1();
+        // size_t idx_dest = edge_it.nodeIndexOf2();
 
-        dtype pwf = Node::toFVDType(0.5*edge_it.geocutEdgeWeight()); 
+        dtype pwf = toUnshiftedFVDType(0.5*edge_it.geocutEdgeWeight());
         
         filler.addE2(edge_it.node1(), edge_it.node2(), edge_it.edgeIndex(), 0, pwf, pwf, 0);
       }
@@ -98,11 +100,8 @@ namespace latticeQBP {
 
     ////////////////////////////////////////////////////////////////////////////////
     // Retrieving the path
-    typedef LatticeArray<double, n_dimensions + 1> FuncPathArray;
     
-    template <typename FunctionConversionFunction>
-    FuncPathArray getRegularizationPath(const vector<double>& _lambda_values,
-                                        const FunctionConversionFunction& toFunc) const {
+    FuncPathArray getRegularizationPath(const vector<double>& _lambda_values) const {
 
       size_t n_lambda = _lambda_values.size();
 
@@ -116,7 +115,7 @@ namespace latticeQBP {
       vector<dtype> lambda_calc_values(n_lambda);
 
       for(size_t i = 0; i < n_lambda; ++i) 
-        lambda_idx_values[i] = {Node::toLmDType(_lambda_values[i]), i};
+        lambda_idx_values[i] = {Node::toScaleDType(_lambda_values[i]), i};
 
       sort(lambda_idx_values.begin(), lambda_idx_values.end());
 
@@ -138,8 +137,11 @@ namespace latticeQBP {
         assert_equal(path_values.size(), n_lambda);
 
         for(size_t i = 0; i < path_values.size(); ++i)
-          values[concat(lambda_idx_values[i].index, it.coords())] = toFunc(path_values[i]);
+          values[concat(lambda_idx_values[i].index, it.coords())] 
+            = toFValue(path_values[i]);
       }
+
+      return values;
     }
 
   private:
@@ -150,8 +152,12 @@ namespace latticeQBP {
     bool function_set;
     double v_min, v_max;
 
-    inline dtype toFVDtype(double x) const {
+    inline dtype toFVDType(double x) const {
       return Node::toFVDType( (x - (v_min + 0.5* (v_max - v_min) ) ) * (2.0 / (v_max - v_min)) );
+    }
+
+    inline dtype toUnshiftedFVDType(double x) const {
+      return Node::toFVDType(x * (2.0 / (v_max - v_min)) );
     }
 
     inline double toFValue(dtype x) const {
@@ -530,6 +536,23 @@ namespace latticeQBP {
 
     return res;
   }
+
+  template <typename Kernel, typename dtype = long>
+  LatticeArray<double, 3> calculate2dTV(size_t nx, size_t ny, 
+                                        double *function, 
+                                        const vector<double>& lambda) {
+
+    TVSolver<Kernel, dtype> solver({nx, ny});
+
+    solver.set(function);
+
+    solver.buildFullPathFromSolvedLambda(*max_element(lambda.begin(), lambda.end()));
+
+    LatticeArray<double, 3> reg_path = solver.getRegularizationPath(lambda);
+
+    return reg_path;
+  }
+
 }; 
 
 #ifdef EMACS_FLYMAKE
@@ -546,3 +569,9 @@ namespace latticeQBP {
 };
 
 #endif /* _TV_REGPATH_H_ */
+
+
+
+
+
+
