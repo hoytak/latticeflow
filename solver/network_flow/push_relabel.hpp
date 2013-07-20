@@ -1227,7 +1227,7 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     inline void prepareSection(const NodePtrIterator& start, 
                                const NodePtrIterator& end, 
-                               int _key = 0, bool do_state_cleaning = false) {
+                               uint _key = 0, bool do_state_cleaning = false) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1249,7 +1249,7 @@ namespace latticeQBP {
     }
 
     template <typename NodePtrIterator>
-    bool runSection(const NodePtrIterator& start, const NodePtrIterator& end, int _key = 0) {
+    bool runSection(const NodePtrIterator& start, const NodePtrIterator& end, uint _key = 0) {
       // First do a simple iteration
       size_t set_size = 0;
       size_t starting_size = 0;
@@ -1320,7 +1320,7 @@ namespace latticeQBP {
     template <typename NodePtrIterator>  
     inline void cleanupSection(const NodePtrIterator& start, 
                                const NodePtrIterator& end, 
-                               int _key = 0, bool do_state_cleaning = true) {
+                               uint _key = 0, bool do_state_cleaning = true) {
 
       // First go through and set the state to the proper node.  all
       // these are currently eligible

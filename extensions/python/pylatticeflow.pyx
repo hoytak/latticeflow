@@ -44,16 +44,19 @@ cdef extern from "kernels/kernels.hpp" namespace "latticeQBP":
     cdef cppclass Star2d_4:
         pass
     
-cdef extern from "tv/tv_solver.hpp":
+cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
 
     vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
         size_t nx, size_t ny, double *function, double lm)
 
     cdef cppclass FuncPathArray "latticeQBP::LatticeArray<double, 3>":
         double at(size_t, size_t, size_t) nogil
-        
-    FuncPathArray _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
+
+    ctypedef FuncPathArray* RegPathPtr
+
+    RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
         size_t nx, size_t ny, double *function, vector[double])
+
     
 cdef extern from "math.h":
     double exp(double)
@@ -462,7 +465,7 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
     for i in range(n_lm):
         lm_values[i] = lma[i]
 
-    cdef FuncPathArray Rv = _calculate2dTV(nx, ny, &X[0,0], lm_values)
+    cdef RegPathPtr Rv = _calculate2dTV(nx, ny, &X[0,0], lm_values)
 
     cdef ar[double, ndim=2, mode='c'] R = np.empty( (lm_values.size(), X.shape[0], X.shape[1]) )
 

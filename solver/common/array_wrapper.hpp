@@ -100,6 +100,11 @@ public:
     copy(v.begin(), v.end(), _data);
   }
 
+  inline Array(Array&& a) 
+  {
+    copy(a.begin(), a.end(), _data);
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // Setting stuff
 

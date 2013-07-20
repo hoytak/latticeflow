@@ -143,7 +143,7 @@ namespace latticeQBP {
         // cout << "Adding mid_point = [" << mid_point 
         //      << "/" << (ls_range.end - ls_range.start) << endl;
 
-        size_t top_idx = (ls_range.end - ls_range.start); 
+        long top_idx = (ls_range.end - ls_range.start); 
 
         if(mid_point > 0)
           queue.push_back({ls_range.start, ls_range.start + mid_point});

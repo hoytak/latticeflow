@@ -332,10 +332,10 @@ namespace latticeQBP {
     }
 
   protected:
-    const Indexer<nd> indexer;
+    Indexer<nd> indexer;
     index_vect bounds;
     std::vector<T> data;
-    const value_ptr begin_ptr, end_ptr;
+    value_ptr begin_ptr, end_ptr;
   };
 
 };

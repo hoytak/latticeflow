@@ -16,6 +16,7 @@
 #include <queue>
 #include <unordered_map>
 #include <stdexcept>
+#include <memory>
 
 namespace latticeQBP {
   
@@ -537,8 +538,10 @@ namespace latticeQBP {
     return res;
   }
 
+  typedef shared_ptr<LatticeArray<double, 3> > RegPathPtr;
+
   template <typename Kernel, typename dtype = long>
-  LatticeArray<double, 3> calculate2dTV(size_t nx, size_t ny, 
+  RegPathPtr calculate2dTV(size_t nx, size_t ny, 
                                         double *function, 
                                         const vector<double>& lambda) {
 
@@ -548,9 +551,7 @@ namespace latticeQBP {
 
     solver.buildFullPathFromSolvedLambda(*max_element(lambda.begin(), lambda.end()));
 
-    LatticeArray<double, 3> reg_path = solver.getRegularizationPath(lambda);
-
-    return reg_path;
+    return RegPathPtr(new LatticeArray<double, 3>(solver.getRegularizationPath(lambda)));
   }
 
 }; 

@@ -147,6 +147,8 @@ namespace latticeQBP {
                                            dtype check_lambda
                                            ) const {
 
+      assert(start != end);
+
       RegionInformation ri = {0,0,0,0,0,0};
 
       ri.zero_reference = (*start)->cfv_predict();

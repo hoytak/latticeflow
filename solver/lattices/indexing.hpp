@@ -41,6 +41,8 @@ public:
   {
     assert_equal(prod(_dimensions), size());
   }
+
+  Indexer(Indexer&&) = default;
   
   long neighborStep(int dim, int step) const {
     return step * _stride[dim];

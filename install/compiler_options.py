@@ -33,7 +33,7 @@ def setupCompilerFlags(ctx, cxx11support = False):
 
         compiler_debug_options = [
             '-O2', '-Wno-strict-aliasing', '-UNDEBUG']
-        linker_debug_options = []
+        linker_debug_options = ['-UNDEBUG']
 
         compiler_release_options = [
             '-O3', '-funroll-all-loops', '-ffast-math', '-DNDEBUG']
