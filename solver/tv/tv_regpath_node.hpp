@@ -573,9 +573,9 @@ namespace latticeQBP {
 
   public:
 
-    void setupFromJoin(dtype join_lambda, 
-                       TVRegPathSegment *rps1, 
-                       TVRegPathSegment *rps2) {
+    void setupFromJoin(TVRegPathSegment *rps1, 
+                       TVRegPathSegment *rps2,
+                       dtype join_lambda) {
 
       const auto& ci1 = rps1->ci();
       const auto& ci2 = rps2->ci();
@@ -599,7 +599,7 @@ namespace latticeQBP {
       // Set up the initial parts
       rhs_mode = Join;
       rhs_lambda = join_lambda;
-      rhs_nodes = decltype(rhs_nodes)({rps1, rps2});
+      rhs_nodes = {rps1, rps2};
    
       cout << "rps1: " 
            << rps1->get_r_AtLambda(join_lambda-1) << ", "
@@ -621,26 +621,42 @@ namespace latticeQBP {
         dtype r2   = rps2->get_r_AtLambda(join_lambda);
         dtype r2p1 = rps2->get_r_AtLambda(join_lambda+1);
       
-        assert_leq(r1m1, r2);
-        assert_leq(r2, r1p1);
-        assert_leq(r2m1, r1);
-        assert_leq(r1, r2p1);
+        assert_leq(min(r1m1, r1p1), r2);
+        assert_leq(r2, max(r1m1, r1p1));
+        assert_leq(min(r2m1, r2p1), r1);
+        assert_leq(r1, max(r2m1, r2p1));
       }
 #endif
 
-      // Get the neighbors together.
-      ci().neighbors = ci1.neighbors; 
+#ifndef NDEBUG      
+      // In debug node, we need these for checks when deactivating the joined nodes
+      ci().neighbors.clear();
+      ci().neighbors.insert(ci1.neighbors.begin(), ci1.neighbors.end());
       ci().neighbors.insert(ci2.neighbors.begin(), ci2.neighbors.end());
+#else
+      bool ci1_big = ci1.neighbors.size() > ci2.neighbors.size(); 
+
+      auto& nb_big   = (ci1_big ? ci1.neighbors : ci2.neighbors);
+      auto& nb_small = (!ci1_big ? ci1.neighbors : ci2.neighbors);
+
+      ci().neighbors = std::move(nb_big);
+      ci().neighbors.insert(nb_small.start(), nb_small.end());
+#endif
       
       ci().neighbors.erase(rps1);
       ci().neighbors.erase(rps2);
 
       // add in this key to all the other neighbors.
-      for(TVRegPathSegment* nb : ci().neighbors) {\
+      for(TVRegPathSegment* nb : ci().neighbors) {
         auto& nbci = nb->ci();
         nbci.neighbors.insert(this);
         nbci.neighbors.erase(rps1);
         nbci.neighbors.erase(rps2);
+      }
+
+      if(DEBUG_MODE) {
+        rps1->ci().neighbors.erase(rps2);
+        rps2->ci().neighbors.erase(rps1);
       }
 
       // Clean up stuff in the joined segments 

@@ -218,6 +218,9 @@ namespace latticeQBP {
 
       vector<_TVRegPathSegment*> initial_rps_nodes;
 
+      for(auto& v : node_map_at_lambda_max)
+        v = nullptr;
+
       for(const auto& nv : level_sets) {
         _TVRegPathSegment *rps = getNew_TVRegPathSegment();        
 
@@ -229,15 +232,20 @@ namespace latticeQBP {
           n->template setKey<0>(rps->ci().key);
           assert(rps == lookupRPSFromKey(n->key()));
 
-          node_map_at_lambda_max[n - lattice.begin()] = rps;
+          node_map_at_lambda_max[lattice.getCoords(n)] = rps;
         }
+      }
+
+      if(DEBUG_MODE) {
+        for(auto rps : node_map_at_lambda_max) 
+          assert(rps != nullptr);
       }
 
       ////////////////////////////////////////////////////////////////////////////////
       // Now go through and construct all the neighborhood maps.  
       auto register_pair = [&](node_ptr n1, node_ptr n2) {
-        _TVRegPathSegment *rps1 = node_map_at_lambda_max[n1 - lattice.begin()];
-        _TVRegPathSegment *rps2 = node_map_at_lambda_max[n2 - lattice.begin()];
+        _TVRegPathSegment *rps1 = node_map_at_lambda_max[lattice.getCoords(n1)];
+        _TVRegPathSegment *rps2 = node_map_at_lambda_max[lattice.getCoords(n2)];
         
         rps1->neighbors().insert(rps2);
         rps2->neighbors().insert(rps1);
@@ -259,23 +267,21 @@ namespace latticeQBP {
 
       priority_queue<FunPoint> run_heap;
 
-      dtype current_lambda = solved_lamba;
-
       ////////////////////////////////////////////////////////////////////////////////
       // Convenience functions to enable quick registration of segments
 
       auto registerPossibleJoin = 
-        [&, current_lambda](_TVRegPathSegment *rps1, _TVRegPathSegment *rps2) {
+        [&run_heap](_TVRegPathSegment *rps1, _TVRegPathSegment *rps2, dtype lambda_start) {
 
-        dtype join_lambda = _TVRegPathSegment::calculateJoins(rps1, rps2, current_lambda);
+        dtype join_lambda = _TVRegPathSegment::calculateJoins(rps1, rps2, lambda_start);
         if(join_lambda > 0)
           run_heap.push(FunPoint({join_lambda, FunPoint::Join, rps1, rps2}));
       };
 
       auto registerPossibleSplit = 
-        [&, current_lambda](_TVRegPathSegment *rps) {
+        [&run_heap](_TVRegPathSegment *rps, dtype lambda_start) {
 
-        auto sp_info = rps->calculateSplit(current_lambda);
+        auto sp_info = rps->calculateSplit(lambda_start);
         
         if(sp_info.split_occurs) {
           run_heap.push(FunPoint({sp_info.split_lambda, FunPoint::Split, rps, nullptr}));
@@ -291,7 +297,7 @@ namespace latticeQBP {
       for(_TVRegPathSegment* rps1 : initial_rps_nodes) {
         for(_TVRegPathSegment* rps2 : rps1->neighbors()) {
           if(rps1 < rps2) 
-            registerPossibleJoin(rps1, rps2);
+            registerPossibleJoin(rps1, rps2, solved_lamba);
         }
         
         // Add them to the active lines
@@ -300,7 +306,7 @@ namespace latticeQBP {
       // Now go through and calculate all the splits, putting the
       // split upper bounds and the splits on the heap
       for(_TVRegPathSegment* rps : initial_rps_nodes) 
-        registerPossibleSplit(rps);
+        registerPossibleSplit(rps, solved_lamba);
 
       // They are all in the priority heap at this point
       initial_rps_nodes.clear();
@@ -309,22 +315,22 @@ namespace latticeQBP {
       // Now build the reg path
                                                         
       auto activateNewLine = 
-        [&, run_heap, current_lambda](_TVRegPathSegment* rps) {
+        [&, run_heap](_TVRegPathSegment* rps, dtype lambda_start) {
         
-        assert_equal(current_lambda, rps->rhs_lambda);
+        assert_equal(lambda_start, rps->rhs_lambda);
 
         // Check out the joins
         for(_TVRegPathSegment* rps2 : rps->neighbors()) 
-          registerPossibleJoin(rps, rps2);
+          registerPossibleJoin(rps, rps2, lambda_start);
 
         // Calculate potential splits
-        registerPossibleSplit(rps);
+        registerPossibleSplit(rps, lambda_start);
       };
 
-      auto isStillValid = [&, current_lambda](_TVRegPathSegment *rps) {
+      auto isStillValid = [&](_TVRegPathSegment *rps, dtype lambda) {
         assert(rps != nullptr);
         if(rps->lhs_lambda != -1) {
-          assert_geq(current_lambda, rps->lhs_lambda);
+          assert_leq(lambda, rps->lhs_lambda);
           assert(rps->lhs_mode != _TVRegPathSegment::Unset);
           return false;
         } else {
@@ -337,10 +343,10 @@ namespace latticeQBP {
         FunPoint fp = run_heap.top();
         run_heap.pop();
 
-        assert_leq(fp.lambda, current_lambda);
-        current_lambda = fp.lambda;
+        dtype current_lambda = fp.lambda;
 
-        if(!isStillValid(fp.rps1) || (fp.rps2 != nullptr && !isStillValid(fp.rps2)))
+        if(!isStillValid(fp.rps1, current_lambda) 
+           || (fp.rps2 != nullptr && !isStillValid(fp.rps2, current_lambda)))
           continue;
 
         switch(fp.mode) {
@@ -351,12 +357,12 @@ namespace latticeQBP {
 
             _TVRegPathSegment* new_rps = getNew_TVRegPathSegment();
 
-            new_rps->setupFromJoin(current_lambda, rps1, rps2);
+            new_rps->setupFromJoin(rps1, rps2, current_lambda);
 
             rps1->deactivate();
             rps2->deactivate();
 
-            activateNewLine(new_rps);
+            activateNewLine(new_rps, current_lambda);
 
             break;
           }
@@ -375,8 +381,8 @@ namespace latticeQBP {
 
             rps->deactivate();
 
-            activateNewLine(new_rps1);
-            activateNewLine(new_rps2);
+            activateNewLine(new_rps1, current_lambda);
+            activateNewLine(new_rps2, current_lambda);
 
             break;
           }
@@ -387,7 +393,7 @@ namespace latticeQBP {
 
             assert_equal(current_lambda, rps->ci().split_calculation_done_to_lambda);
 
-            registerPossibleSplit(rps);
+            registerPossibleSplit(rps, current_lambda);
 
             break;
           }
@@ -425,7 +431,15 @@ namespace latticeQBP {
     vector<dtype> traceRegularizationPath(const index_vect& pos, const vector<dtype>& lambdas) const {
       node_ptr n = lattice(pos);
 
+      assert(lattice.withinBounds(pos));
+      assert(node_map_at_lambda_max.withinBounds(pos));
+
       _TVRegPathSegment* cur_rps = node_map_at_lambda_max[pos];
+
+      if(cur_rps == nullptr) {
+        assert(!lattice.withinBounds(pos));
+        return vector<dtype>(lambdas.size(), 0);
+      }
 
       size_t idx = 0;
       vector<dtype> r_values(lambdas.size());
