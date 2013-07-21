@@ -45,7 +45,7 @@ def options(ctx):
                    help='Disable generation of 2d kernels')
     ctx.add_option('--max-2d-radius', dest='max_2d_radius', default=4,
                    help='The maximum radius to use in creating 2d edge kernels; default = 4.')
-        
+
     ctx.add_option('--3d', dest='enable_3d', action='store_true', default=False,
                    help='Enable generation of 3d kernels')
     ctx.add_option('--max-3d-radius', dest='max_3d_radius', default=2,
@@ -77,10 +77,10 @@ def options(ctx):
     ctx.add_option('--benchmark-checks', dest='benchmark_check', action='store_true',
                    default=False,
                    help='Specify whether to check the output solutions of the benchmarks.')
-    
+
 
     W.cython.options(ctx)
-    
+
 def __process_options(ctx):
 
     ctx.env.mode = "release"
@@ -91,15 +91,6 @@ def __process_options(ctx):
         ctx.env.mode = "debug-full"
     if ctx.options.fast:
         ctx.env.mode = "fast"
-
-    if not hasattr(ctx.env, "benchmark"):
-        ctx.env.benchmark = "quick"
-        
-    if ctx.options.benchmark is not None:
-        ctx.env.benchmark = ctx.options.benchmark
-
-    if ctx.options.benchmark_check:
-        ctx.env.benchmark_check = ctx.options.benchmark_check
 
     ctx.env.enable_1d = ctx.options.enable_1d
     ctx.env.enable_2d = ctx.options.enable_2d
@@ -119,19 +110,19 @@ def __process_options(ctx):
         ctx.env.enable_2d = True
         ctx.env.enable_3d = True
         ctx.env.enable_4d = True
-        
+
     if ctx.options.test_mode:
         ctx.env.enable_1d = False
         ctx.env.enable_2d = True
         ctx.env.enable_3d = False
         ctx.env.enable_4d = False
-        
+
         ctx.env.max_2d_radius = 1
 
         ctx.env.benchmark = "test"
 
         ctx.env.enable_bkgc = True
-        
+
     if not ctx.env.enable_1d:
         ctx.env.max_1d_radius = 0
     if not ctx.env.enable_2d:
@@ -160,8 +151,7 @@ def configure(ctx):
     __process_options(ctx)
 
     ctx.load('compiler_cxx')
-    
-    
+
     W.setupCompilerFlags(ctx, cxx11support = True)
     W.checkCXX11features(ctx, 
                          ['auto',
@@ -176,22 +166,20 @@ def configure(ctx):
                           'SFINAE',
                           'variadic macro support',
                           'constexpr',
-                          'template arguments'
+                          'template arguments',
+                          'template aliasing',
+                          'long long'
                           ])
-        
+
     # First, set up the kernel files
     K.generateKernelSources(ctx)
 
     if ctx.options.python:
         ctx.load('python')
+
 	ctx.check_python_headers()
         ctx.load("cython")
         W.cython.configure(ctx)
-
-
-def build(ctx):
-
-    __process_options(ctx)
 
     cxxflags  = ctx.env.cxxflags[ctx.env.mode]
     linkflags = ctx.env.linkflags[ctx.env.mode]
@@ -203,53 +191,57 @@ def build(ctx):
         cxxflags.append("-DENABLE_BOYKOV_KOLMOGOROV_GC_CODE")
         linkflags.append("-DENABLE_BOYKOV_KOLMOGOROV_GC_CODE")
 
-
     # Set the cxx options like this
     W.addOption(ctx, cxxflags)
 
+    ctx.env.append_value('CXXFLAGS', cxxflags)
+    ctx.env.append_value('LINKFLAGS', linkflags)
+
     # Now add all of the directories under solver to the path
-    
     for d in set(abspath(d) for d, dl, fl in os.walk('solver')):
         ctx.env.append_value('INCLUDES', d)
+
+def build(ctx):
+
+    assert '-DNDEBUG' not in ctx.env.CXXFLAGS
 
     ctx.program(source       = 'solver/benchmark.cpp', 
                 target       = 'latticeqbp_random_benchmark',
                 includes     = ['solver'], 
-                lib          = ['m'],
-                linkflags    = linkflags)
-
+                lib          = ['m'])
 
     main_source_files = glob(join(K.kernel_explicit_instantiation_directory, '*.cpp'))
-
     main_source_files.append(K.factory_write_file)
 
     ctx.stlib(source=main_source_files,
               target='stlatticeflow',
               lib          = ['m'],
-              install_path = join(ctx.options.prefix, 'lib'),
-              cxxflags = cxxflags)
-    
+              install_path = join(ctx.options.prefix, 'lib'))
+
     ctx.shlib(source=[],
               target='latticeflow',
               install_path = join(ctx.options.prefix, 'lib'),
               lib          = ['m'],
-              use = ['stlatticeflow'],
-              cxxflags = cxxflags
+              use = ['stlatticeflow']
               )
 
     if ctx.options.python:
         ctx(features = 'cxx cxxshlib pyext cython',
             source   = ['extensions/python/pylatticeflow.pyx'],
             target   = 'pylatticeflow',
-            use      = ['stlatticeflow'],
-            cxxflags = cxxflags
+            use      = ['stlatticeflow']
             )
-
-    
 
 def benchmark(ctx):
 
-    __process_options(ctx)
+    if not hasattr(ctx.env, "benchmark"):
+        ctx.env.benchmark = "quick"
+
+    if ctx.options.benchmark is not None:
+        ctx.env.benchmark = ctx.options.benchmark
+
+    if ctx.options.benchmark_check:
+        ctx.env.benchmark_check = ctx.options.benchmark_check
 
     try:
         py_mod_info = imp.find_module('pylatticeflow', [abspath(out)])
@@ -276,7 +268,7 @@ def benchmark(ctx):
             ks += " "*(kernel_padding - len(ks))
 
             for s in solvers:
-                
+
                 ss = "{Solver:%s}" % s
                 ss += " "*(solver_padding - len(ss))
 
@@ -297,9 +289,9 @@ def benchmark(ctx):
 
                     ps = "%s %s %s {Time:%f}" % (ks, ss, im_string, time)
                     print ps
-                    
+
                     print_list.append(ps)
-                    
+
                 if len(image_names) > 1:
                     ps = "%s %s {Image:Average} {Time:%f}" % (ks, ss, total_time / len(image_names))
                     print ps
@@ -308,7 +300,7 @@ def benchmark(ctx):
         print "#"*45
         print "\n".join(print_list)
 
-        
+
     ################################################################################
 
     solver_list = (["LatticeEnergyMinimizer"]
@@ -344,11 +336,11 @@ def benchmark(ctx):
             image_files = ["benchmarks/images/sanity.png"],
             kernels = ["Full2d_4"])
     else:
-        
+
         ctx.fatal("Benchmark %s not recognized; available benchmarks are: test, quick, quick3d, full"
                   % ctx.options.benchmark)
-    
-   
+
+
 from waflib.Build import BuildContext
 class benchmark_(BuildContext):
     cmd = 'benchmark'

@@ -261,12 +261,12 @@ def checkCXX11features(ctx, required_features):
         check('template aliasing',
               """
               #include <map>
-              template <class A>
-              using str_map = map<A, str>
+              
+              template <class A> using int_map = std::map<A, int>;
 
               int main()
               {
-                  str_map<int> s;
+                  int_map<int> s;
               }
               """)
     ########################################

@@ -109,7 +109,11 @@ namespace latticeQBP {
           }
         }
       }
-      
+
+      // Flip all of these nodes back 
+      for(node_ptr n : cut->partitions[1]->nodes)
+        n->template flipNode<1>(Base::lattice);
+
       return cut;
     }
 
@@ -265,21 +269,6 @@ namespace latticeQBP {
 
 }; 
 
-#ifdef EMACS_FLYMAKE
-
-#include "../kernels/kernels.hpp"
-#include "../lattices/kernellattice.hpp"
-#include "tv_flow_node.hpp" 
-
-namespace latticeQBP {
-  typedef KernelLattice<TVFlowNode<Star2d_4, long>, 2, Star2d_4> _TV_PRFlow_TestLattice;
-  typedef TV_PRFlow<long, _TV_PRFlow_TestLattice> _TV_PRFlow_Test;
-
-  template class TV_PRFlow<long, _TV_PRFlow_TestLattice>;
-};
-
-#endif
-
-
+#include "../common/debug_flymake_test.hpp"
 
 #endif /* _TV_PUSH_RELABEL_H_ */

@@ -84,22 +84,32 @@ namespace latticeQBP {
       :  base_fv(0)
       , current_fv(0)
       , current_fv_offset(0)
+#ifndef NDEBUG
+      , current_scale(-1)
+#endif
     {}
     
     static_assert(!Policy::using_weights, "Weights not implemented yet.");
 
   public:
     // With the weights, we have that 
-    static int constexpr n_scale_bits = (Policy::using_scales ? (3*sizeof(dtype) / 2) : 0);
-    static int constexpr n_weight_bits = (Policy::using_weights && !Policy::weights_binary
+    static constexpr int n_weight_bits = (Policy::using_weights && !Policy::weights_binary
                                           ? 2*sizeof(dtype) : 0);
+    
 
-    static int constexpr n_bits_function_room = 1*sizeof(dtype);
+    static constexpr int n_scale_bits_room = 2*sizeof(dtype);
+    static constexpr int n_bits_scale_precision = 5*sizeof(dtype);
 
-    static int constexpr n_bits_function_precision = (6*sizeof(dtype) - n_weight_bits 
-                                                      - n_scale_bits - n_bits_function_room);
+    static constexpr int log2_scale_max = n_bits_scale_precision + n_scale_bits_room;
 
-    static int constexpr n_bits_scale_precision = (sizeof(dtype)*3 - n_scale_bits);
+    static constexpr int n_bits_function_room = 2*sizeof(dtype);
+    static constexpr int n_bits_function_precision = (7*sizeof(dtype) 
+                                                      - n_weight_bits 
+                                                      - n_bits_function_room);
+
+    static constexpr int log2_function_max = n_bits_function_room + n_bits_function_precision;
+
+
 
   protected:
     __weightVariable<dtype, Policy::using_weights, 
@@ -108,6 +118,10 @@ namespace latticeQBP {
     dtype base_fv;
     dtype current_fv;
     dtype current_fv_offset;
+
+#ifndef NDEBUG
+    dtype current_scale;
+#endif
  
   public:
     typedef typename CompType<dtype>::Type comp_type;
@@ -122,46 +136,57 @@ namespace latticeQBP {
     }
 
     static inline dtype toScaleDType(double lm) {
-      assert(Policy::using_scales);
-      assert_geq(0, lm);
-      assert_leq(lm, double(dtype(1) << n_scale_bits));
+      const int _n_bits_scale_precision = n_bits_scale_precision;
 
-      return dtype(round(lm * double(dtype(1) << n_bits_scale_precision)));
+      assert(Policy::using_scales);
+      assert_leq(0, lm);
+      assert_leq(lm, double(dtype(1) << int(log2_scale_max)));
+
+      return dtype(round(lm * double(dtype(1) << _n_bits_scale_precision)));
     }
 
-    template <typename T>
-    static inline T multFVScale(T fv, T lm = 1) {
+    static inline dtype multFVScale(comp_type fv, dtype lm) {
       if(Policy::using_scales) {
 
-        assert_leq(abs(fv), (T(1) << (n_bits_function_precision + n_bits_function_room) ) );
-        assert_geq(lm, 0);
-        assert_leq(lm, (T(1) << (n_bits_scale_precision + n_scale_bits)) );
+        // assert_leq(abs(fv), (T(1) << log2_function_max));
+        assert_leq(0, lm);
+        assert_leq(lm, (dtype(1) << int(log2_scale_max)) );
 
-        // Rounds up to nearest value; This ensures that 0 <==> 0.0
-        return (fv * lm + ( (T(1) << (n_bits_scale_precision)) - 1) ) >> n_bits_scale_precision;
-      } else {
-        return fv;
+        fv *= lm;
+        fv += ((fv > 0) ? 1 : -1) * ( (dtype(1) << (n_bits_scale_precision - 1)));
+        fv /= (dtype(1) << n_bits_scale_precision);
       }
+
+      return toDType(fv);
     }
 
     template <typename T>
-    static inline T getScaleFromQuotient(T numer, T denom) {
+    static inline dtype getScaleFromQuotient_T(comp_type&& numer, const T& denom) {
       assert(Policy::using_scales);
-
-      numer *= (T(1) << n_bits_scale_precision);
-      numer /= denom;
       
-      return numer;
+      numer *= (dtype(1) << n_bits_scale_precision);
+      numer /= denom;
+      return toDType(numer);
+    }
+
+    template <typename T>
+    static inline dtype getScaleFromQuotient(comp_type numer, const T& denom) {
+      return getScaleFromQuotient_T(std::move(numer), denom);
     }
 
     template <typename T>
     static inline dtype castToScale(T scale) {
 
-      assert_geq(scale, 0);
-      assert_leq(scale, (T(1) << (n_bits_scale_precision + n_scale_bits) ));
+      assert_leq(0, scale);
+      assert_leq(scale, (T(1) << int(log2_scale_max)));
 
-      return dtype(scale);
+      return toDType(scale);
     }
+
+#ifndef NDEBUG
+    dtype currentScale() const { return current_scale; }
+#endif
+
 
     dtype fv() const {
       return base_fv;
@@ -209,21 +234,26 @@ namespace latticeQBP {
 
 
     template <class Lattice> 
-    void setOffsetAndScale(Lattice& lattice, dtype fv_offset, dtype scale)
+    inline void setOffsetAndScale(Lattice& lattice, dtype fv_offset, dtype scale)
     {
       assert(Policy::using_scales);
 
       dtype true_fv = fv(scale);
+
       dtype delta   = (true_fv - fv_offset) - (current_fv - current_fv_offset);
 
       _adjustValueInLattice(lattice, delta);
 
       current_fv        = true_fv;
       current_fv_offset = fv_offset;
+
+#ifndef NDEBUG
+      current_scale = scale;
+#endif
     }
 
     template <class Lattice> 
-    void setOffset(Lattice& lattice, dtype fv_offset) {
+    inline void setOffset(Lattice& lattice, dtype fv_offset) {
       dtype delta = (-fv_offset) - (- current_fv_offset);
 
       _adjustValueInLattice(lattice, delta);
@@ -332,20 +362,6 @@ namespace latticeQBP {
   };
 };
 
-#ifdef EMACS_FLYMAKE
-
-#include "../kernels/kernels.hpp"
-
-namespace latticeQBP {
- template class PFFlowNode<Star2d_4, long, PFUnweightedNodePolicy>;
- // template class PFFlowNode<Star2d_4, long, PFWeightedNodePolicy>;
- // template class PFFlowNode<Star2d_4, long, PFBinaryWeightedNodePolicy>;
-
- template class PFFlowNode<Star2d_4, long, PFScaledUnweightedNodePolicy>;
- // template class PFFlowNode<Star2d_4, long, PFScaledWeightedNodePolicy>;
- // template class PFFlowNode<Star2d_4, long, PFScaledBinaryWeightedNodePolicy>;
-};
-
-#endif
+#include "../common/debug_flymake_test.hpp"
 
 #endif /* _TV_FLOW_NODE_H_ */

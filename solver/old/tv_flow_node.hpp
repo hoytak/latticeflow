@@ -22,14 +22,6 @@ namespace latticeQBP {
 
 };
 
-#ifdef EMACS_FLYMAKE
-
-#include "../kernels/kernels.hpp"
-
-namespace latticeQBP {
-  template class TVFlowNode<Star2d_4, long>;
-};
-
-#endif
+#include "../common/debug_flymake_test.hpp"
 
 #endif /* _TV_FLOW_NODE_H_ */

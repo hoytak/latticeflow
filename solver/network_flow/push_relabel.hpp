@@ -1242,9 +1242,6 @@ namespace latticeQBP {
           n->template setKey<partition>(_key);
         }
       }
-
-      key = Node::template makeKeyState<partition>(_key);
-
       // All that's needed here; just prepares things for runSection
     }
 
@@ -1253,6 +1250,8 @@ namespace latticeQBP {
       // First do a simple iteration
       size_t set_size = 0;
       size_t starting_size = 0;
+
+      key = Node::template makeKeyState<partition>(_key);
 
 #ifndef NDEBUG
       bool has_excess = false;
@@ -1264,7 +1263,6 @@ namespace latticeQBP {
         if(n->excess() > 0) 
           has_excess = true;
       }
-      assert(has_excess);
 #endif 
 
       if(OptPolicy::init_hotstart()) {

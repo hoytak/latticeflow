@@ -1,13 +1,16 @@
-#ifndef _TV_REGPATH_H_
-#define _TV_REGPATH_H_
+#ifndef _TV_SOLVERS_H_
+#define _TV_SOLVERS_H_
+
+#define _DEBUG_IN_TV_SOLVER_INCLUDES_
 
 #include "../common.hpp"
-#include "../lattices/kernellattice.hpp"
-#include "../solvers.hpp"
-#include "../energy_minimization/energy.hpp"
-#include "tv_flow_node.hpp"
 #include "tv_push_relabel.hpp"
 #include "tv_regpath_node.hpp"
+#include "../lattices/kernellattice.hpp"
+#include "../parametricflow/pf_solver.hpp"
+#include "../parametricflow/pf_policies.hpp"
+
+#undef _DEBUG_IN_TV_SOLVER_INCLUDES_
 
 #include <set>
 #include <list>
@@ -20,6 +23,11 @@
 
 namespace latticeQBP {
   
+  // We're simply using one version of the Parametric flow node as our
+  // one here 
+  template <class Kernel, typename dtype> using TVFlowNode = 
+    PFFlowNode<Kernel, dtype, PFScaledUnweightedNodePolicy>;
+
   template <typename _Kernel, typename dtype = long> class TVSolver 
   {
   public:
@@ -81,7 +89,9 @@ namespace latticeQBP {
       }
     }
 
-    void buildFullPathFromSolvedLambda(double initial_lambda) {
+    void buildFullPathFromSolvedLambda(double _initial_lambda) {
+
+      dtype initial_lambda = Node::toScaleDType(_initial_lambda);
 
       // We assume that the lattice has been solved with each level
       // being a different partition.
@@ -89,8 +99,10 @@ namespace latticeQBP {
         return;
 
       // Solve the initial path; this can be swapped out later with a more efficient routine.
-      for(auto& n : lattice)
-        n.setOffsetAndScale(lattice, 0, initial_lambda);
+      for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+        if(lattice.withinBounds(n))
+          n->setOffsetAndScale(lattice, 0, initial_lambda);
+      }
             
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
       vector<vector<node_ptr> > levelset_maps = pfs.run();
@@ -105,7 +117,7 @@ namespace latticeQBP {
     FuncPathArray getRegularizationPath(const vector<double>& _lambda_values) const {
 
       size_t n_lambda = _lambda_values.size();
-
+      
       struct LambdaIdx {
         dtype value; 
         size_t index;
@@ -214,7 +226,7 @@ namespace latticeQBP {
         initial_rps_nodes.push_back(rps);
 
         for(node_ptr n : nv) {
-          n->template setKey<0>(rps->constructionInfo()->key);
+          n->template setKey<0>(rps->ci().key);
           assert(rps == lookupRPSFromKey(n->key()));
 
           node_map_at_lambda_max[n - lattice.begin()] = rps;
@@ -353,7 +365,7 @@ namespace latticeQBP {
             _TVRegPathSegment* rps = fp.rps1;
             assert(fp.rps2 == nullptr);
 
-            assert_equal(current_lambda, rps->constructionInfo()->lambda_of_split);
+            assert_equal(current_lambda, rps->ci().lambda_of_split);
 
             _TVRegPathSegment* new_rps1 = getNew_TVRegPathSegment();
             _TVRegPathSegment* new_rps2 = getNew_TVRegPathSegment();
@@ -373,8 +385,7 @@ namespace latticeQBP {
             _TVRegPathSegment* rps = fp.rps1;          
             assert(fp.rps2 == nullptr);
 
-            assert_equal(current_lambda, 
-                         rps->constructionInfo()->split_calculation_done_to_lambda);
+            assert_equal(current_lambda, rps->ci().split_calculation_done_to_lambda);
 
             registerPossibleSplit(rps);
 
@@ -542,8 +553,20 @@ namespace latticeQBP {
 
   template <typename Kernel, typename dtype = long>
   RegPathPtr calculate2dTV(size_t nx, size_t ny, 
-                                        double *function, 
-                                        const vector<double>& lambda) {
+                           double *function, 
+                           vector<double> lambda) {
+
+    if(lambda.empty()) {
+      cerr << "Must supply list of regularization values at which to calculate the path." << endl;
+      return RegPathPtr(new LatticeArray<double, 3>({0,nx,ny}));
+    }
+
+    for(double& lm : lambda) {
+      if(lm <= 0) {
+        cerr << "Ignoring value " << lm << " that is less than 0." << endl;
+        lm = 0;
+      }
+    }
 
     TVSolver<Kernel, dtype> solver({nx, ny});
 
@@ -556,18 +579,7 @@ namespace latticeQBP {
 
 }; 
 
-#ifdef EMACS_FLYMAKE
-
-#include "../kernels/kernels.hpp"
-
-namespace latticeQBP {
-  template class TVSolver<Full2d_4, long>;
-};
-#endif
-
-namespace latticeQBP {
-  template class TVSolver<Full2d_4, int>;
-};
+#include "../common/debug_flymake_test.hpp"
 
 #endif /* _TV_REGPATH_H_ */
 

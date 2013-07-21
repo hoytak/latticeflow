@@ -94,6 +94,13 @@ namespace latticeQBP {
         assert_equal(index_jumps[i], -index_jumps[i + kernel_positive_size]);
       }
     }
+    
+    KernelLattice(KernelLattice&& kl) 
+      : Base(kl)
+      , index_jumps(kl.index_jumps)
+      , geocut_edge_weights(kl.geocut_edge_weights)
+      , diff_arrays(kl.diff_arrays)
+    {}
   
     Array<int, n_dimensions> diff(size_t i) const {
       return diff_arrays[i];
@@ -332,15 +339,5 @@ namespace latticeQBP {
 
   };
 };
-
-#ifdef EMACS_FLYMAKE
-#include "../kernels/kernels.hpp"
-  
-namespace latticeQBP {
-  template class KernelLattice<int, 2, Full2d_4>;
-};
-#endif
-
-
 
 #endif /* _KERNEL_LATTICE_H_ */

@@ -48,7 +48,7 @@ struct ImageOptions {
 // Not very fast, but okay for now
 template <int n_dimensions>
 pair<size_t, int> argclosest(const vector< Array<size_t, n_dimensions> >& pts, 
-			     const Array<size_t, n_dimensions>& x) {
+                             const Array<size_t, n_dimensions>& x) {
   size_t idx = 0;
   int min_value = -1;
 
@@ -81,7 +81,7 @@ template <int nd> Array<size_t, nd> coords(size_t idx, size_t edge_size) {
 
 template <int nd>
 static void construct_random_bitmap(vector<dtype>& X, size_t edge_size, 
-				    const ImageOptions& opt, unsigned long seed) {
+                                    const ImageOptions& opt, unsigned long seed) {
   
   FastInt rng(seed); 
 
@@ -133,12 +133,12 @@ public:
   }
 
   void addE2(const index_vect& c1, 
-	     const index_vect& c2,
-	     int E00, int E01, int E10, int E11) {
+             const index_vect& c2,
+             int E00, int E01, int E10, int E11) {
     
     graphcutter.add_term2(graph_nodes[indexer[c1]], 
-			  graph_nodes[indexer[c2]],
-			  E00, E01, E10, E11);
+                          graph_nodes[indexer[c2]],
+                          E00, E01, E10, E11);
   }
 
   void run() {
@@ -159,9 +159,9 @@ private:
 
 template <int nd, typename LatticeEnergy> 
 void make(LatticeEnergy *le,
-	  GraphCutEnergyWrapper<nd> *gc,
-	  char mode, const ImageOptions& opt, 
-	  const vector<dtype>& X, size_t edge_size) {
+          GraphCutEnergyWrapper<nd> *gc,
+          char mode, const ImageOptions& opt, 
+          const vector<dtype>& X, size_t edge_size) {
 
   typedef typename Indexer<nd>::index_vect index_vect;
 
@@ -175,12 +175,12 @@ void make(LatticeEnergy *le,
       const index_vect& idx_1 = it.latticeCoordOf1();
       const index_vect& idx_2 = it.latticeCoordOf2();
 
-	double d = (double((X[indexer[idx_1]] - X[indexer[idx_2]])) / opt.maxDiff() );
-	int sameness = int(ceil((65536.0 / dist2(idx_1, idx_2)) 
-				* exp(-d*d) ));
+      double d = (double((X[indexer[idx_1]] - X[indexer[idx_2]])) / opt.maxDiff() );
+      int sameness = int(ceil((65536.0 / dist2(idx_1, idx_2)) 
+                              * exp(-d*d) ));
 
-	gc->addE2(idx_1, idx_2, -sameness, 0, 0, -sameness);
-	it.addPairwisePotential(-sameness, 0, 0, -sameness);
+      gc->addE2(idx_1, idx_2, -sameness, 0, 0, -sameness);
+      it.addPairwisePotential(-sameness, 0, 0, -sameness);
     }
    
     // Now fix some of the points to zero or one; need to fix a swath
@@ -196,13 +196,13 @@ void make(LatticeEnergy *le,
       int dir = rng(2) ? -1 : 1;
 
       for(size_t j = 0; j < edge_size / 5; ++j) {
-	size_t set_index = indexer.neighborIndex(index, dim, dir*j);
-	if(set_index >= X.size()) {
-	  break;
-	} else {
-	  le->addUnaryPotential(indexer[set_index], -s*energy_value, -(1-s)*energy_value);
-	  gc->addE1(indexer[set_index], -s*energy_value, -(1-s)*energy_value);
-	}
+        size_t set_index = indexer.neighborIndex(index, dim, dir*j);
+        if(set_index >= X.size()) {
+          break;
+        } else {
+          le->addUnaryPotential(indexer[set_index], -s*energy_value, -(1-s)*energy_value);
+          gc->addE1(indexer[set_index], -s*energy_value, -(1-s)*energy_value);
+        }
       }
     }
 
@@ -275,13 +275,13 @@ template <int nd, typename Kernel> void run_benchmark(char mode, size_t edge_siz
   
   if( (fneg_mismatch_count + fpos_mismatch_count) != 0) {
     cout << "WARNING: mismatch count between QBP and GC is " 
-	 << (fneg_mismatch_count + fpos_mismatch_count) 
-	 << " (false negatives = " << fneg_mismatch_count
-	 << ", false positives = " << fpos_mismatch_count 
-	 << ", total negatives = " << n_neg
-	 << ", total positives = " << n_pos
-	 << ")"
-	 << "!" << endl;
+         << (fneg_mismatch_count + fpos_mismatch_count) 
+         << " (false negatives = " << fneg_mismatch_count
+         << ", false positives = " << fpos_mismatch_count 
+         << ", total negatives = " << n_neg
+         << ", total positives = " << n_pos
+         << ")"
+         << "!" << endl;
   } else {
     cout << "Solutions exactly match." << endl;
   }
@@ -292,7 +292,7 @@ int main(int argn, char** argv)
 { 
   if(argn != 4 && argn != 5) {
     cout << "\nUsage: " << argv[0] << " <mode> <n dimensions> <edge size> [n_times]"  
-	 << endl;
+         << endl;
     return 1;
   }
 
@@ -316,10 +316,10 @@ int main(int argn, char** argv)
       break;
     case 3:
       run_benchmark<3, Full3d_6>(mode, edge_size, nt);
-       break;
+      break;
     case 31:
       run_benchmark<3, Full3d_32>(mode, edge_size, nt);
-       break;
+      break;
 
     default:
       cerr << "\nBenchmarks not supported for diminsion " << n_dim << "." << endl;

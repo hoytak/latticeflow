@@ -100,16 +100,23 @@ namespace latticeQBP {
     typedef const T& value_cref;
 
     LatticeArray(const index_vect& _dimensions = index_vect(0), 
-                 const index_vect& edge_buffers = index_vect(0))
-      : indexer( (_dimensions + edge_buffers) + Element<size_t>(0, 3*edge_buffers[0]))
+                 const index_vect& _edge_buffers = index_vect(0))
+      : indexer( (_dimensions + _edge_buffers) + Element<size_t>(0, 3*_edge_buffers[0]))
       , bounds(_dimensions)
+      , edge_buffers(_edge_buffers)
       , data(indexer.size())
       , begin_ptr(data.begin() + (2*edge_buffers[0])*indexer.stride(0))
       , end_ptr(data.end() - (2*edge_buffers[0])*indexer.stride(0))
     {
     }
 
-    LatticeArray(LatticeArray&& l) = default;
+    LatticeArray(LatticeArray&& la)
+      : indexer(la.indexer)
+      , bounds(la.bounds)
+      , data(std::move(la.data))
+      , begin_ptr(data.begin() + (2*edge_buffers[0])*indexer.stride(0))
+      , end_ptr(data.end() - (2*edge_buffers[0])*indexer.stride(0))
+    {}
 
     inline value_ptr begin() const {
       return begin_ptr;
@@ -332,8 +339,9 @@ namespace latticeQBP {
     }
 
   protected:
-    Indexer<nd> indexer;
+    const Indexer<nd> indexer;
     index_vect bounds;
+    index_vect edge_buffers;
     std::vector<T> data;
     value_ptr begin_ptr, end_ptr;
   };

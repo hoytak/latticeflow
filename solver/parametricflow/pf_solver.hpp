@@ -46,7 +46,7 @@ namespace latticeQBP {
       vector<node_ptr> ls_points;
       typedef typename vector<node_ptr>::iterator vn_iter;
 
-      vector<size_t> boundaries(lattice.size()); 
+      vector<size_t> boundaries;
       
       ls_points.reserve(lattice.size());
 
@@ -167,6 +167,8 @@ namespace latticeQBP {
         ++key;
       }
 
+      cout << "boundaries = " << boundaries << endl;
+
       // Go through and reset all the offset stuff
       for(vn_iter it = ls_points.begin(); it != ls_points.end(); ++it) 
         (*it)->setOffset(lattice, 0);
@@ -187,6 +189,7 @@ namespace latticeQBP {
         sort(level_sets[i].begin(), level_sets[i].end());
         
 #ifndef NDEBUG
+        assert(!level_sets[i].empty());
         for(node_ptr n : level_sets[i])
           assert(lattice.withinBounds(n));
 #endif
@@ -197,17 +200,7 @@ namespace latticeQBP {
   };
 };
 
-#ifdef EMACS_FLYMAKE
-
-#include "../kernels/kernels.hpp"
-#include "../lattices/kernellattice.hpp"
-#include "pf_flow_node.hpp"
-
-namespace latticeQBP {
-  typedef KernelLattice<PFFlowNode<Star2d_4, long, PFUnweightedNodePolicy>, 2, Star2d_4> _TV_PRFlow_TestLattice;
-  template class ParametricFlowSolver<long, _TV_PRFlow_TestLattice>;
-};
-
-#endif
+#include "../common/debug_flymake_test.hpp"
 
 #endif /* _MN_NETFLOW_SOLVER_H_ */
+

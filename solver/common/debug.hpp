@@ -7,10 +7,6 @@
 #undef assert
 #endif
 
-// #ifdef NDEBUG
-// #undef NDEBUG
-// #endif
-
 #ifndef NDEBUG
 
 #ifndef EMACS_FLYMAKE
@@ -178,4 +174,19 @@ using std::endl;
 // #warning ">>>>>>>>>>>>>> Debug Off <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
 #endif
+
+// A few overloaded things to help with debugging.
+
+#include <iostream>
+#include <vector>
+
+template <typename T> 
+std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::vector<T>& v) {
+  out << '(';
+  for(const T& t : v)
+    out << t << '|';
+  out << ')' << endl;
+  return out;
+}
+
 #endif

@@ -1,3 +1,4 @@
+
 #ifndef _ENERGY_HPP_
 #define _ENERGY_HPP_
 
