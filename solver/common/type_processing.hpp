@@ -1,6 +1,7 @@
 #ifndef _TYPE_PROCESSING_H_
 #define _TYPE_PROCESSING_H_
 
+#include <iostream>
 #include <cstdint>
 #include <boost/multiprecision/cpp_int.hpp>
 
@@ -24,7 +25,7 @@ namespace latticeQBP {
   ////////////////////////////////////////////////////////////////////////////////
   // Now the reverse types
   template <typename comp_type> struct DTypeMap {};
-  template <> struct DTypeMap<int64_t> { typedef int32_t Type;          };
+  template <> struct DTypeMap<int64_t> { typedef int32_t Type; };
   template <> struct DTypeMap<int128_type> { typedef int64_t Type; };
   template <> struct DTypeMap<int256_type> { typedef int128_type Type; };
 
@@ -43,6 +44,13 @@ namespace latticeQBP {
   template <typename CompType> 
   static inline typename DTypeMap<CompType>::Type ceilAverage(CompType sum, long n) {
     if(sum > 0) sum += (n-1);
+    sum /= n;
+    return toDType(sum);
+  }
+
+  template <typename CompType> 
+  static inline typename DTypeMap<CompType>::Type floorAverage(CompType sum, long n) {
+    if(sum < 0) sum -= (n-1);
     sum /= n;
     return toDType(sum);
   }

@@ -82,8 +82,8 @@ namespace latticeQBP {
 
       assert_equal(set<node_ptr>(start, end).size(), ci().nodeset.size());
 
-      rhs_lambda = lambda;
-      rhs_mode = Initial;
+      rhs_lambda   = lambda;
+      rhs_mode     = Initial;
       rhs_nodes[0] = nullptr;
       rhs_nodes[1] = nullptr;
 
@@ -184,8 +184,10 @@ namespace latticeQBP {
 
     template <typename ForwardIterator>
     void syncInformation(const ForwardIterator& start, 
-                                const ForwardIterator& end, 
-                                dtype lambda) {
+                         const ForwardIterator& end, 
+                         dtype lambda) {
+
+      assert(start != end);
 
       // Update the lattice
       n_nodes = 0;
@@ -227,12 +229,14 @@ namespace latticeQBP {
       assert_equal(deadjust_r(adjusted_r_at_0), get_r_AtLambda(Node::toScaleDType(0)));
       assert_equal(deadjust_r(adjusted_r_at_1), get_r_AtLambda(Node::toScaleDType(1)));
 
-      comp_type r_calc = get_r_AtLambda(lambda);
+      dtype r_calc = get_r_AtLambda(lambda);
 
-      dtype rhs_r = toDType( (comp_type(ri.zero_reference)*ri.partition_size + ri.r_sum_d) 
+      dtype rhs_r = toDType( (comp_type(ri.zero_reference)*ri.partition_size 
+                              + (ri.r_sum_d 
+                                 + (ri.partition_size >> 2))) 
                              / ri.partition_size);
 
-      assert_equal(r_calc, rhs_r);
+      assert_leq(abs(r_calc - rhs_r), 1);
 #endif
     }
 
@@ -448,7 +452,7 @@ namespace latticeQBP {
 
       // Calculate the split point...
       ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                  ci().nodeset.end(), lambda_lb);
+                                    ci().nodeset.end(), lambda_lb);
       
       // Now see if it can be solved at that lambda
       auto cut_ptr = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
@@ -458,7 +462,11 @@ namespace latticeQBP {
 
       if(!cut_ptr->any_cut) 
         return DetailedSplitInfo({false, 0, nullptr});
-      
+      else {
+        assert(!piv[0]->nodes.empty());
+        assert(!piv[1]->nodes.empty());
+      }
+
       Array<RegionInformation, 2> p_info = {
         getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
         getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
@@ -614,22 +622,18 @@ namespace latticeQBP {
 #ifndef NDEBUG
       {
         dtype r1m1 = rps1->get_r_AtLambda(join_lambda-1);
-        dtype r1   = rps1->get_r_AtLambda(join_lambda);
         dtype r1p1 = rps1->get_r_AtLambda(join_lambda+1);
 
         dtype r2m1 = rps2->get_r_AtLambda(join_lambda-1);
-        dtype r2   = rps2->get_r_AtLambda(join_lambda);
         dtype r2p1 = rps2->get_r_AtLambda(join_lambda+1);
       
-        assert_leq(min(r1m1, r1p1), r2);
-        assert_leq(r2, max(r1m1, r1p1));
-        assert_leq(min(r2m1, r2p1), r1);
-        assert_leq(r1, max(r2m1, r2p1));
+        assert_leq(min(r1m1, r1p1), max(r2m1, r2p1));
+        assert_leq(min(r2m1, r2p1), max(r1m1, r1p1));
       }
 #endif
 
 #ifndef NDEBUG      
-      // In debug node, we need these for checks when deactivating the joined nodes
+      // In debug node, we need the old ones for checks when deactivating the joined nodes
       ci().neighbors.clear();
       ci().neighbors.insert(ci1.neighbors.begin(), ci1.neighbors.end());
       ci().neighbors.insert(ci2.neighbors.begin(), ci2.neighbors.end());
@@ -640,7 +644,7 @@ namespace latticeQBP {
       auto& nb_small = (!ci1_big ? ci1.neighbors : ci2.neighbors);
 
       ci().neighbors = std::move(nb_big);
-      ci().neighbors.insert(nb_small.start(), nb_small.end());
+      ci().neighbors.insert(nb_small.begin(), nb_small.end());
 #endif
       
       ci().neighbors.erase(rps1);
@@ -671,8 +675,8 @@ namespace latticeQBP {
       syncInformation(ci().nodeset.begin(), ci().nodeset.end(), join_lambda);
 
       // Check a bunch of stuff
-      assert_equal(get_r_AtLambda(rhs_lambda), rps1->get_r_AtLambda(rps1->lhs_lambda));
-      assert_equal(get_r_AtLambda(rhs_lambda), rps2->get_r_AtLambda(rps2->lhs_lambda));
+      assert_close(get_r_AtLambda(rhs_lambda), rps1->get_r_AtLambda(rps1->lhs_lambda), 1);
+      assert_close(get_r_AtLambda(rhs_lambda), rps2->get_r_AtLambda(rps2->lhs_lambda), 1);
     }
 
     static inline dtype lambdaOfJoin(TVRegPathSegment* r1,

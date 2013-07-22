@@ -207,6 +207,7 @@ namespace latticeQBP {
       };
 
       for(node_ptr n = Base::lattice.begin(); n != Base::lattice.end(); ++n) {
+        seen_keys.insert(gen_key(n->key(), n->key()));
         for(uint ei = 0; ei < Base::lattice.kernel_positive_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
@@ -259,7 +260,7 @@ namespace latticeQBP {
         ++n_sum;
       }
 
-      dtype fv_offset = ceilAverage(fv_avg, n_sum);
+      dtype fv_offset = floorAverage(fv_avg, n_sum);
 
       for(auto it = start; it != end; ++it) {
         (*it)->setOffset(Base::lattice, fv_offset);

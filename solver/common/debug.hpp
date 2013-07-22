@@ -1,6 +1,7 @@
 #ifndef HK_DEBUG_H
 #define HK_DEBUG_H
 
+#include <iostream>
 #include <cmath>
 
 #ifdef assert
@@ -12,10 +13,6 @@
 #ifndef EMACS_FLYMAKE
 #warning ">>>>>>>>>>>>>>> Debug On; pass -DNDEBUG to disable <<<<<<<<<<<<<<<<<<<<<<<<<"
 #endif
-
-#include <iostream>
-using std::cout;
-using std::endl;
 
 #define DEBUG_MODE true
 
@@ -156,6 +153,21 @@ using std::endl;
       }								\
   }while(0)
 
+#define assert_close(x, y, d)					\
+  do{								\
+    if( abs((x) - (y)) > (d))                                   \
+      {                                                                 \
+	std::cout << "ASSERT =~= FAILED (d = " << (d) << "): "          \
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " =~/~= "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
 #else
 
 #define DEBUG_MODE false
@@ -185,7 +197,7 @@ std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::v
   out << '(';
   for(const T& t : v)
     out << t << '|';
-  out << ')' << endl;
+  out << ')' << std::endl;
   return out;
 }
 
