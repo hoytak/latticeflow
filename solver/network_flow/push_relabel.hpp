@@ -1,6 +1,10 @@
 #ifndef _PUSH_RELABEL_H_
 #define _PUSH_RELABEL_H_
 
+#ifndef ENABLE_PR_CHECKS
+#define ENABLE_PR_CHECKS false
+#endif
+
 #define NO_EXCESS    0
 #define HAS_EXCESS   1
 #define CHECK_EXCESS 2
@@ -51,6 +55,7 @@ namespace latticeQBP {
       , step_array(lattice.jumpArray())
       , num_flips(0)
       , disable_printing(false)
+      , enable_checks(false)
       , visited_nodes(OptPolicy::run_topology_restructure() 
                       ? 2*max(lattice.dimensions()) + 25 : 0)
       , level_heap(OptPolicy::run_topology_restructure() 
@@ -59,6 +64,12 @@ namespace latticeQBP {
       , node_run_counts(lattice.size(), 0)
     {
       levels.resize(2*max(lattice.dimensions()) + 25);
+
+      if(DEBUG_MODE) {
+        for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+          n->setPosition(lattice.getCoords(n));
+        }
+      }
     }
  
   protected:
@@ -91,6 +102,8 @@ namespace latticeQBP {
 
     bool disable_printing;
 
+    bool enable_checks;
+
     ////////////////////////////////////////////////////////////////////////////////
     // Debug and consistency checks
 
@@ -99,11 +112,9 @@ namespace latticeQBP {
       disable_printing = true;
     }
 
-  protected:
+  public:
 
-#if !defined(NDEBUG) && defined(ENABLE_PR_CHECKS)
-
-    void _debug_VerifyAccurateLevel(size_t level, bool check_heights = false) {
+    void _debug_forceVerifyAccurateLevel(size_t level, bool check_heights = false) {
 
       Level& lv = levels[level];
 
@@ -111,6 +122,10 @@ namespace latticeQBP {
 
       for(size_t i = 0; i < lv.nodes.size(); ++i) {
         node_ptr n = lv.nodes[i];
+
+        assert(eligible(n));
+
+        n->_debug_forceVerifyNodeConsistency(lattice, true);
 
         assert_equal(n->level_index, i);
         assert_equal(n->height, level);
@@ -137,9 +152,31 @@ namespace latticeQBP {
       // }
     }
 
-    void _debug_VerifyAll(bool check_all_nodes_in_level = true) {
+    void _debug_forceCheckPrerunStatus() {
+      for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+        n->_debug_forceVerifyNodeConsistency(lattice, true);
+
+        if(!eligible(n))
+          assert_equal(n->height, 0);
+
+        assert_lt(n->height, levels.size());
+
+        if(eligible(n) && excess(n) < 0) {
+          if(n->height > 0)
+            cerr << "  Examining Node  " << (n - lattice.begin()) << endl;
+          assert_equal(n->height, 0);
+        }
+      }
+    }
+
+    void _debug_forceVerifyAll(bool check_all_nodes_in_level = true) {
 
       for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+        n->_debug_forceVerifyNodeConsistency(lattice, true);
+
+        if(!eligible(n))
+          assert_equal(n->height, 0);
+
         assert_lt(n->height, levels.size());
 
         if(eligible(n) && n->height == 0)
@@ -186,7 +223,28 @@ namespace latticeQBP {
         // assert_gt(levels[i].nodes.size(), 0);
       }
     }
+
+    inline void enableChecks() { enable_checks = true; }
+    inline void disableChecks() { enable_checks = false; }
+
+#ifndef NDEBUG
+
+    inline void _debug_checkPrerunStatus() { 
+      if(ENABLE_PR_CHECKS || enable_checks) 
+        _debug_forceCheckPrerunStatus();
+    } 
+
+    inline void _debug_VerifyAccurateLevel(size_t level, bool check = true) {
+      if(ENABLE_PR_CHECKS || enable_checks) 
+        _debug_forceVerifyAccurateLevel(level, check);
+    }
+
+    inline void _debug_VerifyAll(bool check = true) {
+      if(ENABLE_PR_CHECKS || enable_checks) 
+        _debug_forceVerifyAll(check);
+    }
 #else
+    inline void _debug_checkPrerunStatus() { } 
     inline void _debug_VerifyAccurateLevel(size_t) { }
     inline void _debug_VerifyAll(bool = true) { }
 #endif 
@@ -211,9 +269,15 @@ namespace latticeQBP {
       return n->_isKeyState(key);
     }
 
+    inline bool key_eligible(const node_ptr& n) const {
+      return n->_isKey(key);
+    }
+
     template <typename NodePtrIterator>
     void hotStart(const NodePtrIterator& start, const NodePtrIterator& end) {
 
+      _debug_checkPrerunStatus();
+      
 #if HAVE_OUTPUT
       TimeTracker tt;
       tt.start();
@@ -263,6 +327,7 @@ namespace latticeQBP {
       while(!queue.empty()) {
       
         node_ptr n = queue.front();
+        assert(eligible(n));
 
         if(n->height != current_level) {
           ++current_level;
@@ -630,11 +695,11 @@ namespace latticeQBP {
 
     void finish() {
 
+      _debug_VerifyAll();
+
       assert(levels[0].nodes.empty());
 
       for(size_t level = 1; level <= top_level ; ++level) {
-
-        _debug_VerifyAccurateLevel(level);
 
         for(size_t i = 0; i < levels[level].nodes.size(); ++i) {
           node_ptr n = levels[level].nodes[i];
@@ -666,8 +731,14 @@ namespace latticeQBP {
 
     inline dtype capacityOfSaturated(const node_cptr& src, const node_cptr& dest, uint ei) const {
       assert_notequal(src->state(), dest->state());
+      src->_debugVerifyNodeConsistency(lattice);
+      dest->_debugVerifyNodeConsistency(lattice);
 
-      return src->capacityOfSaturated(ei);
+      dtype ret = src->capacityOfSaturated(ei);
+
+      assert_equal(ret, pushCapacity(dest, src, reverseIndex(ei)) + pushCapacity(src, dest, ei));
+
+      return ret;
     }
 
     template <int node_may_have_excess>
@@ -900,7 +971,7 @@ namespace latticeQBP {
       } else {
 
         while(!level_heap.empty()) {
-      
+          
           // size_t level = level_heap.currentLevel();
           node_ptr n = level_heap.current();
 
@@ -1092,6 +1163,7 @@ namespace latticeQBP {
 
             // Now, can't push anywhere, so this node is done...
             flipNode(n);
+
             _debug_VerifyAll();
             goto next_iteration;
           }
@@ -1114,7 +1186,6 @@ namespace latticeQBP {
               addNodeRunCountEvent(n);
             }
           }
-	
 
           int index = hl[i].index();
           const node_ptr& nn = nl[index];
@@ -1136,8 +1207,11 @@ namespace latticeQBP {
 
         // Now, can't push anywhere, so this node is done...
         flipNode(n, base_level_empty);
+        _debug_VerifyAll();
       }
-    
+      
+      _debug_VerifyAll();
+ 
       // Now get rid of all the nodes on the queue
       finish();
     
@@ -1175,11 +1249,13 @@ namespace latticeQBP {
   public:
 
     bool run() {
+      _debug_checkPrerunStatus();
+
       // First do a simple iteration
       size_t starting_size = 0;
       size_t easy_count = 0;
 
-      if(OptPolicy::init_hotstart()) {
+      if(false && OptPolicy::init_hotstart()) {
         hotStart(lattice.begin(), lattice.end());
         if(OptPolicy::init_quickflow()) quickFlow();
         if(OptPolicy::init_rerun_hotstart()) {
@@ -1203,6 +1279,8 @@ namespace latticeQBP {
         }
       }
 
+      _debug_VerifyAll();
+
       _run();
 
       if(HAVE_OUTPUT && !disable_printing)
@@ -1211,6 +1289,8 @@ namespace latticeQBP {
              << easy_count << "; " << num_flips << "/" << lattice.sizeWithinBounds()
              << " total flips. \n"
              << "Time spent in topology_restructure: " << total_restructure_time.asString() << "." << endl;
+
+      _debug_VerifyAll();
 
       if(starting_size == 0)
         return true;
@@ -1252,12 +1332,25 @@ namespace latticeQBP {
       key = Node::template makeKeyState<partition>(_key);
 
 #ifndef NDEBUG
-      for(auto it = start; it != end; ++it) {
-        node_ptr n = *it;
-        assert_equal(n->state(), 0);
-        assert_equal(n->key(), _key);
-        assert(eligible(n));
-      }
+      {
+        set<node_ptr> _nodes; 
+        for(auto it = start; it != end; ++it)
+          _nodes.insert(*it);
+        
+        for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+          if(_nodes.find(n) == _nodes.end()) 
+            assert(!eligible(n));
+          else
+            assert(eligible(n));
+        }
+
+        for(auto it = start; it != end; ++it) {
+          node_ptr n = *it;
+          assert_equal(n->state(), 0);
+          assert_equal(n->key(), _key);
+          assert(eligible(n));
+        }
+      } 
 #endif 
 
       if(OptPolicy::init_hotstart()) {

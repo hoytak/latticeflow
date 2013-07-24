@@ -18,6 +18,10 @@ import imp
 import sys
 from ctypes import cdll
 
+__solver_list = ["LatticeEnergyMinimizer",
+                 "LatticeLevelReductions"
+                 ]
+
 ################################################################################
 # Basic configuration information; detects possible flags
 
@@ -29,6 +33,9 @@ def options(ctx):
 
     ctx.add_option('--debug-full', dest='debug_full', action='store_true', default=False,
                    help='Turn on full debug mode with no optimization and numerous checks.')
+
+    ctx.add_option('--enable-pr-checks', dest='enable_pr_checks', action='store_true', default=False,
+                   help='Enable checks for the push-relable engine.')
 
     ctx.add_option('', '--fast', dest='fast', action='store_true', default=False,
                    help='Turn on full optimization options at the expense of compile time.')
@@ -84,78 +91,46 @@ def options(ctx):
 
     W.cython.options(ctx)
 
-def __process_options(ctx):
-
-    ctx.env.mode = "release"
-
-    if ctx.options.debug:
-        ctx.env.mode = "debug"
-    if ctx.options.debug_full:
-        ctx.env.mode = "debug-full"
-    if ctx.options.fast:
-        ctx.env.mode = "fast"
-
-    ctx.env.enable_1d = ctx.options.enable_1d
-    ctx.env.enable_2d = ctx.options.enable_2d
-    ctx.env.enable_3d = ctx.options.enable_3d
-    ctx.env.enable_4d = ctx.options.enable_4d
-
-    ctx.env.max_1d_radius = ctx.options.max_1d_radius
-    ctx.env.max_2d_radius = ctx.options.max_2d_radius
-    ctx.env.max_3d_radius = ctx.options.max_3d_radius
-    ctx.env.max_4d_radius = ctx.options.max_4d_radius
-
-    if ctx.options.enable_bkgc or not hasattr(ctx.env, "enable_bkgc"):
-        ctx.env.enable_bkgc = True
+def __process_cascading_options(ctx):
 
     if ctx.options.all_kernels:
-        ctx.env.enable_1d = True
-        ctx.env.enable_2d = True
-        ctx.env.enable_3d = True
-        ctx.env.enable_4d = True
+        ctx.options.enable_1d = True
+        ctx.options.enable_2d = True
+        ctx.options.enable_3d = True
+        ctx.options.enable_4d = True
 
     if ctx.options.test_mode:
-        ctx.env.enable_1d = False
-        ctx.env.enable_2d = True
-        ctx.env.enable_3d = False
-        ctx.env.enable_4d = False
+        ctx.options.enable_1d = False
+        ctx.options.enable_2d = True
+        ctx.options.enable_3d = False
+        ctx.options.enable_4d = False
 
-        ctx.env.max_2d_radius = 1
+        ctx.options.max_2d_radius = 1
+        ctx.options.enable_bkgc = True
 
-        ctx.env.benchmark = "test"
+        ctx.options.benchmark = "test"
 
-        ctx.env.enable_bkgc = True
+    # Configure these options
+    if not ctx.options.enable_1d:
+        ctx.options.max_1d_radius = 0
+    if not ctx.options.enable_2d:
+        ctx.options.max_2d_radius = 0
+    if not ctx.options.enable_3d:
+        ctx.options.max_3d_radius = 0
+    if not ctx.options.enable_4d:
+        ctx.options.max_4d_radius = 0
 
-    if not ctx.env.enable_1d:
-        ctx.env.max_1d_radius = 0
-    if not ctx.env.enable_2d:
-        ctx.env.max_2d_radius = 0
-    if not ctx.env.enable_3d:
-        ctx.env.max_3d_radius = 0
-    if not ctx.env.enable_4d:
-        ctx.env.max_4d_radius = 0
-
-    if ctx.options.no_inline or not hasattr(ctx.env, "no_inline"):
-        ctx.env.no_inline = ctx.options.no_inline
-
-    if ctx.env.mode == 'debug-full':
-        ctx.env.no_inline = True
-
-    ################################################################################
-    # Set up the solver list
-    ctx.env.solver_list = ["LatticeEnergyMinimizer",
-                           "LatticeLevelReductions"
-                           ]
-
-    if ctx.env.enable_bkgc:
-        ctx.env.solver_list.append("BKGCEnergyMinimizer")
+    
 
 def configure(ctx):
-    __process_options(ctx)
 
+    # Prefilter the options
+    __process_cascading_options(ctx)
+    
     ctx.load('compiler_cxx')
-
+    
     W.setupCompilerFlags(ctx, cxx11support = True)
+    
     W.checkCXX11features(ctx, 
                          ['auto',
                           'lamda',
@@ -170,35 +145,65 @@ def configure(ctx):
                           'variadic macro support',
                           'constexpr',
                           'template arguments',
-                          'template aliasing',
-                          'long long'
+                          'template aliasing'
                           ])
 
-    # First, set up the kernel files
-    K.generateKernelSources(ctx)
-
+    # Set up python if need be
     if ctx.options.python:
         ctx.load('python')
+        ctx.check_python_headers()
 
-	ctx.check_python_headers()
         ctx.load("cython")
         W.cython.configure(ctx)
+
+    ctx.env.mode = "release"
+
+    if ctx.options.debug:
+        ctx.env.mode = "debug"
+    if ctx.options.debug_full:
+        ctx.env.mode = "debug-full"
+    if ctx.options.fast:
+        ctx.env.mode = "fast"
 
     cxxflags  = ctx.env.cxxflags[ctx.env.mode]
     linkflags = ctx.env.linkflags[ctx.env.mode]
 
-    if ctx.env.no_inline:
-        cxxflags.append("-fno-inline")
+    if ctx.options.no_inline:
+        cxx_flags.append("-fno-inline")
 
-    if ctx.env.enable_bkgc:
+    if ctx.options.enable_bkgc:
         cxxflags.append("-DENABLE_BOYKOV_KOLMOGOROV_GC_CODE")
         linkflags.append("-DENABLE_BOYKOV_KOLMOGOROV_GC_CODE")
 
-    # Set the cxx options like this
-    W.addOption(ctx, cxxflags)
+    if ctx.options.enable_pr_checks:
+        cxxflags.append("-DENABLE_PR_CHECKS")
+        linkflags.append("-DENABLE_PR_CHECKS")
 
     ctx.env.append_value('CXXFLAGS', cxxflags)
     ctx.env.append_value('LINKFLAGS', linkflags)
+
+    ################################################################################
+    # Set up the solver list
+    ctx.env.solver_list = __solver_list
+    
+    if ctx.options.enable_bkgc:
+        ctx.env.solver_list.append("BKGCEnergyMinimizer")
+
+    ################################################################################
+    # Setting up the stuff with the kernel
+        
+    ctx.env.enable_1d = ctx.options.enable_1d
+    ctx.env.enable_2d = ctx.options.enable_2d
+    ctx.env.enable_3d = ctx.options.enable_3d
+    ctx.env.enable_4d = ctx.options.enable_4d
+
+    ctx.env.max_1d_radius = ctx.options.max_1d_radius
+    ctx.env.max_2d_radius = ctx.options.max_2d_radius
+    ctx.env.max_3d_radius = ctx.options.max_3d_radius
+    ctx.env.max_4d_radius = ctx.options.max_4d_radius
+
+    # First, set up the kernel files
+    K.generateKernelSources(ctx)
 
     # Now add all of the directories under solver to the path
     for d in set(abspath(d) for d, dl, fl in os.walk('solver')):
@@ -234,9 +239,8 @@ def build(ctx):
             )
 
 def benchmark(ctx):
-
-    if not hasattr(ctx.env, "benchmark"):
-        ctx.env.benchmark = "quick"
+    
+    __process_cascading_options(ctx)
 
     if ctx.options.benchmark is not None:
         ctx.env.benchmark = ctx.options.benchmark

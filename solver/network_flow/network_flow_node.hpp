@@ -39,6 +39,7 @@ namespace latticeQBP {
       , q(0)
       , edges(0)
       , reduction_shift(0)
+      , pos(0)
 #endif
     {}
 
@@ -47,8 +48,6 @@ namespace latticeQBP {
     //////////////////////////////////////////////////
     // Helper methods that tie in other things...
     inline bool on() const { 
-      assert(false);
-
       if(reduction_mode)
         return reduction < 0;
       else
@@ -81,6 +80,10 @@ namespace latticeQBP {
     
     inline bool _isKeyState(unsigned int _key_state) const {
       return key_state == _key_state;
+    }
+
+    inline bool _isKey(unsigned int _key_state) const {
+      return (key_state & (~uint(0x1))) == (_key_state & (~uint(0x1)));
     }
 
     template <int partition>
@@ -128,8 +131,22 @@ namespace latticeQBP {
     Array<dtype, Kernel::size> edges;
   public:
     dtype reduction_shift;
-  protected:
+    Array<long, Kernel::n_dimensions> pos;
+
+    template <typename T>
+    inline void setPosition(const Array<T, Kernel::n_dimensions>& a) {
+      for(int i = 0; i < Kernel::n_dimensions; ++i)
+        pos[i] = a[i];
+    }
+
+#else
+  public:
+    template <typename T>
+    inline void setPosition(const Array<T, Kernel::n_dimensions>&) {
+    }
 #endif
+
+  protected:
 
     template <int partition> inline void checkPartitioning() const {
       static_assert( adjustment_mode || partition == 0,
@@ -170,10 +187,6 @@ namespace latticeQBP {
     // This function only works if it is known the other node is in another region
     inline dtype capacityOfSaturated(int ei) const {
       dtype v = abs(alpha[ei]);
-
-      if(DEBUG_MODE) 
-        assert_equal(v, edges[ei]);
-
       return v;
     }
 
@@ -181,11 +194,15 @@ namespace latticeQBP {
       return (pushCapacity<partition>(ei) <= 0);
     }
 
-    void adjustReduction(dtype amount) {
+    template <typename Lattice> 
+    inline void adjustReduction(Lattice& lattice, dtype amount) {
+      _debugVerifyNodeConsistency(lattice);
       reduction += amount;
 #ifndef NDEBUG
       reduction_shift += amount;
+      q += amount;
 #endif
+      _debugVerifyNodeConsistency(lattice);
     }
 
     // dtype level() const {
@@ -206,12 +223,11 @@ namespace latticeQBP {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-  protected:
+
+public:
 
     template <typename Lattice>
-    void _debugVerifyNodeConsistency(Lattice& lattice, bool check_neighbors = true) { 
-
-#ifndef NDEBUG
+    void _debug_forceVerifyNodeConsistency(Lattice& lattice, bool check_neighbors = true) const { 
 
       if(!(this >= &(*lattice.begin())) && this < &(*lattice.end()))
         return;
@@ -261,9 +277,15 @@ namespace latticeQBP {
           nn->_debugVerifyNodeConsistency(lattice, false);
         }
       }
-
-#endif
     }
+
+    template <typename Lattice>
+    void _debugVerifyNodeConsistency(Lattice& lattice, bool check_neighbors = true) const { 
+      
+#ifndef NDEBUG
+      _debug_forceVerifyNodeConsistency(lattice, check_neighbors);
+#endif
+      }
 
   public:
   

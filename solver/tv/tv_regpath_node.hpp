@@ -453,6 +453,8 @@ namespace latticeQBP {
 
     DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
 
+      ci().solver.enableChecks();
+
       cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
       cout << "Calculating split at lambda = " << lambda_lb << endl;
 
@@ -466,6 +468,9 @@ namespace latticeQBP {
 
       if(!cut_ptr->any_cut) {
         cout << "     > No split. " << endl;
+
+        ci().solver.disableChecks();
+
         return DetailedSplitInfo({false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
@@ -520,6 +525,8 @@ namespace latticeQBP {
       assert_leq(calc_lambda, rhs_lambda);
       
       cout << "Calculated split lambda = " << calc_lambda << endl;
+
+      ci().solver.disableChecks();
 
       return DetailedSplitInfo({true, calc_lambda, cut_ptr});
     }

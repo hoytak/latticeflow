@@ -70,14 +70,11 @@ namespace latticeQBP {
       for(node_ptr n = Base::lattice.begin(); n != Base::lattice.end(); ++n) {
         if(node_check_set.find(n) == node_check_set.end()) {
           assert(!n->matchesKey(key));
-          // assert(!Base::eligible(n));
-        }else {
-          // assert(Base::eligible(n));
         }
       }
         
 #endif
-
+      
       Base::runSection(start, end, key);
 
       bool any_on = false;

@@ -221,6 +221,8 @@ namespace latticeQBP {
     template <class Lattice> 
     void _debug_checkLevelsetMethodsNode(Lattice& lattice) {
 #ifndef NDEBUG
+      Base::_debugVerifyNodeConsistency(lattice);
+
       dtype cfo = current_fv_offset;
       dtype _cfv_predict = r();
       dtype _cfv = cfv();
@@ -242,6 +244,8 @@ namespace latticeQBP {
       assert_equal(current_fv_offset, cfo);
       assert_equal(r(), _cfv_predict);
       assert_equal(cfv(), _cfv);
+
+      Base::_debugVerifyNodeConsistency(lattice);
 #endif      
     }
 
@@ -269,14 +273,17 @@ namespace latticeQBP {
     inline void setOffset(Lattice& lattice, dtype fv_offset) {
       dtype delta = (-fv_offset) - (- current_fv_offset);
 
+      Base::_debugVerifyNodeConsistency(lattice);
       _adjustValueInLattice(lattice, delta);
+      Base::_debugVerifyNodeConsistency(lattice);
 
       current_fv_offset = fv_offset;
     }
 
     template <class Lattice> 
     void _adjustValueInLattice(Lattice& lattice, dtype delta) {
-      Base::adjustReduction(delta);
+      Base::adjustReduction(lattice, delta);
+      //typename Base::template NodeFiller<Lattice>(lattice).addE1(this, 0, _weight.mult(delta)); 
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -286,6 +293,7 @@ namespace latticeQBP {
     static inline bool setToMeanReductionPoint(Lattice& lattice,
                                                const ForwardNodePtrIterator& start, 
                                                const ForwardNodePtrIterator& end) {
+
 
       // Returns true if at the mean reduction; otherwise false.
 
@@ -329,7 +337,7 @@ namespace latticeQBP {
 
       // cout << "; r_new_final = " << r_new << endl;
 
-      double base_level = 0; 
+      // double base_level = 0; 
 
       // cout << "Levels: ";
 
@@ -338,7 +346,7 @@ namespace latticeQBP {
         n->_debug_checkLevelsetMethodsNode(lattice);
         n->setOffset(lattice, r_new);
         n->_debug_checkLevelsetMethodsNode(lattice);
-        base_level += n->r();
+        // base_level += n->r();
 
         // cout << n->level() << ",";
       }
