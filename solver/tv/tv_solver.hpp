@@ -44,8 +44,9 @@ namespace latticeQBP {
     typedef TVRegPathSegment<dtype, PRSolver> _TVRegPathSegment;
 
     typedef typename _TVRegPathSegment::Mode RPSMode;
-    typedef LatticeArray<double, n_dimensions + 1> FuncPathArray;
 
+    typedef LatticeArray<double, n_dimensions + 1> FuncPathArray;
+    typedef LatticeArray<double, n_dimensions> FuncArray;
 
     static_assert(Kernel::is_geocut_applicable,
                   "Kernel is not valid for GeoCuts or TV Minimization.");
@@ -63,58 +64,94 @@ namespace latticeQBP {
       , v_max(0)
       , solver(lattice)
       , calculated_lambda(-1)
+      , max_lambda(0)
       , node_map_at_lambda_max(lattice.shape())
     {
     }
 
-    void set(double *function) {
-      v_min = *min_element(function, function + lattice.sizeWithinBounds());
-      v_max = *max_element(function, function + lattice.sizeWithinBounds());
+    void setup(double *function, double _max_lambda) {
+      // reset();
 
-      for(auto it = lattice.indexIterator(); !it.done(); ++it) {
-        const index_vect& idx = it.coords();
-        lattice(idx)->setBaseFunctionValueDirect(toFVDType(function[it.boundedIndex()]));
-      }
+      v_min = *min_element(function, function + lattice.sizeWithinBounds()) - 1e-32;
+      v_max = *max_element(function, function + lattice.sizeWithinBounds()) + 1e-32;
+
+      max_lambda = max(_max_lambda, 0.1);
       
       typename Node::template NodeFiller<Lattice> filler(lattice);
 
-      for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
-        
-        // size_t idx_src = edge_it.nodeIndexOf1();
-        // size_t idx_dest = edge_it.nodeIndexOf2();
+      for(auto node_it = lattice.vertexIterator(); !node_it.done(); ++node_it) {
+        dtype uf = toFVDType(function[node_it.nodeIndex()]);
+        filler.addE1(node_it.node(), 0, uf);
+        node_it.node()->pullBaseFunctionValueFromLattice();
+      }
 
-        dtype pwf = toUnshiftedFVDType(0.5*edge_it.geocutEdgeWeight());
+      // Since we are scaling the function value, scale the regularizer as well
+      double global_scale_value = 0.5 * (2.0 / (v_max - v_min)) / max_lambda;
+
+      for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
+
+        dtype pwf = toUnshiftedFVDType(global_scale_value * edge_it.geocutEdgeWeight());
         
         filler.addE2(edge_it.node1(), edge_it.node2(), edge_it.edgeIndex(), 0, pwf, pwf, 0);
       }
     }
 
-    void buildFullPathFromSolvedLambda(double _initial_lambda) {
+    void run() {
 
-      dtype initial_lambda = Node::toScaleDType(_initial_lambda);
+      dtype initial_lambda = Node::toScaleDType(1);
 
-      // We assume that the lattice has been solved with each level
-      // being a different partition.
-      if(initial_lambda < calculated_lambda)
-        return;
-
-      // Solve the initial path; this can be swapped out later with a more efficient routine.
-      for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
-        if(lattice.withinBounds(n))
-          n->setOffsetAndScale(lattice, 0, initial_lambda);
-      }
-            
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
+      
+      // for(auto node_it = lattice.vertexIterator(); !node_it.done(); ++node_it) {
+      //   cout << "f(" << node_it.coords() 
+      //        << "; fv = " << node_it.node()->fv()
+      //        << "; cfv = " << node_it.node()->cfv() 
+      //        << "; cfv_predict = " << node_it.node()->cfv_predict()
+      //        << endl;
+      // }
+
       vector<vector<node_ptr> > levelset_maps = pfs.run();
+
+      // cout << "After running!!!! " << endl;
+
+      // for(auto node_it = lattice.vertexIterator(); !node_it.done(); ++node_it) {
+      //   cout << "f(" << node_it.coords() 
+      //        << "; fv = " << node_it.node()->fv()
+      //        << "; cfv = " << node_it.node()->cfv() 
+      //        << "; cfv_predict = " << node_it.node()->cfv_predict()
+      //        << endl;
+      // }
 
       // Now build the whole regularization path
       _constructInitialRegPathsFromSolvedLattice(levelset_maps, initial_lambda);
     }
 
+    void run(double *function, double max_lambda) {
+      setup(function, max_lambda);
+      run();
+    }
+
+    FuncArray runSingleLambda(double *function, double lambda) {
+
+      setup(function, lambda);
+      
+      ParametricFlowSolver<dtype, Lattice> pfs(lattice);
+
+      pfs.run();
+      
+      FuncArray R(lattice.shape());
+      
+      for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
+        R[it.coords()] = toFValue(Node::translateFromRaw(it->r()));
+      }
+
+      return R;
+    }
+
     ////////////////////////////////////////////////////////////////////////////////
     // Retrieving the path
     
-    FuncPathArray getRegularizationPath(const vector<double>& _lambda_values) const {
+    FuncPathArray getRegularizationPath(const vector<double>& _lambda_values) {
 
       size_t n_lambda = _lambda_values.size();
       
@@ -128,7 +165,7 @@ namespace latticeQBP {
       vector<dtype> lambda_calc_values(n_lambda);
 
       for(size_t i = 0; i < n_lambda; ++i) 
-        lambda_idx_values[i] = {Node::toScaleDType(_lambda_values[i]), i};
+        lambda_idx_values[i] = {Node::toScaleDType(_lambda_values[i] / max_lambda), i};
 
       sort(lambda_idx_values.begin(), lambda_idx_values.end());
 
@@ -140,10 +177,10 @@ namespace latticeQBP {
          || lambda_calc_values.back() < 0) {
         throw out_of_range("Given lambda values not in calculated range.");
       }
-
+      
       FuncPathArray values(concat(n_lambda, lattice.shape()));
 
-      for(IndexIterator<n_dimensions> it(lattice.shape()); !it.done(); ++it) {
+      for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
 
         vector<dtype> path_values = traceRegularizationPath(it.coords(), lambda_calc_values);
         
@@ -166,7 +203,15 @@ namespace latticeQBP {
     double v_min, v_max;
 
     inline dtype toFVDType(double x) const {
-      return Node::toFVDType( (x - (v_min + 0.5* (v_max - v_min) ) ) * (2.0 / (v_max - v_min)) );
+      assert_leq(x / 2, v_max);
+      assert_leq(v_min, x / 2);
+
+      double centered = (x - v_min) / (v_max - v_min);
+      double v = 2*centered - 1;
+
+      assert_leq(abs(v), 2);
+
+      return Node::toFVDType(v); // (x - (v_min + 0.5* (v_max - v_min) ) ) * (2.0 / (v_max - v_min)) );
     }
 
     inline dtype toUnshiftedFVDType(double x) const {
@@ -174,7 +219,11 @@ namespace latticeQBP {
     }
 
     inline double toFValue(dtype x) const {
-      return (0.5*(Node::toFValue(x) + 1))*(v_max - v_min) + v_min;
+      double centered = (Node::toFValue(x) + 1) / 2.0;
+      double v = v_min + centered*(v_max - v_min);
+
+      assert_equal(x, toFVDType(v));
+      return v;
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -182,6 +231,7 @@ namespace latticeQBP {
 
     PRSolver solver;
     dtype calculated_lambda;
+    double max_lambda;
     LatticeArray<_TVRegPathSegment*, n_dimensions> node_map_at_lambda_max;
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -236,10 +286,10 @@ namespace latticeQBP {
         }
       }
 
-      if(DEBUG_MODE) {
+#ifndef NDEBUG
         for(auto rps : node_map_at_lambda_max) 
           assert(rps != nullptr);
-      }
+#endif
 
       ////////////////////////////////////////////////////////////////////////////////
       // Now go through and construct all the neighborhood maps.  
@@ -449,8 +499,20 @@ namespace latticeQBP {
 
       assert_geq(cur_rps->rhs_lambda, lambdas[0]);
 
+      // bool print = (pos == index_vect{0,0});
+
+      // if(print)
+      //   cout << "Tracing position " << pos << ":";
+
       while(true) {
+        // cout << "P0: cur_rps->lhs_lambda = " << cur_rps->lhs_lambda
+        //      << "; lambdas[idx] = " << lambdas[idx] << endl;
+
         while(cur_rps->lhs_lambda > lambdas[idx]) {
+          // if(print)
+          //   cout << "P1: cur_rps->lhs_lambda = " << cur_rps->lhs_lambda
+          //        << "; lambdas[idx] = " << lambdas[idx] << endl;
+
           if(cur_rps->lhs_mode == _TVRegPathSegment::Split) {
             _TVRegPathSegment *rps0 = cur_rps->lhs_nodes[0];
             _TVRegPathSegment *rps1 = cur_rps->lhs_nodes[1];
@@ -469,12 +531,21 @@ namespace latticeQBP {
             assert(cur_rps->lhs_nodes[0] != nullptr);
             assert(cur_rps->lhs_nodes[1] == nullptr);
 
-            cur_rps->lhs_nodes[0];
+            cur_rps = cur_rps->lhs_nodes[0];
           }
         }
 
         while(cur_rps->lhs_lambda <= lambdas[idx]) {
+          assert_leq(cur_rps->lhs_lambda, lambdas[idx]);
+          assert_leq(lambdas[idx], cur_rps->rhs_lambda);
+
           r_values[idx] = cur_rps->get_r_AtLambda(lambdas[idx]);
+
+          // if(print)
+          //   cout << "P2: cur_rps->lhs_lambda = " << cur_rps->lhs_lambda
+          //        << "; lambdas[idx] = " << lambdas[idx]
+          //        << "; r = " << r_values[idx] << endl; 
+          
           ++idx;
           
           if(idx == lambdas.size())
@@ -489,78 +560,13 @@ namespace latticeQBP {
   ////////////////////////////////////////////////////////////////////////////////
   // A one-shot function to reference against
 
+  typedef shared_ptr<LatticeArray<double, 2> > FuncMapPtr;
+
   template <typename Kernel, typename dtype = long>
-  vector<double> calculate2dTV(size_t nx, size_t ny, 
-                               double *function, double lambda) {
-
-    static_assert(Kernel::is_geocut_applicable,
-                  "Kernel is not valid for GeoCuts or TV Minimization.");
-    static_assert(Kernel::n_dimensions == 2, "Currently only dealing with 2d stuff.");
-
-    typedef LatticeLevelReductions<2, Kernel, dtype> rsolver_type;
-    typedef typename rsolver_type::index_vect index_vect;
-
-    // cout << "nx = " << nx << "; ny = " << ny << endl;
-
-    double min_x = *min_element(function, function + nx*ny);
-    double max_x = *max_element(function, function + nx*ny);
-
-    const double conversion_factor = 
-      (double(dtype(1) << (sizeof(dtype)*8 - 16))
-       / (max(1.0, lambda) * (max_x - min_x)));
-
-    auto toDtype = [conversion_factor](double x) {
-      return dtype(round(x * conversion_factor));
-    }; 
-
-    auto toDbl = [conversion_factor](dtype x) {
-      return double(x) / conversion_factor;
-    }; 
-
-    rsolver_type rsolver(index_vect({ny, nx}));
-
-    for(auto ufi = rsolver.getUnaryFillingIterator(); !ufi.done(); ++ufi) {
-
-      size_t idx_y = ufi.latticeCoord()[0];
-      size_t idx_x = ufi.latticeCoord()[1];
-      size_t idx = nx*idx_y + idx_x;
-
-      dtype fv = toDtype(lambda*function[idx]);
-
-      ufi.addUnaryPotential(0, fv);
-    }
-
-    for(auto pwfi = rsolver.getPairwiseFillingIterator(); !pwfi.done(); ++pwfi) {
-        
-      size_t src_idx_y = pwfi.latticeCoordOf1()[0];
-      size_t src_idx_x = pwfi.latticeCoordOf1()[1];
-      size_t idx_src = nx*src_idx_y + src_idx_x;
-
-      size_t dest_idx_y = pwfi.latticeCoordOf2()[0];
-      size_t dest_idx_x = pwfi.latticeCoordOf2()[1];
-      size_t idx_dest = nx*dest_idx_y + dest_idx_x;
-
-      dtype pwf = toDtype(0.5*pwfi.geocutEdgeWeight() 
-                        * abs(function[idx_src] - function[idx_dest]));
-
-      pwfi.addPairwisePotential(0, pwf, pwf, 0);
-
-      // cout << pwfi.latticeCoordOf1() << " -> " << pwfi.latticeCoordOf2() 
-      //      << ": pwf = " << pwf << endl;
-    }
-
-    rsolver.run();
-
-    vector<double> res(nx * ny);
-
-    size_t i = 0;
-    for(auto it = rsolver.getLattice().indexIterator(); !it.done(); ++it) {
-      // cout << it.coords() << ": r = " << rsolver.getLattice()(it.coords())->level() << endl;
-      res[i++] = toDbl(rsolver.getLattice()(it.coords())->level()) 
-        / (1e-32 + lambda);
-    }
-
-    return res;
+  FuncMapPtr calculate2dTV(size_t nx, size_t ny, 
+                           double *function, double lambda) {
+    TVSolver<Kernel, dtype> solver({nx, ny});
+    return FuncMapPtr(new LatticeArray<double, 2>(solver.runSingleLambda(function, lambda)));
   }
 
   typedef shared_ptr<LatticeArray<double, 3> > RegPathPtr;
@@ -576,17 +582,15 @@ namespace latticeQBP {
     }
 
     for(double& lm : lambda) {
-      if(lm <= 0) {
-        cerr << "Ignoring value " << lm << " that is less than 0." << endl;
+      if(lm < 0) {
+        cerr << "Ignoring reg value " << lm << " that is less than 0." << endl;
         lm = 0;
       }
     }
 
     TVSolver<Kernel, dtype> solver({nx, ny});
 
-    solver.set(function);
-
-    solver.buildFullPathFromSolvedLambda(*max_element(lambda.begin(), lambda.end()));
+    solver.run(function, *max_element(lambda.begin(), lambda.end()));
 
     return RegPathPtr(new LatticeArray<double, 3>(solver.getRegularizationPath(lambda)));
   }

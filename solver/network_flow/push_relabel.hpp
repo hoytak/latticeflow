@@ -1,8 +1,6 @@
 #ifndef _PUSH_RELABEL_H_
 #define _PUSH_RELABEL_H_
 
-#define HAVE_OUTPUT 1
-
 #define NO_EXCESS    0
 #define HAS_EXCESS   1
 #define CHECK_EXCESS 2
@@ -102,7 +100,8 @@ namespace latticeQBP {
     }
 
   protected:
-#ifndef NDEBUG
+
+#if !defined(NDEBUG) && defined(ENABLE_PR_CHECKS)
 
     void _debug_VerifyAccurateLevel(size_t level, bool check_heights = false) {
 
@@ -666,7 +665,7 @@ namespace latticeQBP {
     }
 
     inline dtype capacityOfSaturated(const node_cptr& src, const node_cptr& dest, uint ei) const {
-      assert_notequal(src->on(), dest->on());
+      assert_notequal(src->state(), dest->state());
 
       return src->capacityOfSaturated(ei);
     }
@@ -721,11 +720,10 @@ namespace latticeQBP {
     void addNodeRunCountEvent(node_ptr n) {
 #ifndef NDEBUG
       size_t c = (++ node_run_counts[n - lattice.begin()]);
+      assert(c <= OptPolicy::topology_restructure_trigger_threshold());
 #else
       (++ node_run_counts[n - lattice.begin()]);
 #endif
-
-      assert(c <= OptPolicy::topology_restructure_trigger_threshold());
     }
 
     inline void clearNodeRunCounter(node_ptr n) {
@@ -1254,14 +1252,11 @@ namespace latticeQBP {
       key = Node::template makeKeyState<partition>(_key);
 
 #ifndef NDEBUG
-      bool has_excess = false;
       for(auto it = start; it != end; ++it) {
         node_ptr n = *it;
         assert_equal(n->state(), 0);
         assert_equal(n->key(), _key);
         assert(eligible(n));
-        if(n->excess() > 0) 
-          has_excess = true;
       }
 #endif 
 

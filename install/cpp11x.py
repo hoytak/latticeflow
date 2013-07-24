@@ -12,6 +12,8 @@ def setupCXX11(ctx):
 
 
 def checkCXX11features(ctx, required_features):
+    if ctx.options.quick_config:
+        return
 
     def check(name, fragment, execute = False):
 

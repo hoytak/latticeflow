@@ -33,6 +33,9 @@ def options(ctx):
     ctx.add_option('', '--fast', dest='fast', action='store_true', default=False,
                    help='Turn on full optimization options at the expense of compile time.')
 
+    ctx.add_option('', '--quick-config', dest='quick_config', action='store_true', default=False,
+                   help='Assume the important options just work and skip tests.')
+
     ctx.add_option('--no-inline', dest='no_inline', action='store_true', default=False,
                    help='Prevent inlining of functions for profiling purposes.')
 
@@ -202,8 +205,6 @@ def configure(ctx):
         ctx.env.append_value('INCLUDES', d)
 
 def build(ctx):
-
-    assert '-DNDEBUG' not in ctx.env.CXXFLAGS
 
     ctx.program(source       = 'solver/benchmark.cpp', 
                 target       = 'latticeqbp_random_benchmark',

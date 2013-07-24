@@ -172,8 +172,8 @@ void make(LatticeEnergy *le,
     
     for(auto it = le->getPairwiseFillingIterator(); !it.done(); ++it) {
 
-      const index_vect& idx_1 = it.latticeCoordOf1();
-      const index_vect& idx_2 = it.latticeCoordOf2();
+      const index_vect& idx_1 = it.coordsOf1();
+      const index_vect& idx_2 = it.coordsOf2();
 
       double d = (double((X[indexer[idx_1]] - X[indexer[idx_2]])) / opt.maxDiff() );
       int sameness = int(ceil((65536.0 / dist2(idx_1, idx_2)) 

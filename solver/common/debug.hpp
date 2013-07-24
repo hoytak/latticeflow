@@ -1,8 +1,85 @@
 #ifndef HK_DEBUG_H
 #define HK_DEBUG_H
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
+
+#ifndef HAVE_OUTPUT
+#define HAVE_OUTPUT 0
+#endif
+
 #include <iostream>
 #include <cmath>
+
+// A few overloaded things to help with debugging.
+
+#include <iostream>
+#include <vector>
+
+template <typename T> 
+std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::vector<T>& v) {
+  out << '(';
+  for(const T& t : v)
+    out << t << '|';
+  out << ')' << std::endl;
+  return out;
+}
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+// Now redefine stuff as needed.  This allows us to turn the assert
+// statements on and off for various things.
+
+#ifdef DEBUG_MODE
+#undef DEBUG_MODE
+#endif
+
+#ifdef DBHERE
+#undef DBHERE
+#endif
+
+#ifdef db_printval
+#undef db_printval
+#endif
+
+#ifdef assert
+#undef assert
+#endif
+
+#ifdef assert_equal
+#undef assert_equal
+#endif
+
+#ifdef assert_notequal
+#undef assert_notequal
+#endif
+
+#ifdef assert_almost_equal
+#undef assert_almost_equal
+#endif
+
+#ifdef assert_geq
+#undef assert_geq
+#endif
+
+#ifdef assert_gt
+#undef assert_gt
+#endif
+
+#ifdef assert_leq
+#undef assert_leq
+#endif
+
+#ifdef assert_lt
+#undef assert_lt
+#endif
+
+#ifdef assert_close
+#undef assert_close
+#endif
 
 #ifdef assert
 #undef assert
@@ -182,23 +259,9 @@
 #define assert_gt(x,y)
 #define assert_leq(x,y)
 #define assert_lt(x,y)
+#define assert_close(x, y, d)
 
 // #warning ">>>>>>>>>>>>>> Debug Off <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
 
 #endif
 
-// A few overloaded things to help with debugging.
-
-#include <iostream>
-#include <vector>
-
-template <typename T> 
-std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::vector<T>& v) {
-  out << '(';
-  for(const T& t : v)
-    out << t << '|';
-  out << ')' << std::endl;
-  return out;
-}
-
-#endif

@@ -7,7 +7,7 @@ from matplotlib.pylab import imread, figure, show
 
 lm = float(sys.argv[1])
 #image_file = "benchmarks/images/sanity.png"
-image_file = "benchmarks/images/branches.png"
+image_file = "benchmarks/images/branches-small.png"
 
 Xo = imread(image_file)
 
@@ -17,6 +17,8 @@ if not Xo.size:
 print "Image file %s loaded." % image_file
 
 X = (Xo.mean(axis=2) / Xo.max())
+
+X -= X.mean()
 
 Xtv = calculate2dTV(X, lm)
 

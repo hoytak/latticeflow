@@ -47,6 +47,8 @@ namespace latticeQBP {
       Array<partitioninfo_ptr, 2> partitions;
       dtype cut_value;
       vector<pair<node_ptr, uint> > cut_edges;
+      Array<dtype, 2> reduction_sum;
+      Array<dtype, 2> gamma_sum;
     };
 
     typedef shared_ptr<CutInfo> cutinfo_ptr;
@@ -62,23 +64,72 @@ namespace latticeQBP {
         assert(n->height == 0);
         assert(n->state() == 0);
       }
+
+      set<node_ptr> node_check_set(start, end);
+
+      for(node_ptr n = Base::lattice.begin(); n != Base::lattice.end(); ++n) {
+        if(node_check_set.find(n) == node_check_set.end()) {
+          assert(!n->matchesKey(key));
+          // assert(!Base::eligible(n));
+        }else {
+          // assert(Base::eligible(n));
+        }
+      }
+        
 #endif
 
       Base::runSection(start, end, key);
 
       bool any_on = false;
+      bool any_off = false;
+
       for(NodePtrIterator it = start; it != end; ++it) {
         if( (*it)->state() ) {
           any_on = true;
-          break;
+        } else {
+          any_off = true;
         }
+        if(any_on && any_off)
+          break;
       }
 
       cutinfo_ptr cut = cutinfo_ptr(new CutInfo);
-      cut->any_cut = any_on;
-      
-      if(!any_on)
+
+      if(any_on && !any_off) {
+        for(NodePtrIterator it = start; it != end; ++it) {
+          node_ptr n = *it;    
+          n->template flipNode<1>(Base::lattice);
+        }
+        cut->any_cut = false;
+
+#ifndef NDEBUG        
+        for(NodePtrIterator it = start; it != end; ++it) {
+          node_ptr n = *it;
+          assert(n->matchesKey(key));
+          assert(n->height == 0);
+          assert(n->state() == 0);
+        }
+#endif
+
         return cut;
+
+      } else if (any_off && !any_on) {
+        cut->any_cut = false;
+
+
+#ifndef NDEBUG        
+        for(NodePtrIterator it = start; it != end; ++it) {
+          node_ptr n = *it;
+          assert(n->matchesKey(key));
+          assert(n->height == 0);
+          assert(n->state() == 0);
+        }
+#endif
+
+        return cut;
+      }
+      
+      cut->any_cut = true;
       
       cut->partitions[0] = partitioninfo_ptr(new PartitionInfo);
       cut->partitions[0]->is_on = false;
@@ -88,31 +139,59 @@ namespace latticeQBP {
 
       cut->cut_value = 0;
 
+      assert(cut->partitions[0]->nodes.empty());
+      assert(cut->partitions[1]->nodes.empty());
+
       // First go through and set the state to the proper node.  all
       // these are currently eligible
       for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = *it;    
 
         assert(n->matchesKey(key));
-        
+
         bool is_on = n->state();
         
-        cut->partitions[is_on ? 0 : 1]->nodes.push_back(n);
+        if(!is_on)
+          assert(n->state() == 0);
+        else 
+          assert(n->state() == 1);
+
+        cut->partitions[is_on ? 1 : 0]->nodes.push_back(n);
 
         // Now see about the cut.
-        for(uint ei = 0; ei < kernel_size; ++ei) {
-          node_ptr nn = n + Base::step_array[ei];
+        if(is_on) {
+          for(uint ei = 0; ei < kernel_size; ++ei) {
+            node_cptr nn = n + Base::step_array[ei];
           
-          if(nn->matchesKey(key) && nn->state() != is_on) {
-            cut->cut_value += Base::capacityOfSaturated(n, nn, ei); 
-            cut->cut_edges.push_back(make_pair(n, ei));
+            if(nn->matchesKey(key) && ! nn->state()) {
+              dtype cc = Base::capacityOfSaturated(n, nn, ei); 
+              cut->cut_value += cc;
+              cout << "cc = " << cc << endl;
+
+              cut->cut_edges.push_back(make_pair(n, ei));
+            }
           }
         }
       }
 
+      for(node_ptr n : cut->partitions[0]->nodes) {
+        assert(n->state() == 0);
+      }
+      
       // Flip all of these nodes back 
-      for(node_ptr n : cut->partitions[1]->nodes)
+      for(node_ptr n : cut->partitions[1]->nodes) {
         n->template flipNode<1>(Base::lattice);
+        assert(n->state() == 0);
+      }
+
+#ifndef NDEBUG        
+        for(NodePtrIterator it = start; it != end; ++it) {
+          node_ptr n = *it;
+          assert(n->matchesKey(key));
+          assert(n->height == 0);
+          assert(n->state() == 0);
+        }
+#endif
 
       return cut;
     }
@@ -208,6 +287,7 @@ namespace latticeQBP {
 
       for(node_ptr n = Base::lattice.begin(); n != Base::lattice.end(); ++n) {
         seen_keys.insert(gen_key(n->key(), n->key()));
+
         for(uint ei = 0; ei < Base::lattice.kernel_positive_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
@@ -244,11 +324,13 @@ namespace latticeQBP {
     }
     
     template <typename NodePtrIterator>  
-    void setRegionToLambda(const NodePtrIterator& start, 
-                           const NodePtrIterator& end, 
-                           dtype lambda) {
+    inline void setRegionToLambda_reference(const NodePtrIterator& start, 
+                                            const NodePtrIterator& end, 
+                                            dtype lambda) {
       
+      // First, get the accurate offsets
       comp_type fv_avg = 0;
+      comp_type qii_sum = 0; 
       size_t n_sum = 0;
 
       for(auto it = start; it != end; ++it) {
@@ -256,19 +338,72 @@ namespace latticeQBP {
 
         n->setOffsetAndScale(Base::lattice, 0, lambda); 
 
-        fv_avg += n->cfv_predict();
+        fv_avg += n->r();
         ++n_sum;
       }
 
       dtype fv_offset = floorAverage(fv_avg, n_sum);
 
-      for(auto it = start; it != end; ++it) {
+      for(auto it = start; it != end; ++it) 
         (*it)->setOffset(Base::lattice, fv_offset);
+   
+    }
+
+    template <typename NodePtrIterator>  
+    inline void setRegionToLambda(const NodePtrIterator& start, 
+                                  const NodePtrIterator& end, 
+                                  dtype lambda, bool pull_to_center = false) {
+
+      comp_type zero_reference = 0;
+      comp_type qii_sum = 0; 
+      comp_type gamma_sum = 0; 
+      
+      long partition_size = 0;
+
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = (*it);
+        qii_sum += n->qii();
+        gamma_sum += n->influence();
+        ++partition_size;
+      }
+
+      // Now the base value should be the sum of all of these,
+      // multiplied together.
+      dtype fv_offset = floorAverage(Node::multFVScale(qii_sum, lambda) + gamma_sum, partition_size);
+
+#ifndef NDEBUG
+      {
+        // First, get the accurate offsets
+        comp_type fv_avg = 0;
+        comp_type qii_sum = 0; 
+        size_t n_sum = 0;
+
+        for(auto it = start; it != end; ++it) {
+          node_ptr n = (*it);
+
+          n->setOffsetAndScale(Base::lattice, 0, lambda); 
+
+          fv_avg += n->r();
+          ++n_sum;
+        }
+
+        dtype _fv_offset = floorAverage(fv_avg, n_sum);
+        assert_equal(_fv_offset, fv_offset);
+      }
+#endif
+
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = (*it);
+        // Go through and set the offset of each node such that it is
+        // pulled towards the partition being nicer
+
+        dtype offset = fv_offset + ((pull_to_center && (n->fv(lambda) > fv_offset)) ? 1 : 0);
+        n->setOffsetAndScale(Base::lattice, offset, lambda);
+        n->_debug_checkLevelsetMethodsNode(Base::lattice);
       }
     }
   };
-
-}; 
+}
 
 #include "../common/debug_flymake_test.hpp"
 

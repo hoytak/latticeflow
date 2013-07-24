@@ -97,12 +97,12 @@ namespace latticeQBP {
                                           ? 2*sizeof(dtype) : 0);
     
 
-    static constexpr int n_scale_bits_room = 2*sizeof(dtype);
-    static constexpr int n_bits_scale_precision = 5*sizeof(dtype);
+    static constexpr int n_scale_bits_room = sizeof(dtype);
+    static constexpr int n_bits_scale_precision = 7*sizeof(dtype) - n_scale_bits_room;
 
     static constexpr int log2_scale_max = n_bits_scale_precision + n_scale_bits_room;
 
-    static constexpr int n_bits_function_room = 2*sizeof(dtype);
+    static constexpr int n_bits_function_room = (5*sizeof(dtype)) / 2;
     static constexpr int n_bits_function_precision = (7*sizeof(dtype) 
                                                       - n_weight_bits 
                                                       - n_bits_function_room);
@@ -126,9 +126,11 @@ namespace latticeQBP {
   public:
     typedef typename CompType<dtype>::Type comp_type;
   
-    static inline dtype toFVDType(double fv) {
-      assert_leq(abs(fv), 1);
-      return dtype(round(fv * double(dtype(1) << n_bits_function_precision)));
+    static inline dtype toFVDType(double fv) { 
+      double v1 = round(fv * double(dtype(1) << n_bits_function_precision));
+      dtype v2 = dtype(v1);
+      assert_equal(v1, double(v2));
+      return v2;
     }
 
     static inline double toFValue(dtype fv) {
@@ -187,7 +189,6 @@ namespace latticeQBP {
     dtype currentScale() const { return current_scale; }
 #endif
 
-
     dtype fv() const {
       return base_fv;
     }
@@ -196,38 +197,50 @@ namespace latticeQBP {
       return current_fv;
     }
 
-    dtype fv(dtype scale) {
+    dtype fv(dtype scale) const {
       assert(Policy::using_scales);
       return multFVScale(base_fv, scale);
     }
 
-    dtype cfv_predict() const {
-      return Base::level() + current_fv_offset;
+    dtype r() const {
+      return Base::r() + current_fv_offset;
+    }
+
+    dtype qii() const {
+      return base_fv;
+    }
+
+    dtype lm_qii() const {
+      return current_fv;
+    }
+
+    dtype influence() const {
+      return r() - lm_qii(); 
     }
 
     template <class Lattice> 
     void _debug_checkLevelsetMethodsNode(Lattice& lattice) {
 #ifndef NDEBUG
       dtype cfo = current_fv_offset;
-      dtype _cfv_predict = cfv_predict();
+      dtype _cfv_predict = r();
       dtype _cfv = cfv();
 
       setOffset(lattice, 0);
       
       assert_equal(current_fv_offset, 0);
-      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(r(), _cfv_predict);
       assert_equal(cfv(), _cfv);
 
       setOffset(lattice, 56323);
       
       assert_equal(current_fv_offset, 56323);
-      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(r(), _cfv_predict);
       assert_equal(cfv(), _cfv);
 
       setOffset(lattice, cfo);
 
       assert_equal(current_fv_offset, cfo);
-      assert_equal(cfv_predict(), _cfv_predict);
+      assert_equal(r(), _cfv_predict);
       assert_equal(cfv(), _cfv);
 #endif      
     }
@@ -263,7 +276,7 @@ namespace latticeQBP {
 
     template <class Lattice> 
     void _adjustValueInLattice(Lattice& lattice, dtype delta) {
-      typename Base::template NodeFiller<Lattice>(lattice).addE1(this, 0, _weight.mult(delta)); 
+      Base::adjustReduction(delta);
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -280,8 +293,8 @@ namespace latticeQBP {
 
       comp_type r_sum = 0;
       double count = 0;
-      dtype r_min = (*start)->cfv_predict();
-      dtype r_max = (*start)->cfv_predict();
+      dtype r_min = (*start)->r();
+      dtype r_max = (*start)->r();
 
       // cout << "Reductions = ";
 
@@ -289,7 +302,7 @@ namespace latticeQBP {
       for(ForwardNodePtrIterator it = start; it != end; ++it) {
         auto n = *it;
         n->_debug_checkLevelsetMethodsNode(lattice);
-        dtype r = n->cfv_predict();
+        dtype r = n->r();
         r_sum += r;
         r_min = min(r_min, r);
         r_max = max(r_max, r);
@@ -325,7 +338,7 @@ namespace latticeQBP {
         n->_debug_checkLevelsetMethodsNode(lattice);
         n->setOffset(lattice, r_new);
         n->_debug_checkLevelsetMethodsNode(lattice);
-        base_level += n->level();
+        base_level += n->r();
 
         // cout << n->level() << ",";
       }
@@ -339,12 +352,16 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // For initializing the lattice 
 
-    void setBaseFunctionValueDirect(dtype x) {
-      base_fv = _weight.fvToNf(x);
-    }
+    void pullBaseFunctionValueFromLattice() {
+      base_fv = Base::r();
+      current_fv_offset = 0;
+      current_fv = base_fv;
 
-    void setBaseFunctionValue(double x) {
-      base_fv = _weight.fvToNf(toFVDType(x));
+#ifndef NDEBUG
+      current_scale = toScaleDType(1);
+#endif
+
+      assert_equal(r(), fv());
     }
 
     void setWeight(double w) {
@@ -352,13 +369,9 @@ namespace latticeQBP {
       _weight.set(w);
     }
 
-    dtype level() const {
-      return _weight.nfToFv(Base::level());
-    }
-
-    dtype value() const {
-      return toFValue(level());
-    }
+    // dtype level() const {
+    //   return _weight.nfToFv(Base::level());
+    // }
   };
 };
 

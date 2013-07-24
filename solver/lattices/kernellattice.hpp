@@ -195,7 +195,24 @@ namespace latticeQBP {
         return lattice(node_idx_iter.index());
       }
 
-      inline const index_vect& latticeCoord() const { 
+
+      typename KernelLattice::value_cref operator*() const {
+        return *node();
+      }
+
+      typename KernelLattice::value_ref operator*() {
+        return *node();
+      }
+
+      typename KernelLattice::value_direct_cptr operator->() const {
+        return &(*lattice(node_idx_iter.index()));
+      }
+
+      typename KernelLattice::value_direct_ptr operator->() {
+        return &(*lattice(node_idx_iter.index()));
+      }
+
+      inline const index_vect& coords() const { 
         return node_idx_iter.coords();
       }
 
@@ -246,7 +263,7 @@ namespace latticeQBP {
       }
 
       inline size_t nodeIndexOf2() const {
-        return lattice.Base::boundedIndex(latticeCoordOf2());
+        return lattice.Base::boundedIndex(coordsOf2());
       }
 
       node_ptr node1() const {
@@ -261,16 +278,16 @@ namespace latticeQBP {
         return node_target_iter_index;
       }
 
-      inline const index_vect& latticeCoordOf1() const { 
+      inline const index_vect& coordsOf1() const { 
         return node_idx_iter.coords();
       }
 
-      inline const index_vect& latticeCoordOf2() const { 
+      inline const index_vect& coordsOf2() const { 
         return node_idx_target_iters[node_target_iter_index].coords(); 
       }
     
       inline double L2_SquaredDistance() const { 
-        return dist2(latticeCoordOf1(), latticeCoordOf2());
+        return dist2(coordsOf1(), coordsOf2());
       }
 
       inline double L2_Distance() const { 

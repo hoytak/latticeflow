@@ -47,13 +47,15 @@ namespace latticeQBP {
     //////////////////////////////////////////////////
     // Helper methods that tie in other things...
     inline bool on() const { 
+      assert(false);
+
       if(reduction_mode)
         return reduction < 0;
       else
         return state() != 0;
     }
 
-    inline unsigned int state() const {
+    inline bool state() const {
       return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
     }
 
@@ -169,7 +171,7 @@ namespace latticeQBP {
     inline dtype capacityOfSaturated(int ei) const {
       dtype v = abs(alpha[ei]);
 
-      if(DEBUG_MODE)
+      if(DEBUG_MODE) 
         assert_equal(v, edges[ei]);
 
       return v;
@@ -186,9 +188,21 @@ namespace latticeQBP {
 #endif
     }
 
-    dtype level() const {
-      assert_equal(reduction_shift, 0);
-      return simple_mode ? reduction : reduction >> 1;
+    // dtype level() const {
+    //   assert_equal(reduction_shift, 0);
+    //   return simple_mode ? reduction : reduction / 2;
+    // }
+
+    dtype r() const {
+      return reduction;
+    }
+
+    static inline dtype translateToRaw(dtype v) {
+      return simple_mode ? v : 2*v;
+    }
+
+    static inline dtype translateFromRaw(dtype v) {
+      return simple_mode ? v : v / 2;
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -430,7 +444,6 @@ namespace latticeQBP {
       Lattice& lattice;
     };
   };
-
 };
 
 #endif

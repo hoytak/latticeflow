@@ -10,6 +10,8 @@
 
 namespace latticeQBP {
 
+#include "../common/debug.hpp"
+
 
   ////////////////////////////////////////////////////////////
   // If rhs_mode == Terminal:
@@ -114,16 +116,17 @@ namespace latticeQBP {
 
     template <typename T>
     static inline T adjust_r(T r) { 
-      return r * (T(1) << n_bits_adjust); 
+      const int _n_bits_adjust = n_bits_adjust;
+      return r * (T(1) << _n_bits_adjust); 
     }
 
     template <typename T>
     static inline T deadjust_r(T r) { 
-      const int n_bits_scale_precision = Node::n_bits_scale_precision;
+      const int _n_bits_adjust = n_bits_adjust;
       
-      r += (r < 0 ? -1 : 1) * (T(1) << (n_bits_adjust - 1));
+      r += (r < 0 ? -1 : 1) * (T(1) << (_n_bits_adjust - 1));
 
-      return r / (T(1) << n_bits_adjust);
+      return r / (T(1) << _n_bits_adjust);
     }
 
   public:
@@ -145,7 +148,6 @@ namespace latticeQBP {
 
       // These are absolute values
       comp_type gamma_sum;
-
     }; 
 
     template <typename ForwardIterator>
@@ -158,21 +160,22 @@ namespace latticeQBP {
 
       RegionInformation ri = {0,0,0,0,0,0};
 
-      ri.zero_reference = (*start)->cfv_predict();
+      ri.zero_reference = (*start)->r();
 
       for(ForwardIterator it = start; it != end; ++it) {
 
         node_ptr n = *it;
 
+        n->_debug_checkLevelsetMethodsNode(ci().lattice);
         assert_equal(n->currentScale(), lambda);
 
         assert_equal(n->cfv(), n->fv(lambda));
         
         // Subtracting by fv_avg is for numerical stability
-        ri.lm_qii_sum_d += n->cfv() - ri.zero_reference;
-        ri.r_sum_d += n->cfv_predict() - ri.zero_reference;
+        ri.lm_qii_sum_d += n->lm_qii() - ri.zero_reference;
+        ri.r_sum_d += n->r() - ri.zero_reference;
 
-        ri.qii_sum += n->fv();
+        ri.qii_sum += n->qii();
         
         ++ri.partition_size;
       }
@@ -207,19 +210,19 @@ namespace latticeQBP {
       adjusted_r_at_0 = toDType(adjust_r(comp_type(ri.gamma_sum)) / ri.partition_size);
       adjusted_r_at_1 = toDType(adjust_r(ri.qii_sum + ri.gamma_sum) / ri.partition_size);
 
-      cout << "lm_qii_sum_d = " << ri.lm_qii_sum_d << endl; 
-      cout << "r_sum_d = " << ri.r_sum_d << endl;
-      cout << "zero_reference = " << ri.zero_reference<< endl;
-      cout << "partition_size = " << ri.partition_size<< endl;
-      cout << "qii_sum = " << ri.qii_sum<< endl;
-      cout << "gamma_sum = " << ri.gamma_sum<< endl;
+      // cout << "lm_qii_sum_d = " << ri.lm_qii_sum_d << endl; 
+      // cout << "r_sum_d = " << ri.r_sum_d << endl;
+      // cout << "zero_reference = " << ri.zero_reference<< endl;
+      // cout << "partition_size = " << ri.partition_size<< endl;
+      // cout << "qii_sum = " << ri.qii_sum<< endl;
+      // cout << "gamma_sum = " << ri.gamma_sum<< endl;
       
-      cout << "lambda = " << lambda << endl;
-      cout << "adjusted_r_at_0 = " << adjusted_r_at_0<< endl;
-      cout << "adjusted_r_at_1 = " << adjusted_r_at_1<< endl;
+      // cout << "lambda = " << lambda << endl;
+      // cout << "adjusted_r_at_0 = " << adjusted_r_at_0<< endl;
+      // cout << "adjusted_r_at_1 = " << adjusted_r_at_1<< endl;
 
-      cout << "deadjust_r(adjusted_r_at_0) = " << deadjust_r(adjusted_r_at_0) << endl;
-      cout << "deadjust_r(adjusted_r_at_1) = " << deadjust_r(adjusted_r_at_1) << endl;
+      // cout << "deadjust_r(adjusted_r_at_0) = " << deadjust_r(adjusted_r_at_0) << endl;
+      // cout << "deadjust_r(adjusted_r_at_1) = " << deadjust_r(adjusted_r_at_1) << endl;
       
 
       // Now, make sure that it's correct...
@@ -370,7 +373,6 @@ namespace latticeQBP {
       dtype split_ub;
     };
 
-
     SplitInfo calculateSplit(dtype current_lambda) const {
 
       if(n_nodes == 1) {
@@ -396,7 +398,7 @@ namespace latticeQBP {
         }
       }
       
-      DetailedSplitInfo dsi, last_dsi;
+      DetailedSplitInfo dsi{0,0}, last_dsi;
       dtype lambda_calc = lambda_calc_lb;
       bool cut_exists = false;
 
@@ -412,17 +414,18 @@ namespace latticeQBP {
         assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-        if(DEBUG_MODE) {
-          auto dsi2 = _calculateSingleSplit(dsi.lambda_of_split_capacity - 1);
-          assert_equal(dsi2.lambda_of_split_capacity, dsi.lambda_of_split_capacity);
-        }
-
-        lambda_calc = dsi.lambda_of_split_capacity;
+        lambda_calc = dsi.lambda_of_split_capacity + 111111;
       }
 
       // Store that information in the computation structure
       if(cut_exists) {
+
         assert(last_dsi.split_occurs);
+
+        if(DEBUG_MODE) {
+          auto dsi2 = _calculateSingleSplit(last_dsi.lambda_of_split_capacity - 1);
+          assert_equal(dsi2.lambda_of_split_capacity, last_dsi.lambda_of_split_capacity);
+        }
         
         ci().split_information = last_dsi.cut;
         return SplitInfo({true, lambda_calc, lambda_calc_lb});
@@ -448,21 +451,23 @@ namespace latticeQBP {
       typename TV_PR_Class::cutinfo_ptr cut;
     };      
 
-    DetailedSplitInfo _calculateSingleSplit(dtype lambda_lb) const {
+    DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
+
+      cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+      cout << "Calculating split at lambda = " << lambda_lb << endl;
 
       // Calculate the split point...
-      ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                    ci().nodeset.end(), lambda_lb);
+      ci().solver.setRegionToLambda_reference(ci().nodeset.begin(), 
+                                              ci().nodeset.end(), lambda_lb);
       
       // Now see if it can be solved at that lambda
       auto cut_ptr = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
       const auto& piv = cut_ptr->partitions;
 
-      assert_equal(piv.size(), 2);
-
-      if(!cut_ptr->any_cut) 
+      if(!cut_ptr->any_cut) {
+        cout << "     > No split. " << endl;
         return DetailedSplitInfo({false, 0, nullptr});
-      else {
+      } else {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
       }
@@ -472,48 +477,50 @@ namespace latticeQBP {
         getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
       };
 
+#ifndef NDEBUG
+      RegionInformation ri_ref = getRegionInfo(ci().nodeset.begin(), ci().nodeset.end(), lambda_lb);
+
+      assert_equal(ri_ref.gamma_sum, p_info[0].gamma_sum + p_info[1].gamma_sum);
+      assert_equal(ri_ref.qii_sum,   p_info[0].qii_sum   + p_info[1].qii_sum);
+
+#endif
       // Get the rest of the components to calculate the shape
-      comp_type qii_total   = p_info[0].qii_sum   + p_info[1].qii_sum;
-      comp_type gamma_total = p_info[0].gamma_sum + p_info[1].gamma_sum;
+      // comp_type qii_total   = p_info[0].qii_sum   + p_info[1].qii_sum;
+      // comp_type gamma_total = p_info[0].gamma_sum + p_info[1].gamma_sum;
 
       // Now go through and see which one has the largest lambda 
 
       typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
 
-      auto calcLambda = [&, qii_total, gamma_total, cut_ptr](const RegionInformation& ri) {
-        size_t R_size = ri.partition_size;
 
-        comp_type lambda_coeff = R_size * ri.qii_sum   - R_size * qii_total;
-        comp_type lambda_intcp = R_size * comp_type(ri.gamma_sum) - R_size * gamma_total;
-        comp_type cut = R_size * comp_type(cut_ptr->cut_value);
+      cout << "cut_ptr->cut_value = " << cut_ptr->cut_value
+           << "; p_info[1].gamma_sum = " << p_info[1].gamma_sum 
+           << "; p_info[0].gamma_sum = " << p_info[0].gamma_sum
+           << "; p_info[1].qii_sum = " << p_info[1].qii_sum 
+           << "; p_info[0].qii_sum = " << p_info[0].qii_sum
+           << endl;
 
-        // is_on being true means that this partition was on the
-        // high end, so at the lambda = 0 end, it's got too much
-        // flow if this is the blocking cut section.  This means
-        // that the incoming flow must decrease with increasing
-        // lambda, and that the original intercept term must be
-        // positive.  Thus we are looking for the point where it
-        // hits the cut.
+      comp_type intercept = cut_ptr->cut_value - (p_info[1].gamma_sum - p_info[0].gamma_sum);
+      comp_type div = (p_info[1].qii_sum - p_info[0].qii_sum);
 
-        // assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
-        //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
+      dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), div);
+
+      // is_on being true means that this partition was on the
+      // high end, so at the lambda = 0 end, it's got too much
+      // flow if this is the blocking cut section.  This means
+      // that the incoming flow must decrease with increasing
+      // lambda, and that the original intercept term must be
+      // positive.  Thus we are looking for the point where it
+      // hits the cut.
+
+      // assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
+      //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
             
-        if(lambda_intcp < 0) lambda_intcp *= -1;
-        if(lambda_coeff < 0) lambda_coeff *= -1;
-        lambda_intcp -= cut;
-
-        dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(lambda_intcp), lambda_coeff);
-
-        assert_geq(calc_lambda, 0);
-        assert_leq(calc_lambda, rhs_lambda);
-
-        return calc_lambda;
-      };
-
-      dtype calc_lambda = calcLambda(p_info[0]);
+      assert_geq(calc_lambda, lambda_lb);
+      assert_leq(calc_lambda, rhs_lambda);
       
-      assert_equal(calc_lambda, calcLambda(p_info[1]));
-      
+      cout << "Calculated split lambda = " << calc_lambda << endl;
+
       return DetailedSplitInfo({true, calc_lambda, cut_ptr});
     }
 
@@ -543,6 +550,7 @@ namespace latticeQBP {
                                            ci().neighbors.insert(rpsLookup(n->key()));
                                          });
     }
+
 
     template <typename RPSLookupFunction>
     void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2, dtype lambda, 
@@ -675,6 +683,7 @@ namespace latticeQBP {
       syncInformation(ci().nodeset.begin(), ci().nodeset.end(), join_lambda);
 
       // Check a bunch of stuff
+      
       assert_close(get_r_AtLambda(rhs_lambda), rps1->get_r_AtLambda(rps1->lhs_lambda), 1);
       assert_close(get_r_AtLambda(rhs_lambda), rps2->get_r_AtLambda(rps2->lhs_lambda), 1);
     }

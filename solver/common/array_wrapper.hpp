@@ -208,6 +208,15 @@ public:
     return out;
   }
 
+  template <typename alt_dtype>
+  inline bool operator==(const Array<alt_dtype, _n_elements>& x) const {
+    bool all_equal = true;
+    for(size_t i = 0; i < _n_elements; ++i) 
+      if(x[i] != _data[i])
+        all_equal = false;
+    
+    return all_equal;
+  }
 
   ////////////////////////////////////////////////////////////////////////////////
   // other arrays

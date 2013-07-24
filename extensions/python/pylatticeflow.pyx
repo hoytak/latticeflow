@@ -46,13 +46,17 @@ cdef extern from "kernels/kernels.hpp" namespace "latticeQBP":
     
 cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
 
-    vector[double] _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
-        size_t nx, size_t ny, double *function, double lm) nogil except +
+    cdef cppclass FuncArray "latticeQBP::LatticeArray<double, 2>":
+        double at(size_t, size_t) nogil except +
 
     cdef cppclass FuncPathArray "latticeQBP::LatticeArray<double, 3>":
         double at(size_t, size_t, size_t) nogil except +
 
+    ctypedef FuncArray* FuncMapPtr
     ctypedef FuncPathArray* RegPathPtr
+
+    FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
+        size_t nx, size_t ny, double *function, double lm) nogil except +
 
     RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
         size_t nx, size_t ny, double *function, vector[double]) nogil except +
@@ -434,18 +438,18 @@ def calculate2dTV(ar Xo, double flt):
 
     cdef ar[double, ndim=2, mode='c'] X = np.ascontiguousarray(Xo, dtype='d')
 
-    cdef size_t nx = X.shape[1]
-    cdef size_t ny = X.shape[0]
+    cdef size_t nx = X.shape[0]
+    cdef size_t ny = X.shape[1]
 
-    cdef vector[double] Rv = _calculate2dTV(nx, ny, &X[0,0], flt)
+    cdef FuncMapPtr Rv = _calculate2dTV(nx, ny, &X[0,0], flt)
 
     cdef ar[double, ndim=2, mode='c'] R = np.empty( (X.shape[0], X.shape[1]) )
 
     cdef size_t i, j
 
-    for yi in range(ny):
-        for xi in range(nx):
-            R[yi,xi] = Rv[yi*nx + xi]
+    for xi in range(nx):
+        for yi in range(ny):
+            R[xi,yi] = Rv.at(xi, yi) * flt
         
     return R
 
@@ -455,8 +459,9 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
     cdef size_t i, j
 
     cdef ar[double, ndim=2, mode='c'] X = np.ascontiguousarray(Xo, dtype='d')
-    cdef size_t nx = X.shape[1]
-    cdef size_t ny = X.shape[0]
+    
+    cdef size_t nx = X.shape[0]
+    cdef size_t ny = X.shape[1]
 
     cdef size_t n_lm = lma.shape[0]
 
@@ -467,14 +472,14 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
 
     cdef RegPathPtr Rv = _calculate2dTV(nx, ny, &X[0,0], lm_values)
 
-    cdef ar[double, ndim=2, mode='c'] R = np.empty( (lm_values.size(), X.shape[0], X.shape[1]) )
+    cdef ar[double, ndim=3, mode='c'] R = np.empty( (n_lm, X.shape[0], X.shape[1]) )
 
-    cdef size_t li, yi, xi
+    cdef size_t li, xi, yi
 
     for li in range(n_lm):
-        for yi in range(ny):
-            for xi in range(nx):
-                R[i,yi,xi] = Rv.at(li, yi, xi)
+        for xi in range(nx):
+            for yi in range(ny):
+                R[li,xi,yi] = Rv.at(li, xi, yi) / lma[i]
         
     return R
 

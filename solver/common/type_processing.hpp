@@ -9,7 +9,7 @@ namespace latticeQBP {
 
   using namespace std;
 
-  typedef __int128 int128_type;
+  typedef boost::multiprecision::int128_t int128_type;
 
 #ifndef NDEBUG
   typedef boost::multiprecision::checked_int256_t int256_type;
@@ -56,10 +56,10 @@ namespace latticeQBP {
   }
 }; 
 
-std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const latticeQBP::int128_type& t) {
-  out << int64_t(t / (latticeQBP::int128_type(1) << 64)) << ':' << int64_t(t & (~int64_t(0)));
-  return out;
-}
+// std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const latticeQBP::int128_type& t) {
+//   out << int64_t(t / (latticeQBP::int128_type(1) << 64)) << ':' << int64_t(t & (~int64_t(0)));
+//   return out;
+// }
 
 #endif /* _NUMERICAL_H_ */
 

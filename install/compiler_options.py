@@ -88,8 +88,6 @@ def setupCompilerFlags(ctx, cxx11support = False):
     ################################################################################
     # Now will need to do the same for VC++
 
-    # TODO
-
     ################################################################################
     # Now check each of the options
 
@@ -97,14 +95,24 @@ def setupCompilerFlags(ctx, cxx11support = False):
     # filterOptions(ctx, linker_common_options, all_must_work = True)
 
     def compiler_fltr(args):
-        return filterOptions(ctx, args,
-                             base_options=compiler_common_options,
-                             all_must_work = False)
+        if ctx.options.quick_config:
+            return args
+        else:
+            return filterOptions(ctx, args,
+                                 base_options=compiler_common_options,
+                                 all_must_work = False)
 
     def linker_fltr(args):
-        return filterOptions(ctx, args,
-                             base_options=linker_common_options,
-                             all_must_work = False)
+        if ctx.options.quick_config:
+            return args
+        else:
+            return filterOptions(ctx, args,
+                                 base_options=linker_common_options,
+                                 all_must_work = False)
+
+    if ctx.options.quick_config:
+        compiler_super_options = []
+        linker_super_options = []
 
     compiler_debug_options = \
         compiler_fltr(compiler_debug_options)

@@ -167,7 +167,7 @@ namespace latticeQBP {
         ++key;
       }
 
-      cout << "boundaries = " << boundaries << endl;
+      // cout << "boundaries = " << boundaries << endl;
 
       // Go through and reset all the offset stuff
       for(vn_iter it = ls_points.begin(); it != ls_points.end(); ++it) 
@@ -177,8 +177,9 @@ namespace latticeQBP {
       boundaries.push_back(ls_points.size());
       sort(boundaries.begin(), boundaries.end());
 
-      if(HAVE_OUTPUT)
+#if HAVE_OUTPUT
         cout << "Finished running model in " << tt.asString() << "." << endl;
+#endif
 
       // Now just convert these to keysets 
       vector<vector<node_ptr> > level_sets(n_level_sets);

@@ -69,7 +69,7 @@ namespace latticeQBP {
 
       for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
         
-        index_vect c1 = edge_it.latticeCoordOf1();
+        index_vect c1 = edge_it.coordsOf1();
         size_t idx_src = edge_it.nodeIndexOf1();
         size_t idx_dest = edge_it.nodeIndexOf2();
 
@@ -515,8 +515,8 @@ namespace latticeQBP {
 
     for(auto ufi = rsolver.getUnaryFillingIterator(); !ufi.done(); ++ufi) {
 
-      size_t idx_y = ufi.latticeCoord()[0];
-      size_t idx_x = ufi.latticeCoord()[1];
+      size_t idx_y = ufi.coords()[0];
+      size_t idx_x = ufi.coords()[1];
       size_t idx = nx*idx_y + idx_x;
 
       dtype fv = toDtype(lambda*function[idx]);
@@ -526,12 +526,12 @@ namespace latticeQBP {
 
     for(auto pwfi = rsolver.getPairwiseFillingIterator(); !pwfi.done(); ++pwfi) {
         
-      size_t src_idx_y = pwfi.latticeCoordOf1()[0];
-      size_t src_idx_x = pwfi.latticeCoordOf1()[1];
+      size_t src_idx_y = pwfi.coordsOf1()[0];
+      size_t src_idx_x = pwfi.coordsOf1()[1];
       size_t idx_src = nx*src_idx_y + src_idx_x;
 
-      size_t dest_idx_y = pwfi.latticeCoordOf2()[0];
-      size_t dest_idx_x = pwfi.latticeCoordOf2()[1];
+      size_t dest_idx_y = pwfi.coordsOf2()[0];
+      size_t dest_idx_x = pwfi.coordsOf2()[1];
       size_t idx_dest = nx*dest_idx_y + dest_idx_x;
 
       dtype pwf = toDtype(0.5*pwfi.geocutEdgeWeight() 
@@ -539,7 +539,7 @@ namespace latticeQBP {
 
       pwfi.addPairwisePotential(0, pwf, pwf, 0);
 
-      // cout << pwfi.latticeCoordOf1() << " -> " << pwfi.latticeCoordOf2() 
+      // cout << pwfi.coordsOf1() << " -> " << pwfi.coordsOf2() 
       //      << ": pwf = " << pwf << endl;
     }
 
