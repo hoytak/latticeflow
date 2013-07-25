@@ -268,13 +268,13 @@ namespace latticeQBP {
 
     inline bool eligible(const node_cptr& n) const {
       if(enable_keys) {
-        for(uint ei = 0; ei < kernel_size; ++ei) {
-          node_cptr nn = n + step_array[ei];
+      //   for(uint ei = 0; ei < kernel_size; ++ei) {
+      //     node_cptr nn = n + step_array[ei];
           
-          if(nn->_isKeyState(key) && pushCapacity(n, nn, ei) > 0) {
-            assert_geq(nn->height, n->height - 1);
-          }
-        }
+      //     if(nn->_isKeyState(key) && pushCapacity(n, nn, ei) > 0) {
+      //       assert_geq(nn->height, n->height - 1);
+      //     }
+      //   }
 
         return n->_isKeyState(key);
       }
@@ -1348,6 +1348,8 @@ namespace latticeQBP {
                                const NodePtrIterator& end, 
                                uint _key = 0, bool do_state_cleaning = false) {
 
+      key = Node::template makeKeyState<partition>(_key);
+      
       // First go through and set the state to the proper node.  all
       // these are currently eligible
       for(NodePtrIterator it = start; it != end; ++it) {
@@ -1357,8 +1359,8 @@ namespace latticeQBP {
         if(do_state_cleaning) {
           n->template setKeyState<partition>(lattice, _key);
         } else {
-          assert(eligible(n));
           n->template setKey<partition>(_key);
+          assert(eligible(n));
         }
       }
       // All that's needed here; just prepares things for runSection

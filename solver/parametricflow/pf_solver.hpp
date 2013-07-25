@@ -59,7 +59,7 @@ namespace latticeQBP {
 
       deque<VNRange> queue;
 
-      unsigned int key = 0;
+      unsigned int key = 1;
 
       queue.push_back({ls_points.begin(), ls_points.end()});
       boundaries.push_back(0);
@@ -148,18 +148,15 @@ namespace latticeQBP {
         if(mid_point > 0)
           queue.push_back({ls_range.start, ls_range.start + mid_point});
 
-        if(mid_point < top_idx) 
-          queue.push_back({ls_range.start + mid_point, ls_range.end});          
-        
+        if(mid_point < top_idx) {
+          queue.push_back({ls_range.start + mid_point, ls_range.end});
+          
+          for(vn_iter it = ls_range.start + mid_point; it != ls_range.end; ++it) 
+            (*it)->template flipNode<1>(lattice);
+        }
+
         if(mid_point > 0 && mid_point < top_idx)
           boundaries.push_back(mid_point + (ls_range.start - ls_points.begin()));
-
-        // Now clean up the graph
-        for(vn_iter it = ls_range.start; it != ls_range.end; ++it) {
-          node_ptr n = *it;
-          if(n->state()) 
-            n->template flipNode<1>(lattice);
-        }
         
         nf_solver.cleanupSection(ls_range.start, ls_range.end, key);
         
