@@ -246,7 +246,7 @@ namespace latticeQBP {
     }
 #else
     inline void _debug_checkPrerunStatus() { } 
-    inline void _debug_VerifyAccurateLevel(size_t) { }
+    inline void _debug_VerifyAccurateLevel(size_t, bool = true) { }
     inline void _debug_VerifyAll(bool = true) { }
 #endif 
 
@@ -1059,7 +1059,6 @@ namespace latticeQBP {
     void _run() {
 
       if(levels[1].nodes.empty()) {
-        cout << "levels[1].nodes.empty()!!!!" << endl;
         return;
       }
 

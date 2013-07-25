@@ -165,8 +165,6 @@ namespace latticeQBP {
             if(nn->matchesKey(key) && ! nn->state()) {
               dtype cc = Base::capacityOfSaturated(n, nn, ei); 
               cut->cut_value += cc;
-              cout << "cc = " << cc << endl;
-
               cut->cut_edges.push_back(make_pair(n, ei));
             }
           }

@@ -398,7 +398,7 @@ namespace latticeQBP {
         }
       }
       
-      DetailedSplitInfo dsi{0,0}, last_dsi;
+      DetailedSplitInfo dsi{false,false,0}, last_dsi;
       dtype lambda_calc = lambda_calc_lb;
       bool cut_exists = false;
 
@@ -414,7 +414,10 @@ namespace latticeQBP {
         assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-        lambda_calc = dsi.lambda_of_split_capacity + 111111;
+        lambda_calc = dsi.lambda_of_split_capacity;
+
+        if(dsi.like_trains_passing_in_the_dead_of_a_cold_moonless_night)
+          break;
       }
 
       // Store that information in the computation structure
@@ -422,10 +425,12 @@ namespace latticeQBP {
 
         assert(last_dsi.split_occurs);
 
-        if(DEBUG_MODE) {
-          auto dsi2 = _calculateSingleSplit(last_dsi.lambda_of_split_capacity - 1);
-          assert_equal(dsi2.lambda_of_split_capacity, last_dsi.lambda_of_split_capacity);
-        }
+        // if(DEBUG_MODE) {
+        //   auto dsi2 = _calculateSingleSplit(last_dsi.lambda_of_split_capacity - 1);
+        //   assert_equal(dsi2.lambda_of_split_capacity, last_dsi.lambda_of_split_capacity);
+          
+        //   if(dsi.like_trains_passing_in_the_dead_of_a_cold_moonless_night)
+        // } 
         
         ci().split_information = last_dsi.cut;
         return SplitInfo({true, lambda_calc, lambda_calc_lb});
@@ -442,6 +447,8 @@ namespace latticeQBP {
 
     struct DetailedSplitInfo{ 
       bool split_occurs;
+
+      bool like_trains_passing_in_the_dead_of_a_cold_moonless_night;
       
       // This gives the exact lambda of this cut; if it is one less
       // than this, then the cut will form.  Above this, there may be
@@ -449,7 +456,7 @@ namespace latticeQBP {
       dtype lambda_of_split_capacity;
 
       typename TV_PR_Class::cutinfo_ptr cut;
-    };      
+    };
 
     DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
 
@@ -459,8 +466,8 @@ namespace latticeQBP {
       cout << "Calculating split at lambda = " << lambda_lb << endl;
 
       // Calculate the split point...
-      ci().solver.setRegionToLambda_reference(ci().nodeset.begin(), 
-                                              ci().nodeset.end(), lambda_lb);
+      ci().solver.setRegionToLambda(ci().nodeset.begin(), 
+                                    ci().nodeset.end(), lambda_lb, true);
       
       // Now see if it can be solved at that lambda
       auto cut_ptr = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
@@ -471,7 +478,7 @@ namespace latticeQBP {
 
         ci().solver.disableChecks();
 
-        return DetailedSplitInfo({false, 0, nullptr});
+        return DetailedSplitInfo({false, false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
@@ -520,15 +527,19 @@ namespace latticeQBP {
 
       // assert(! ((ri.pt->is_on  && ( lambda_coeff >= 0 || cut >= lambda_intcp)  )
       //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
-            
-      assert_geq(calc_lambda, lambda_lb);
+
       assert_leq(calc_lambda, rhs_lambda);
-      
+            
+      if(cut_ptr->cut_value == 0)
+        return DetailedSplitInfo({true, true, calc_lambda, cut_ptr});
+
+      assert_geq(calc_lambda, lambda_lb);
+
       cout << "Calculated split lambda = " << calc_lambda << endl;
 
       ci().solver.disableChecks();
 
-      return DetailedSplitInfo({true, calc_lambda, cut_ptr});
+      return DetailedSplitInfo({true, false, calc_lambda, cut_ptr});
     }
 
 
