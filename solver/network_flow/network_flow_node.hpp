@@ -11,7 +11,7 @@ namespace latticeQBP {
 
   struct NFNodeDefaultPolicy {
     static constexpr bool on_by_reduction = false;
-    static constexpr bool enable_key_partitioning = false;
+    static constexpr bool enable_key_partitioning = true;
     static constexpr bool adjustment_mode = true;
   };
 
@@ -60,7 +60,7 @@ namespace latticeQBP {
 
     template <int partition>
     static inline unsigned int makeKeyState(unsigned int key) {
-      return ((key + 1) << 1) | partition;
+      return (key << 1) | partition;
     }
 
     template <int partition, typename Lattice> 
@@ -98,7 +98,7 @@ namespace latticeQBP {
     }
 
     inline uint key() const {
-      return (key_state >> 1) - 1;
+      return (key_state >> 1);
     }
 
     inline bool keyIsClear() const {
@@ -106,7 +106,7 @@ namespace latticeQBP {
     }
 
     inline bool matchesKey(unsigned int key) const {
-      return (key_state >> 1) == key + 1;
+      return (key_state >> 1) == key;
     }
 
   protected: 

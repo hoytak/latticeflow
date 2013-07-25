@@ -71,8 +71,19 @@ namespace latticeQBP {
 
         assert(ls_range.start != ls_range.end);
 
+        // cout << "running reductions on nodes: ";
+        
+        // sort(ls_range.start, ls_range.end);
+
+        // for(vn_iter it = ls_range.start; it != ls_range.end; ++it) {
+        //   cout << ((*it) - lattice.begin()) << ",";
+        // }
+
+        // cout << endl;
+
         // Set them to their initial value
         if(Node::setToMeanReductionPoint(lattice, ls_range.start, ls_range.end)) {
+          // cout << "DONE" << endl;
           // cout << "Done with reductions on nodes: ";
           // sort(ls_range.start, ls_range.end);
           // for(vn_iter it = ls_range.start; it != ls_range.end; ++it) {

@@ -745,8 +745,8 @@ namespace latticeQBP {
       assert(eligible(src));
       dtype r = max(src->template pushCapacity<partition>(ei), dtype(0));
 
-      if(DEBUG_MODE && r > 0)
-        assert(eligible(dest));
+      // if(DEBUG_MODE && r > 0)
+      //   assert(eligible(dest));
       
       return r;
     }
@@ -1058,8 +1058,10 @@ namespace latticeQBP {
 
     void _run() {
 
-      if(levels[1].nodes.empty())
+      if(levels[1].nodes.empty()) {
+        cout << "levels[1].nodes.empty()!!!!" << endl;
         return;
+      }
 
       // Go through, popping off the highest one in the queue and
       // blasting through things until all is done!
@@ -1290,6 +1292,9 @@ namespace latticeQBP {
   public:
 
     bool run() {
+      if(enable_keys)
+        key = Node::template makeKeyState<partition>(0);
+
       _debug_checkPrerunStatus();
 
       // First do a simple iteration
@@ -1368,9 +1373,7 @@ namespace latticeQBP {
 
     template <typename NodePtrIterator>
     bool runSection(const NodePtrIterator& start, const NodePtrIterator& end, uint _key = 0) {
-
-      _debug_VerifyAll();
-
+      
       // First do a simple iteration
       size_t set_size = 0;
       size_t starting_size = 0;
