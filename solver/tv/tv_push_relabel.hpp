@@ -75,6 +75,8 @@ namespace latticeQBP {
         
 #endif
       
+      Base::enableChecks();
+
       Base::runSection(start, end, key);
 
       bool any_on = false;

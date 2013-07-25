@@ -174,9 +174,12 @@ namespace latticeQBP {
       for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
         n->_debug_forceVerifyNodeConsistency(lattice, true);
 
-        if(!eligible(n))
+        if(!eligible(n)) {
           assert_equal(n->height, 0);
+          continue;
+        }
 
+        assert_leq(n->height, top_level);
         assert_lt(n->height, levels.size());
 
         if(eligible(n) && n->height == 0)
@@ -190,36 +193,34 @@ namespace latticeQBP {
       }
 
       if(check_all_nodes_in_level) {
+        vector<set<node_ptr> > level_node_sets(top_level + 1);
+
         for(size_t i = 1; i <= top_level; ++i) {
-
           Level& lv = levels[i];
-
-          for(size_t j = 0; j < lv.nodes.size(); ++j) {
-            node_ptr n = lv.nodes[j];
-
-            n->height = 0;
-          }
+          level_node_sets[i].insert(lv.nodes.begin(), lv.nodes.end());
+          if(i > top_level_with_excess)
+            assert(lv.active_nodes.empty());
         }
    
         // Make sure all nodes are accounted for
-        for(node_ptr n = lattice.begin(); n != lattice.end(); ++n)
-          if(~(n->height))
-            assert_equal(n->height, 0);
-    
-        for(size_t i = 1; i <= top_level; ++i) {
-
-          Level& lv = levels[i];
-
-          for(size_t j = 0; j < lv.nodes.size(); ++j) {
-            node_ptr n = lv.nodes[j];
-
-            n->height = i;
-          }
+        for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+          if(n->height != 0)
+            assert(level_node_sets[n->height].find(n) != level_node_sets[n->height].end());
         }
+
+        // for(size_t level = 1; level <= top_level ; ++level) {
+        //   for(size_t i = 0; i < levels[level].nodes.size(); ++i) {
+        //     node_ptr n = levels[level].nodes[i];
+
+        //     assert_leq(excess(n), 0);
+        //     n->height = 0;
+        //   }
+        // }
+
       }
 
       for(size_t i = 1; i <= top_level; ++i) {
-        _debug_VerifyAccurateLevel(i, true);
+        _debug_VerifyAccurateLevel(i, true); 
         // assert_gt(levels[i].nodes.size(), 0);
       }
     }
@@ -265,11 +266,23 @@ namespace latticeQBP {
       }
     }
 
-    inline bool eligible(const node_ptr& n) const {
-      return n->_isKeyState(key);
+    inline bool eligible(const node_cptr& n) const {
+      if(enable_keys) {
+        for(uint ei = 0; ei < kernel_size; ++ei) {
+          node_cptr nn = n + step_array[ei];
+          
+          if(nn->_isKeyState(key) && pushCapacity(n, nn, ei) > 0) {
+            assert_geq(nn->height, n->height - 1);
+          }
+        }
+
+        return n->_isKeyState(key);
+      }
+      else
+        return (n->state() == partition);
     }
 
-    inline bool key_eligible(const node_ptr& n) const {
+    inline bool key_eligible(const node_cptr& n) const {
       return n->_isKey(key);
     }
 
@@ -403,6 +416,8 @@ namespace latticeQBP {
     bool quickFlow() {
       // Go through and push stuff down hill if it's possible; kinda a
       // faster first pass with no theoretic value.
+
+      assert(false);
 
       for(size_t level = top_level; level != 1; --level) {
         _debug_VerifyAccurateLevel(level);
@@ -559,8 +574,8 @@ namespace latticeQBP {
       lv.nodes.pop_back();
       base_level_empty = lv.nodes.empty();
 
+      assert(eligible(new_node));
       assert_gt(excess(new_node), 0);
-      assert_equal(new_node->state(), partition);
 
       _debug_VerifyAccurateLevel(top_level_with_excess);
     
@@ -579,7 +594,7 @@ namespace latticeQBP {
       if(excess_status == HAS_EXCESS)
         assert_gt(excess(n), 0);
 
-      if(excess_status == NO_EXCESS)
+      if(!has_excess)
         assert_equal(excess(n), 0);
 
       if(!no_current_height_checks) {
@@ -643,14 +658,15 @@ namespace latticeQBP {
     }
 
     inline void nodeNowHasExcess(node_ptr n) {
-      assert_equal(n->state(), partition);
+      assert(eligible(n));
       assert_gt(excess(n), 0);
     
       levels[n->height].active_nodes.push_back(n);
+
       if(top_level_with_excess < n->height)
         top_level_with_excess = n->height;
 
-      _debug_VerifyAccurateLevel(n->height);
+      // _debug_VerifyAccurateLevel(n->height);
     }
 
     inline void flipNode(node_ptr n, bool check_top_level = false) {
@@ -695,7 +711,7 @@ namespace latticeQBP {
 
     void finish() {
 
-      _debug_VerifyAll();
+      _debug_forceVerifyAll();
 
       assert(levels[0].nodes.empty());
 
@@ -726,11 +742,18 @@ namespace latticeQBP {
     // Low level operAtions
 
     inline dtype pushCapacity(const node_cptr& src, const node_cptr& dest, uint ei) const {
-      return max(src->template pushCapacity<partition>(ei), dtype(0));
+      assert(eligible(src));
+      dtype r = max(src->template pushCapacity<partition>(ei), dtype(0));
+
+      if(DEBUG_MODE && r > 0)
+        assert(eligible(dest));
+      
+      return r;
     }
 
     inline dtype capacityOfSaturated(const node_cptr& src, const node_cptr& dest, uint ei) const {
       assert_notequal(src->state(), dest->state());
+      assert_equal(src->key(), dest->key());
       src->_debugVerifyNodeConsistency(lattice);
       dest->_debugVerifyNodeConsistency(lattice);
 
@@ -1046,18 +1069,26 @@ namespace latticeQBP {
       Array<PNeighbor, kernel_size> hl;
       Array<node_ptr, kernel_size> nl;
 
+      bool base_level_empty;
+
       while(true) {
 
       next_iteration:
 
-        bool base_level_empty = false;
         _debug_VerifyAll();
         bool done = nextInQueue(n, base_level_empty);
-      
+        
+        // cout << "Rocking on node " << n->pos << endl;
+
         if(unlikely(done))
           break;
 
+        assert(eligible(n));
+        assert(excess(n) > 0);
+
         unsigned int base_height = n->height;
+        assert_gt(base_height, 0);
+
         dtype remaining_excess = excess(n);
 
         assert_gt(remaining_excess, 0);
@@ -1128,6 +1159,7 @@ namespace latticeQBP {
 
             remaining_excess -= amount;
 
+            assert_gt(hl[i].height(), nn->height);
             push<0>(n, nn, index, amount);
 
             if(push_capacity == amount) {
@@ -1193,6 +1225,7 @@ namespace latticeQBP {
 
           remaining_excess -= amount;
 
+          assert_gt(hl[i].height(), nn->height);
           push<1>(n, nn, index, amount);
 
           if(remaining_excess == 0) {
@@ -1237,13 +1270,21 @@ namespace latticeQBP {
     // higher level control structures
 
     void initQueue(size_t reserve_size = 0) {
+
       if(reserve_size != 0)
         initStorage(reserve_size);
+
+      for(size_t i = 0; i <= top_level; ++i) {
+        assert(levels[i].nodes.empty());
+      }
       
       top_level = 1;
       top_level_with_excess = 0;
       
       num_flips = 0;
+
+      // Make sure that everything is empty
+
     }
   
   public:
@@ -1266,7 +1307,7 @@ namespace latticeQBP {
         vector<node_ptr> active_nodes;
 
         for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
-          if(n->state() == partition && n->excess() > 0) {
+          if(eligible(n) && n->excess() > 0) {
             ++starting_size;
             active_nodes.push_back(n);
           }
@@ -1316,7 +1357,7 @@ namespace latticeQBP {
         if(do_state_cleaning) {
           n->template setKeyState<partition>(lattice, _key);
         } else {
-          assert_equal(n->state(), partition);
+          assert(eligible(n));
           n->template setKey<partition>(_key);
         }
       }
@@ -1325,6 +1366,9 @@ namespace latticeQBP {
 
     template <typename NodePtrIterator>
     bool runSection(const NodePtrIterator& start, const NodePtrIterator& end, uint _key = 0) {
+
+      _debug_VerifyAll();
+
       // First do a simple iteration
       size_t set_size = 0;
       size_t starting_size = 0;
@@ -1346,14 +1390,13 @@ namespace latticeQBP {
 
         for(auto it = start; it != end; ++it) {
           node_ptr n = *it;
-          assert_equal(n->state(), 0);
           assert_equal(n->key(), _key);
           assert(eligible(n));
         }
       } 
 #endif 
 
-      if(OptPolicy::init_hotstart()) {
+      if(false && OptPolicy::init_hotstart()) {
         hotStart(start, end);
         if(OptPolicy::init_quickflow()) quickFlow();
 
@@ -1370,6 +1413,7 @@ namespace latticeQBP {
           ++set_size;
 
           assert(eligible(n));
+          assert_equal(n->height, 0);
 
           if(n->excess() > 0) {
             ++starting_size;
@@ -1384,7 +1428,11 @@ namespace latticeQBP {
         }
       }
 
+      _debug_VerifyAll();
+
       _run();
+
+      _debug_VerifyAll();
 
 #ifndef NDEBUG
       if(!disable_printing) {

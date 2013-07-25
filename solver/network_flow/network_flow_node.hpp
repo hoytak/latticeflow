@@ -132,11 +132,17 @@ namespace latticeQBP {
   public:
     dtype reduction_shift;
     Array<long, Kernel::n_dimensions> pos;
+    size_t id;
 
     template <typename T>
     inline void setPosition(const Array<T, Kernel::n_dimensions>& a) {
-      for(int i = 0; i < Kernel::n_dimensions; ++i)
+      id = 0;
+      size_t x = 1;
+      for(int i = 0; i < Kernel::n_dimensions; ++i) {
         pos[i] = a[i];
+        id += x * a[i];
+        x *= 10000;
+      }
     }
 
 #else

@@ -1,9 +1,9 @@
 #ifndef HK_DEBUG_H
 #define HK_DEBUG_H
 
-// #ifdef NDEBUG
-// #undef NDEBUG
-// #endif
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 
 
 #ifndef HAVE_OUTPUT
