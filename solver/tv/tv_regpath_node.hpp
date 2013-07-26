@@ -375,7 +375,7 @@ namespace latticeQBP {
 
     SplitInfo calculateSplit(dtype current_lambda) const {
 
-      if(n_nodes == 1) {
+      if(true || n_nodes == 1) {
         ci().split_calculation_done_to_lambda = 0;
         ci().lambda_of_split = -1;
         
@@ -611,6 +611,8 @@ namespace latticeQBP {
                        TVRegPathSegment *rps2,
                        dtype join_lambda) {
 
+      cout << "SETTIng up from JOIN!!!!!" << endl;
+
       const auto& ci1 = rps1->ci();
       const auto& ci2 = rps2->ci();
 
@@ -721,6 +723,8 @@ namespace latticeQBP {
       dtype r21 = r2->adjusted_r_at_1;
 
       dtype join_lambda = Node::getScaleFromQuotient_T(r20 - r10, (r11 - r10) - (r21 - r20));
+
+      cout << "join_lambda = " << join_lambda << endl;
 
       if(DEBUG_MODE) {
         assert_leq(current_lambda, r1->rhs_lambda);

@@ -323,6 +323,8 @@ namespace latticeQBP {
       auto registerPossibleJoin = 
         [&run_heap](_TVRegPathSegment *rps1, _TVRegPathSegment *rps2, dtype lambda_start) {
 
+        cout << "REGISTERING JOIN" << endl;
+
         dtype join_lambda = _TVRegPathSegment::calculateJoins(rps1, rps2, lambda_start);
         if(join_lambda > 0)
           run_heap.push(FunPoint({join_lambda, FunPoint::Join, rps1, rps2}));

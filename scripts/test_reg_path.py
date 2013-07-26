@@ -26,7 +26,7 @@ X -= X.mean()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0.1, 3.5, 50)
+lambdas = np.linspace(3, 3.5, 50)
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
 
@@ -59,7 +59,7 @@ def plotRegPath(a, Xtv):
 
     a.add_collection(collections.LineCollection(col, antialiased=[1]*len(col)))
     a.legend()
-    a.set_xlim([0,lambdas.max()])
+    a.set_xlim([lambdas.min(),lambdas.max()])
     a.set_ylim([ymin, ymax])
 
 f = figure()
