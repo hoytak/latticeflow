@@ -5,6 +5,7 @@
 #include "../network_flow/network_flow_node.hpp"
 
 #include <algorithm>
+#include <limits>
 
 namespace latticeQBP {
 
@@ -171,9 +172,11 @@ namespace latticeQBP {
     static inline dtype getScaleFromQuotient_T(comp_type&& numer, const T& denom) {
       assert(Policy::using_scales);
       
+      static constexpr dtype dtmax = numeric_limits<dtype>::max();
+
       numer *= (dtype(1) << n_bits_scale_precision);
       numer /= denom;
-      return toDType(numer);
+      return likely(numer > dtmax) ? dtmax : toDType(numer);
     }
 
     template <typename T>

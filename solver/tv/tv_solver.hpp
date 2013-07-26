@@ -72,11 +72,11 @@ namespace latticeQBP {
     void setup(double *function, double _max_lambda) {
       // reset();
 
+      max_lambda = max(_max_lambda, 1e-8);
+      
       v_min = *min_element(function, function + lattice.sizeWithinBounds()) - 1e-32;
       v_max = *max_element(function, function + lattice.sizeWithinBounds()) + 1e-32;
 
-      max_lambda = max(_max_lambda, 0.1);
-      
       typename Node::template NodeFiller<Lattice> filler(lattice);
 
       for(auto node_it = lattice.vertexIterator(); !node_it.done(); ++node_it) {
@@ -86,7 +86,7 @@ namespace latticeQBP {
       }
 
       // Since we are scaling the function value, scale the regularizer as well
-      double global_scale_value = 0.5 * (2.0 / (v_max - v_min)) / max_lambda;
+      double global_scale_value = 0.5 * (2.0 / ((v_max - v_min) * max_lambda));
 
       for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
 
@@ -325,7 +325,7 @@ namespace latticeQBP {
 
         dtype join_lambda = _TVRegPathSegment::calculateJoins(rps1, rps2, lambda_start);
         if(join_lambda > 0) {
-          cout << "REGISTERING JOIN at " << Node::scaleToValue(join_lambda) << endl;
+          // cout << "REGISTERING JOIN at " << Node::scaleToValue(join_lambda) << endl;
           run_heap.push(FunPoint({join_lambda, FunPoint::Join, rps1, rps2}));
         }
       };

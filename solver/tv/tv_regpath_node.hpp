@@ -721,8 +721,13 @@ namespace latticeQBP {
       dtype r20 = r2->adjusted_r_at_0;
       dtype r11 = r1->adjusted_r_at_1;
       dtype r21 = r2->adjusted_r_at_1;
+      
+      dtype numer = r20 - r10;
+      dtype denom = (r11 - r10) - (r21 - r20);
 
-      dtype join_lambda = Node::getScaleFromQuotient_T(r20 - r10, (r11 - r10) - (r21 - r20));
+      dtype join_lambda = ( ( (numer < 0) != (denom < 0) )
+                            ? -1
+                            : Node::getScaleFromQuotient_T(numer, denom));
 
       cout << "join_lambda = " << Node::scaleToValue(join_lambda) << endl;
 

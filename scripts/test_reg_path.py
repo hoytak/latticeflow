@@ -8,8 +8,8 @@ from itertools import product
 
 plot_type = "levels2"
 
-#image_file = "benchmarks/images/truffles-small.png"
-image_file = "benchmarks/images/sanity.png"
+image_file = "benchmarks/images/truffles-small.png"
+#image_file = "benchmarks/images/sanity.png"
 
 Xo = imread(image_file)
 
@@ -27,7 +27,7 @@ X /= X.std()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0, 1, 50)
+lambdas = np.linspace(0.001, 0.0324, 50)
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
 
@@ -37,7 +37,7 @@ print "Done calculating Regpath Version."
 Xtv_1 = np.empty( (lambdas.size, X.shape[0], X.shape[1]) )
 
 for i, lm in enumerate(lambdas):
-    # print "Calculating %d/%d (lambda = %1.5f)" % ((i + 1), len(lambdas), lm)
+    print "Calculating %d/%d (lambda = %1.5f)" % ((i + 1), len(lambdas), lm)
     Xtv_1[i,:,:] = calculate2dTV(X, lm)
 
 print "Done calculating indivdual models."
@@ -58,7 +58,7 @@ def plotRegPath(a, Xtv):
         ymin = min(ymin, y.min())
         ymax = max(ymax, y.max())
 
-    a.add_collection(collections.LineCollection(col, antialiased=[1]*len(col)))
+    a.add_collection(collections.LineCollection(col, antialiaseds = True, linewidths=0.5))
     a.legend()
     a.set_xlim([lambdas.min(),lambdas.max()])
     a.set_ylim([ymin, ymax])
