@@ -63,7 +63,7 @@ namespace latticeQBP {
       : rhs_mode(Unset)
       , lhs_mode(Unset)
       , rhs_lambda(0)
-      , lhs_lambda(DEBUG_MODE ? -1 : 0)
+      , lhs_lambda(-1)
       , adjusted_r_at_1(0)
       , adjusted_r_at_0(0)
       , _construction_info(new ConstructionInfo(_key, _lattice, _solver))
@@ -89,7 +89,7 @@ namespace latticeQBP {
       rhs_nodes[0] = nullptr;
       rhs_nodes[1] = nullptr;
 
-      syncInformation(ci().nodeset.begin(), ci().nodeset.end(), lambda);
+      syncInformation(lambda);
     }
     
 
@@ -182,24 +182,33 @@ namespace latticeQBP {
 
       ri.gamma_sum = (ri.r_sum_d - ri.lm_qii_sum_d);
 
+
       return ri;
     }
 
-    template <typename ForwardIterator>
-    void syncInformation(const ForwardIterator& start, 
-                         const ForwardIterator& end, 
-                         dtype lambda) {
+#ifndef NDEBUG
+    void checkKeySynced() const {
+      ci().solver.checkPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
+    }
+#else
+    void checkKeySynced() const { }
+#endif
 
-      assert(start != end);
+    void syncInformation(dtype lambda) {
+      
+      assert(!ci().nodeset.empty());
 
       // Update the lattice
       n_nodes = 0;
-      for(ForwardIterator it = start; it != end; ++it) {
-        node_ptr n = *it;
+      for(node_ptr n : ci().nodeset) {
+        
         n->setOffsetAndScale(ci().lattice, 0, lambda); 
         n->template setKey<0>(ci().key);
         ++n_nodes;
       }
+
+      auto start = ci().nodeset.begin();
+      auto end = ci().nodeset.end();
 
       RegionInformation ri = getRegionInfo(start, end, lambda);
 
@@ -240,6 +249,8 @@ namespace latticeQBP {
                              / ri.partition_size);
 
       assert_leq(abs(r_calc - rhs_r), 1);
+
+      checkKeySynced();
 #endif
     }
 
@@ -298,6 +309,8 @@ namespace latticeQBP {
 
     // Conditionally activate the nodes 
     void deactivate() {
+      checkKeySynced();
+
       assert(lhs_lambda != -1);
 
       // Depending on the rhs mode, create a set with all the active
@@ -374,8 +387,9 @@ namespace latticeQBP {
     };
 
     SplitInfo calculateSplit(dtype current_lambda) const {
+      checkKeySynced();
 
-      if(true || n_nodes == 1) {
+      if(n_nodes == 1) {
         ci().split_calculation_done_to_lambda = 0;
         ci().lambda_of_split = -1;
         
@@ -559,7 +573,7 @@ namespace latticeQBP {
       rhs_mode = Split;
       rhs_nodes = {parent, nullptr};
       
-      syncInformation(ci().nodeset.begin(), ci().nodeset.end(), lambda);
+      syncInformation(lambda);
 
       // Build the neighborhood map.
       ci().solver.constructNeighborhoodSet(ci().nodeset.begin(), ci().nodeset.end(), 
@@ -567,6 +581,8 @@ namespace latticeQBP {
                                            [&rpsLookup, this](node_ptr n) {
                                            ci().neighbors.insert(rpsLookup(n->key()));
                                          });
+
+      checkKeySynced();
     }
 
 
@@ -611,7 +627,7 @@ namespace latticeQBP {
                        TVRegPathSegment *rps2,
                        dtype join_lambda) {
 
-      cout << "SETTIng up from JOIN!!!!!" << endl;
+      // cout << "SETTIng up from JOIN!!!!!" << endl;
 
       const auto& ci1 = rps1->ci();
       const auto& ci2 = rps2->ci();
@@ -637,15 +653,15 @@ namespace latticeQBP {
       rhs_lambda = join_lambda;
       rhs_nodes = {rps1, rps2};
    
-      cout << "rps1: " 
-           << rps1->get_r_AtLambda(join_lambda-1) << ", "
-           << rps1->get_r_AtLambda(join_lambda) << ", "
-           << rps1->get_r_AtLambda(join_lambda+1) << "]" << endl;
+      // cout << "rps1: " 
+      //      << rps1->get_r_AtLambda(join_lambda-1) << ", "
+      //      << rps1->get_r_AtLambda(join_lambda) << ", "
+      //      << rps1->get_r_AtLambda(join_lambda+1) << "]" << endl;
 
-      cout << "rps2: " 
-           << rps2->get_r_AtLambda(join_lambda-1) << ", "
-           << rps2->get_r_AtLambda(join_lambda) << ", "
-           << rps2->get_r_AtLambda(join_lambda+1) << "]" << endl;
+      // cout << "rps2: " 
+      //      << rps2->get_r_AtLambda(join_lambda-1) << ", "
+      //      << rps2->get_r_AtLambda(join_lambda) << ", "
+      //      << rps2->get_r_AtLambda(join_lambda+1) << "]" << endl;
 
 #ifndef NDEBUG
       {
@@ -700,12 +716,14 @@ namespace latticeQBP {
       rps2->lhs_lambda = join_lambda;
       rps2->lhs_nodes = {this, 0};
 
-      syncInformation(ci().nodeset.begin(), ci().nodeset.end(), join_lambda);
+      syncInformation(join_lambda);
 
       // Check a bunch of stuff
       
       assert_close(get_r_AtLambda(rhs_lambda), rps1->get_r_AtLambda(rps1->lhs_lambda), 1);
       assert_close(get_r_AtLambda(rhs_lambda), rps2->get_r_AtLambda(rps2->lhs_lambda), 1);
+
+      checkKeySynced();
     }
 
     static inline dtype lambdaOfJoin(TVRegPathSegment* r1,
@@ -716,7 +734,9 @@ namespace latticeQBP {
     static inline dtype lambdaOfJoin(TVRegPathSegment* r1,
                                      TVRegPathSegment* r2,
                                      dtype current_lambda) {
-      
+      r1->checkKeySynced();
+      r2->checkKeySynced();
+
       dtype r10 = r1->adjusted_r_at_0;
       dtype r20 = r2->adjusted_r_at_0;
       dtype r11 = r1->adjusted_r_at_1;
@@ -729,7 +749,7 @@ namespace latticeQBP {
                             ? -1
                             : Node::getScaleFromQuotient_T(numer, denom));
 
-      cout << "join_lambda = " << Node::scaleToValue(join_lambda) << endl;
+      // cout << "join_lambda = " << Node::scaleToValue(join_lambda) << endl;
 
       if(DEBUG_MODE) {
         assert_leq(current_lambda, r1->rhs_lambda);

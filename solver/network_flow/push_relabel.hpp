@@ -759,7 +759,7 @@ namespace latticeQBP {
 
       dtype ret = src->capacityOfSaturated(ei);
 
-      assert_equal(ret, pushCapacity(dest, src, reverseIndex(ei)) + pushCapacity(src, dest, ei));
+      // assert_equal(ret, pushCapacity(dest, src, reverseIndex(ei)) + pushCapacity(src, dest, ei));
 
       return ret;
     }
@@ -1292,7 +1292,7 @@ namespace latticeQBP {
 
     bool run() {
       if(enable_keys)
-        key = Node::template makeKeyState<partition>(0);
+        key = Node::makeKeyState(0, partition);
 
       _debug_checkPrerunStatus();
 
@@ -1352,7 +1352,7 @@ namespace latticeQBP {
                                const NodePtrIterator& end, 
                                uint _key = 0, bool do_state_cleaning = false) {
 
-      key = Node::template makeKeyState<partition>(_key);
+      key = Node::makeKeyState(_key, partition);
       
       // First go through and set the state to the proper node.  all
       // these are currently eligible
@@ -1377,7 +1377,7 @@ namespace latticeQBP {
       size_t set_size = 0;
       size_t starting_size = 0;
 
-      key = Node::template makeKeyState<partition>(_key);
+      key = Node::makeKeyState(_key, partition);
 
 #ifndef NDEBUG
       {

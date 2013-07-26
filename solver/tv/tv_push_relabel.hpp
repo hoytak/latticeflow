@@ -53,11 +53,12 @@ namespace latticeQBP {
 
     typedef shared_ptr<CutInfo> cutinfo_ptr;
 
-    template <typename NodePtrIterator>  
-    cutinfo_ptr runPartitionedSection(const NodePtrIterator& start, 
-                                      const NodePtrIterator& end, uint key) {
-
 #ifndef NDEBUG        
+
+    template <typename NodePtrIterator> 
+    void checkPartitionedSection(const NodePtrIterator& start, 
+                                 const NodePtrIterator& end, uint key) {
+
       for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = *it;
         assert(n->matchesKey(key));
@@ -72,8 +73,19 @@ namespace latticeQBP {
           assert(!n->matchesKey(key));
         }
       }
-        
+    }
+#else 
+    template <typename NodePtrIterator> 
+    static inline void checkPartitionedSection(const NodePtrIterator&, 
+                                               const NodePtrIterator&, uint)
+    {}
 #endif
+
+    template <typename NodePtrIterator>  
+    cutinfo_ptr runPartitionedSection(const NodePtrIterator& start, 
+                                      const NodePtrIterator& end, uint key) {
+
+      checkPartitionedSection(start, end, key);
       
       Base::enableChecks();
 
@@ -157,15 +169,20 @@ namespace latticeQBP {
 
         cut->partitions[is_on ? 1 : 0]->nodes.push_back(n);
 
+        uint key_state_check = Node::makeKeyState(key, 1);
+
         // Now see about the cut.
-        if(is_on) {
+        if(!is_on) {
           for(uint ei = 0; ei < kernel_size; ++ei) {
             node_cptr nn = n + Base::step_array[ei];
           
-            if(nn->matchesKey(key) && ! nn->state()) {
-              dtype cc = Base::capacityOfSaturated(n, nn, ei); 
+            if(nn->_isKeyState(key_state_check)) {
+              assert(nn->matchesKey(key) && nn->state());
+              dtype cc = n->edgeCapacityFromSaturatedOffNodeToOnNode(ei);
               cut->cut_value += cc;
               cut->cut_edges.push_back(make_pair(n, ei));
+            } else {
+              assert(!(nn->matchesKey(key) && nn->state()));
             }
           }
         }
@@ -385,7 +402,7 @@ namespace latticeQBP {
         }
 
         dtype _fv_offset = floorAverage(fv_avg, n_sum);
-        assert_equal(_fv_offset, fv_offset);
+        assert_close(_fv_offset, fv_offset, 1);
       }
 #endif
 

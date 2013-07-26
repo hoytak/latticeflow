@@ -243,13 +243,13 @@ namespace latticeQBP {
 
     _TVRegPathSegment* getNew_TVRegPathSegment() {
       _regpathsegment_hold.emplace_back
-        (uint(_regpathsegment_hold.size()), lattice, solver);
+        (uint(_regpathsegment_hold.size() + 1), lattice, solver);
 
       return &_regpathsegment_hold.back();
     }
 
     _TVRegPathSegment* lookupRPSFromKey(uint key) {
-      return &(_regpathsegment_hold[key]);
+      return &(_regpathsegment_hold[key - 1]);
     }
 
     ////////////////////////////////////////////////////////////////////////////////

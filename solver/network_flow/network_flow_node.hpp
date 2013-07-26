@@ -58,9 +58,8 @@ namespace latticeQBP {
       return enable_keys ? ((key_state & 0x1) != 0) : (key_state != 0);
     }
 
-    template <int partition>
-    static inline unsigned int makeKeyState(unsigned int key) {
-      return (key << 1) | partition;
+    static inline unsigned int makeKeyState(unsigned int key, uint state) {
+      return (key << 1) | state;
     }
 
     template <int partition, typename Lattice> 
@@ -73,7 +72,7 @@ namespace latticeQBP {
 
       assert_equal((key_state & 0x1), partition);
 
-      key_state = makeKeyState<partition>(key);
+      key_state = makeKeyState(key, partition);
       
       return key_state;
     }
@@ -90,7 +89,7 @@ namespace latticeQBP {
     inline void setKey(unsigned int _key) {
       assert_equal(state(), partition);
         
-      key_state = makeKeyState<partition>(_key);
+      key_state = makeKeyState(_key, partition);
     }
 
     inline void clearKey() {
@@ -127,9 +126,9 @@ namespace latticeQBP {
     Array<dtype, n_edges> alpha;
 
 #ifndef NDEBUG
+  public:
     dtype q;
     Array<dtype, Kernel::size> edges;
-  public:
     dtype reduction_shift;
     Array<long, Kernel::n_dimensions> pos;
     size_t id;
@@ -190,11 +189,17 @@ namespace latticeQBP {
       }
     }
 
-    // This function only works if it is known the other node is in another region
-    inline dtype capacityOfSaturated(int ei) const {
-      dtype v = abs(alpha[ei]);
-      return v;
+    inline dtype edgeCapacityFromSaturatedOffNodeToOnNode(int ei) const {
+      dtype ret = abs(alpha[ei]) >> 1;
+      assert_equal(ret, edges[ei]);
+      return ret;
     }
+
+    // This function only works if it is known the other node is in another region
+    // inline dtype capacityOfSaturated(int ei) const {
+    //   dtype v = abs(alpha[ei]);
+    //   return v;
+    // }
 
     template <int partition=0> inline bool pushSaturated(int ei) const {
       return (pushCapacity<partition>(ei) <= 0);
