@@ -472,6 +472,36 @@ namespace latticeQBP {
       typename TV_PR_Class::cutinfo_ptr cut;
     };
 
+    dtype BisectionCheck(dtype lambda_lb, dtype lambda_ub) const {
+
+      while(lambda_lb + 1 < lambda_ub) {
+
+        dtype try_lambda = (lambda_ub + lambda_lb) / 2;
+
+        // Calculate the split point...
+        ci().solver.setRegionToLambda(ci().nodeset.begin(), 
+                                      ci().nodeset.end(), try_lambda, false);
+      
+        auto cut_ptr = 
+          ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
+
+
+        if(!cut_ptr->any_cut)
+          lambda_ub = try_lambda;
+        else
+          lambda_lb = try_lambda;
+        
+        cout << "[" 
+             << lambda_lb << ", " 
+             << try_lambda << ", " 
+             << lambda_ub << "]" << (cut_ptr->any_cut ? "Cut! " : "No Cut!") << endl;
+
+      }
+
+      cout << "A cut occurs at " << lambda_lb << " but not at " << lambda_ub << endl;
+      return lambda_lb;
+    }
+
     DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
 
       ci().solver.enableChecks();
@@ -497,6 +527,12 @@ namespace latticeQBP {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
       }
+
+      dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
+
+      // Calculate the split point...
+      ci().solver.setRegionToLambda(ci().nodeset.begin(), 
+                                    ci().nodeset.end(), lambda_lb, true);
 
       Array<RegionInformation, 2> p_info = {
         getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
@@ -525,6 +561,15 @@ namespace latticeQBP {
            << "; p_info[1].qii_sum = " << p_info[1].qii_sum 
            << "; p_info[0].qii_sum = " << p_info[0].qii_sum
            << endl;
+
+      cout 
+        << "c = " << cut_ptr->cut_value << ".0\n"
+        << "g1 = " << p_info[1].gamma_sum << ".0\n"
+        << "g0 = " << p_info[0].gamma_sum<< ".0\n"
+        << "q1 = " << p_info[1].qii_sum << ".0\n"
+        << "q0 = " << p_info[0].qii_sum<< ".0\n"
+        << "lm = " << Node::scaleToValue(lm_true) 
+        << endl;
 
       comp_type intercept = cut_ptr->cut_value - (p_info[1].gamma_sum - p_info[0].gamma_sum);
       comp_type div = (p_info[1].qii_sum - p_info[0].qii_sum);

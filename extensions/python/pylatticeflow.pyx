@@ -55,10 +55,10 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     ctypedef FuncArray* FuncMapPtr
     ctypedef FuncPathArray* RegPathPtr
 
-    FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
+    FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
-    RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, long>" (
+    RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_4, int64_t>" (
         size_t nx, size_t ny, double *function, vector[double]) nogil except +
 
     
