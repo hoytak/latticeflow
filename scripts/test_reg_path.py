@@ -19,6 +19,7 @@ if not Xo.size:
 X = (Xo.mean(axis=2) / Xo.max()) #[::2, ::2]
 
 X -= X.mean()
+X /= X.std()
 
 # X = np.linspace(0,1.25,6).reshape( (3,2) )
 
@@ -26,7 +27,7 @@ X -= X.mean()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(3, 3.5, 50)
+lambdas = np.linspace(0, 1, 50)
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
 
@@ -36,7 +37,7 @@ print "Done calculating Regpath Version."
 Xtv_1 = np.empty( (lambdas.size, X.shape[0], X.shape[1]) )
 
 for i, lm in enumerate(lambdas):
-    print "Calculating %d/%d (lambda = %1.5f)" % ((i + 1), len(lambdas), lm)
+    # print "Calculating %d/%d (lambda = %1.5f)" % ((i + 1), len(lambdas), lm)
     Xtv_1[i,:,:] = calculate2dTV(X, lm)
 
 print "Done calculating indivdual models."

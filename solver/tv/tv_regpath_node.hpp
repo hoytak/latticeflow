@@ -724,7 +724,7 @@ namespace latticeQBP {
 
       dtype join_lambda = Node::getScaleFromQuotient_T(r20 - r10, (r11 - r10) - (r21 - r20));
 
-      cout << "join_lambda = " << join_lambda << endl;
+      cout << "join_lambda = " << Node::scaleToValue(join_lambda) << endl;
 
       if(DEBUG_MODE) {
         assert_leq(current_lambda, r1->rhs_lambda);

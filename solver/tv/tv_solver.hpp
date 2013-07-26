@@ -323,11 +323,11 @@ namespace latticeQBP {
       auto registerPossibleJoin = 
         [&run_heap](_TVRegPathSegment *rps1, _TVRegPathSegment *rps2, dtype lambda_start) {
 
-        cout << "REGISTERING JOIN" << endl;
-
         dtype join_lambda = _TVRegPathSegment::calculateJoins(rps1, rps2, lambda_start);
-        if(join_lambda > 0)
+        if(join_lambda > 0) {
+          cout << "REGISTERING JOIN at " << Node::scaleToValue(join_lambda) << endl;
           run_heap.push(FunPoint({join_lambda, FunPoint::Join, rps1, rps2}));
+        }
       };
 
       auto registerPossibleSplit = 
@@ -367,7 +367,7 @@ namespace latticeQBP {
       // Now build the reg path
                                                         
       auto activateNewLine = 
-        [&, run_heap](_TVRegPathSegment* rps, dtype lambda_start) {
+        [&,run_heap](_TVRegPathSegment* rps, dtype lambda_start) {
         
         assert_equal(lambda_start, rps->rhs_lambda);
 
@@ -404,6 +404,10 @@ namespace latticeQBP {
         switch(fp.mode) {
         case FunPoint::Join: 
           {
+            // cout << "Applying Join at " 
+            //      << Node::scaleToValue(current_lambda) 
+            //      << endl;
+
             _TVRegPathSegment* rps1 = fp.rps1;
             _TVRegPathSegment* rps2 = fp.rps2;
 

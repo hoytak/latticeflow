@@ -1,9 +1,9 @@
 #ifndef HK_DEBUG_H
 #define HK_DEBUG_H
 
-// #ifdef NDEBUG
-// #undef NDEBUG
-// #endif
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 
 
 #ifndef HAVE_OUTPUT
@@ -27,11 +27,13 @@ std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::v
   return out;
 }
 
+#endif
+
 
 #if !defined(EMACS_FLYMAKE) && !defined(NDEBUG)
 #warning ">>>>>>>>>>>>>>> Debug On; pass -DNDEBUG to disable <<<<<<<<<<<<<<<<<<<<<<<<<"
-#endif
-
+#else
+#warning ">>>>>>>>>>>>>>> Debug Off <<<<<<<<<<<<<<<<<<<<<<<<<"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

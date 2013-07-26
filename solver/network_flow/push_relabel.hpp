@@ -742,7 +742,7 @@ namespace latticeQBP {
     // Low level operAtions
 
     inline dtype pushCapacity(const node_cptr& src, const node_cptr& dest, uint ei) const {
-      assert(eligible(src));
+      // assert(eligible(src));
       dtype r = max(src->template pushCapacity<partition>(ei), dtype(0));
 
       // if(DEBUG_MODE && r > 0)

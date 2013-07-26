@@ -87,10 +87,10 @@ namespace latticeQBP {
     }
 
     template <int partition>
-    inline void setKey(unsigned int key) {
+    inline void setKey(unsigned int _key) {
       assert_equal(state(), partition);
         
-      key_state = makeKeyState<partition>(key);
+      key_state = makeKeyState<partition>(_key);
     }
 
     inline void clearKey() {
@@ -105,8 +105,8 @@ namespace latticeQBP {
       return ((key_state & (~uint(0x1))) == 0);
     }
 
-    inline bool matchesKey(unsigned int key) const {
-      return (key_state >> 1) == key;
+    inline bool matchesKey(unsigned int _key) const {
+      return key() == _key;
     }
 
   protected: 

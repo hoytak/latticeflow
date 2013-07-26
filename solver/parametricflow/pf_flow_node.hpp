@@ -147,6 +147,11 @@ namespace latticeQBP {
       return dtype(round(lm * double(dtype(1) << _n_bits_scale_precision)));
     }
 
+    static inline double scaleToValue(dtype lm) {
+      return double(lm) / double(dtype(1) << n_bits_scale_precision);
+    }
+
+
     static inline dtype multFVScale(comp_type fv, dtype lm) {
       if(Policy::using_scales) {
 
