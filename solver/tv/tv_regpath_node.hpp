@@ -428,7 +428,7 @@ namespace latticeQBP {
         assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-        lambda_calc = dsi.lambda_of_split_capacity;
+        lambda_calc = dsi.lambda_of_split_capacity + 1;
 
         if(dsi.like_trains_passing_in_the_dead_of_a_cold_moonless_night)
           break;
@@ -544,10 +544,10 @@ namespace latticeQBP {
 
       assert_leq(calc_lambda, rhs_lambda);
             
-      if(cut_ptr->cut_value == 0)
-        return DetailedSplitInfo({true, true, calc_lambda, cut_ptr});
+      // if(cut_ptr->cut_value == 0)
+      //   return DetailedSplitInfo({true, true, calc_lambda, cut_ptr});
 
-      assert_geq(calc_lambda, lambda_lb);
+      // assert_geq(calc_lambda, lambda_lb);
 
       cout << "Calculated split lambda = " << calc_lambda << endl;
 
