@@ -332,9 +332,11 @@ namespace latticeQBP {
       }
     }
 
-    template <typename ForwardIterator, typename RegisterNode> 
-    void constructNeighborhoodSet(const ForwardIterator& start, const ForwardIterator& end, 
-                                  uint key, const RegisterNode& reg_node) const {
+    template <typename ForwardIterator>
+    set<uint> getNeighborhoodKeySet(const ForwardIterator& start, 
+                                    const ForwardIterator& end, 
+                                    uint key) const {
+      set<uint> keys;
 
       for(ForwardIterator it = start; it != end; ++it) {
         node_ptr n = (*it);
@@ -342,13 +344,15 @@ namespace latticeQBP {
         for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
-          if(Base::pushCapacity(n, nn, ei) 
-             + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0) {
-            reg_node(nn);
+          if(!nn->matchesKey(key) &&
+             (Base::pushCapacity(n, nn, ei) 
+              + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0)) {
+            keys.insert(nn->key());
           }
         }
       }
       
+      return keys;
     }
     
     template <typename NodePtrIterator>  

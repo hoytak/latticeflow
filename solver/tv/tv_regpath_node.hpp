@@ -650,36 +650,10 @@ namespace latticeQBP {
 
 
   public:
-    template <typename ForwardIterator, typename RPSLookupFunction>
-    void setupFromSplit(const ForwardIterator& start, 
-                        const ForwardIterator& end,
-                        TVRegPathSegment* parent,
-                        dtype lambda, const RPSLookupFunction& rpsLookup) {
-
-      assert(ci().nodeset.empty());
-
-      ci().nodeset = vector<node_ptr>(start, end);
-      sort(ci().nodeset.begin(), ci().nodeset.end());
-      
-      rhs_lambda = lambda;
-      rhs_mode = Split;
-      rhs_nodes = {parent, nullptr};
-      
-      syncInformation(lambda);
-
-      // Build the neighborhood map.
-      ci().solver.constructNeighborhoodSet(ci().nodeset.begin(), ci().nodeset.end(), 
-                                           ci().key, 
-                                           [&rpsLookup, this](node_ptr n) {
-                                           ci().neighbors.insert(rpsLookup(n->key()));
-                                         });
-
-      checkKeySynced();
-    }
-
 
     template <typename RPSLookupFunction>
-    void applySplit(TVRegPathSegment *dest1, TVRegPathSegment *dest2, dtype lambda, 
+    void applySplit(Array<TVRegPathSegment*, 2> dest,
+                    dtype lambda, 
                     const RPSLookupFunction& rpsLookup) {
       
       assert_equal(lambda, ci().lambda_of_split);
@@ -690,24 +664,43 @@ namespace latticeQBP {
       
       // Split up the nodes
       const auto& piv = ci().split_information->partitions;
-      const auto& nodes0 = piv[0]->nodes;
-      const auto& nodes1 = piv[1]->nodes;
 
-      dest1->setupFromSplit(nodes0.begin(), nodes0.end(), this, lambda, rpsLookup);
-      dest2->setupFromSplit(nodes1.begin(), nodes1.end(), this, lambda, rpsLookup);
+      for(int i = 0; i < 2; ++i) {
+
+        assert(dest[i]->ci().nodeset.empty());
+
+        dest[i]->ci().nodeset = move(ci().split_information->partitions[i]->nodes);
+        // [i]->sort(ci().nodeset.begin(), ci().nodeset.end());
       
+        dest[i]->rhs_lambda = lambda;
+        dest[i]->rhs_mode = Split;
+        dest[i]->rhs_nodes = {this, nullptr};
+      
+        dest[i]->syncInformation(lambda);
+
+
+        dest[i]->checkKeySynced();
+      }
+
+
+      for(int i = 0; i < 2; ++i) {
+        auto& nb = dest[i]->ci().neighbors;
+
+        auto keys = ci().solver.getNeighborhoodKeySet
+          (ci().nodeset.begin(), ci().nodeset.end(), ci().key);
+
+        for(uint key : keys) {
+          nb.insert(rpsLookup(key));
+        }
+      }
+
       // Now clean this one up
       lhs_lambda = lambda;
       lhs_mode = Split;
-
-      lhs_nodes[0] = dest1;
-      lhs_nodes[1] = dest2;
-
-      size_t s1 = dest1->ci().nodeset.size();
-      size_t s2 = dest2->ci().nodeset.size();
+      lhs_nodes = dest;
 
       // For optimization 
-      if(s1 > s2)
+      if(dest[0]->ci().nodeset.size() > dest[1]->ci().nodeset.size())
         swap(lhs_nodes[0], lhs_nodes[1]);
 
       // Go through and remove this from the neighbors... Man, I am

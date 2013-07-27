@@ -432,7 +432,7 @@ namespace latticeQBP {
             _TVRegPathSegment* new_rps1 = getNew_TVRegPathSegment();
             _TVRegPathSegment* new_rps2 = getNew_TVRegPathSegment();
 
-            rps->applySplit(new_rps1, new_rps2, current_lambda, 
+            rps->applySplit({new_rps1, new_rps2}, current_lambda, 
                             [&, this](uint k) {return this->lookupRPSFromKey(k); });
 
             rps->deactivate();
