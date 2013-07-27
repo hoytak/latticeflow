@@ -47,8 +47,7 @@ namespace latticeQBP {
       Array<partitioninfo_ptr, 2> partitions;
       dtype cut_value;
       vector<pair<node_ptr, uint> > cut_edges;
-      Array<dtype, 2> reduction_sum;
-      Array<dtype, 2> gamma_sum;
+      Array<dtype, 2> qii_sum, gamma_sum;
     };
 
     typedef shared_ptr<CutInfo> cutinfo_ptr;
@@ -160,30 +159,31 @@ namespace latticeQBP {
 
         assert(n->matchesKey(key));
 
-        bool is_on = n->state();
+        bool n_on = n->state();
         
-        if(!is_on)
-          assert(n->state() == 0);
-        else 
-          assert(n->state() == 1);
-
-        cut->partitions[is_on ? 1 : 0]->nodes.push_back(n);
+        cut->partitions[n_on ? 1 : 0]->nodes.push_back(n);
 
         uint key_state_check = Node::makeKeyState(key, 1);
 
-        // Now see about the cut.
-        if(!is_on) {
-          for(uint ei = 0; ei < kernel_size; ++ei) {
-            node_cptr nn = n + Base::step_array[ei];
+        auto& piv = cut->partitions;
+
+        // Go through and fill in the values for the different partitions.
+        for(uint ei = 0; ei < kernel_size; ++ei) {
+          node_cptr nn = n + Base::step_array[ei];          
           
-            if(nn->_isKeyState(key_state_check)) {
-              assert(nn->matchesKey(key) && nn->state());
+          bool nn_on = nn->state();
+
+          if(nn->matchesKey(key)) {
+            if(!n_on && nn_on) {
               dtype cc = n->edgeCapacityFromSaturatedOffNodeToOnNode(ei);
               cut->cut_value += cc;
               cut->cut_edges.push_back(make_pair(n, ei));
-            } else {
-              assert(!(nn->matchesKey(key) && nn->state()));
-            }
+            } 
+          } else {
+            assert(!nn->state());
+            
+            cut->gamma_sum[n_on] += n->influenceOnReduction(nn, ei);
+            cut->qii_sum[n_on] += n->fv();
           }
         }
       }

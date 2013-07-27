@@ -195,6 +195,12 @@ namespace latticeQBP {
       return ret;
     }
 
+    template <typename node_ptr>
+    inline dtype influenceOnReduction(node_ptr nn, int ei) const {
+      assert(! nn->state() );
+      return (state() ? -1 : 1) * alpha[ei];
+    }
+
     // This function only works if it is known the other node is in another region
     // inline dtype capacityOfSaturated(int ei) const {
     //   dtype v = abs(alpha[ei]);

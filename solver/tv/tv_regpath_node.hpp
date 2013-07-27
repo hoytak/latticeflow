@@ -491,10 +491,10 @@ namespace latticeQBP {
         else
           lambda_lb = try_lambda;
         
-        cout << "[" 
-             << lambda_lb << ", " 
-             << try_lambda << ", " 
-             << lambda_ub << "]" << (cut_ptr->any_cut ? "Cut! " : "No Cut!") << endl;
+        // cout << "[" 
+        //      << lambda_lb << ", " 
+        //      << try_lambda << ", " 
+        //      << lambda_ub << "]" << (cut_ptr->any_cut ? "Cut! " : "No Cut!") << endl;
 
       }
 
@@ -511,7 +511,7 @@ namespace latticeQBP {
 
       // Calculate the split point...
       ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                    ci().nodeset.end(), lambda_lb, true);
+                                    ci().nodeset.end(), lambda_lb, false);
       
       // Now see if it can be solved at that lambda
       auto cut_ptr = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
@@ -519,41 +519,54 @@ namespace latticeQBP {
 
       if(!cut_ptr->any_cut) {
         cout << "     > No split. " << endl;
-
         ci().solver.disableChecks();
-
         return DetailedSplitInfo({false, false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
       }
 
-      dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
-
       // Calculate the split point...
       ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                    ci().nodeset.end(), lambda_lb, true);
+                                    ci().nodeset.end(), lambda_lb, false);
 
       Array<RegionInformation, 2> p_info = {
         getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
         getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
       };
 
+
+      comp_type c = cut_ptr->cut_value;
+
+      comp_type g0 = p_info[0].gamma_sum - c;
+      comp_type g1 = p_info[1].gamma_sum + c;
+
+      comp_type q0 = p_info[0].qii_sum;
+      comp_type q1 = p_info[1].qii_sum;
+
+      comp_type s0 = cut_ptr->partitions[0]->nodes.size();
+      comp_type s1 = cut_ptr->partitions[1]->nodes.size();
+
+      // comp_type g0 = cut_ptr->gamma_sum[0];
+      // comp_type g1 = cut_ptr->gamma_sum[1];
+
+      // comp_type q0 = cut_ptr->qii_sum[0];
+      // comp_type q1 = cut_ptr->qii_sum[1];
+
+      // comp_type s0 = cut_ptr->partitions[0]->nodes.size();
+      // comp_type s1 = cut_ptr->partitions[1]->nodes.size();
+
+      // comp_type c = cut_ptr->cut_value;
+
+
 #ifndef NDEBUG
+
       RegionInformation ri_ref = getRegionInfo(ci().nodeset.begin(), ci().nodeset.end(), lambda_lb);
 
       assert_equal(ri_ref.gamma_sum, p_info[0].gamma_sum + p_info[1].gamma_sum);
       assert_equal(ri_ref.qii_sum,   p_info[0].qii_sum   + p_info[1].qii_sum);
 
-#endif
-      // Get the rest of the components to calculate the shape
-      // comp_type qii_total   = p_info[0].qii_sum   + p_info[1].qii_sum;
-      // comp_type gamma_total = p_info[0].gamma_sum + p_info[1].gamma_sum;
-
-      // Now go through and see which one has the largest lambda 
-
-      typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
-
+      dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
 
       cout << "cut_ptr->cut_value = " << cut_ptr->cut_value
            << "; p_info[1].gamma_sum = " << p_info[1].gamma_sum 
@@ -563,18 +576,51 @@ namespace latticeQBP {
            << endl;
 
       cout 
-        << "c = " << cut_ptr->cut_value << ".0\n"
-        << "g1 = " << p_info[1].gamma_sum << ".0\n"
-        << "g0 = " << p_info[0].gamma_sum<< ".0\n"
-        << "q1 = " << p_info[1].qii_sum << ".0\n"
-        << "q0 = " << p_info[0].qii_sum<< ".0\n"
-        << "lm = " << Node::scaleToValue(lm_true) 
+        << "c = " << c << ".0\n" 
+        << "g1 = " << g1 << ".0\n"
+        << "g0 = " << g0 << ".0\n"
+        << "q1 = " << q1 << ".0\n"
+        << "q0 = " << q0 << ".0\n" 
+        << "s1 = " << s1 << ".0\n"
+        << "s0 = " << s0 << ".0\n" 
+        << "lm = " << Node::scaleToValue(lm_true)
+        << "dtlm = " << lm_true
         << endl;
 
-      comp_type intercept = cut_ptr->cut_value - (p_info[1].gamma_sum - p_info[0].gamma_sum);
-      comp_type div = (p_info[1].qii_sum - p_info[0].qii_sum);
+#endif
 
-      dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), div);
+      // Get the rest of the components to calculate the shape
+      // comp_type qii_total   = p_info[0].qii_sum   + p_info[1].qii_sum;
+      // comp_type gamma_total = p_info[0].gamma_sum + p_info[1].gamma_sum;
+
+      // Now go through and see which one has the largest lambda 
+
+      typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
+      
+      auto predict = [g0,g1,s0,s1,q0,q1,c](int f0, int f1, int f2) {
+        comp_type g1p = g1*f1;
+        comp_type g0p = g0*f0;
+        comp_type cp = c*f2;
+
+        comp_type intercept = (s1*g0p - s0*g1p) - cp*(s0 + s1);
+        comp_type denom = q1*s0 - q0*s1;
+
+        dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+
+        cout << "Predicted lambda = " << calc_lambda << "(" << Node::scaleToValue(calc_lambda) << "), " 
+        << f0 << ":" << f1 << ":" << f2 << endl;
+
+        return calc_lambda;
+      }; 
+
+      dtype calc_lambda = predict(1,1,1);
+      predict(1,1,-1);
+      predict(1,-1,1);
+      predict(1,-1,-1);
+      predict(-1,1,1);
+      predict(-1,1,-1);
+      predict(-1,-1,1);
+      predict(-1,-1,-1);
 
       // is_on being true means that this partition was on the
       // high end, so at the lambda = 0 end, it's got too much
