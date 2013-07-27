@@ -165,27 +165,41 @@ namespace latticeQBP {
 
         uint key_state_check = Node::makeKeyState(key, 1);
 
-        auto& piv = cut->partitions;
-
-        // Go through and fill in the values for the different partitions.
-        for(uint ei = 0; ei < kernel_size; ++ei) {
-          node_cptr nn = n + Base::step_array[ei];          
+        // Now see about the cut.
+        if(!n_on) {
+          for(uint ei = 0; ei < kernel_size; ++ei) {
+            node_cptr nn = n + Base::step_array[ei];
           
-          bool nn_on = nn->state();
-
-          if(nn->matchesKey(key)) {
-            if(!n_on && nn_on) {
+            if(nn->_isKeyState(key_state_check)) {
+              assert(nn->matchesKey(key) && nn->state());
               dtype cc = n->edgeCapacityFromSaturatedOffNodeToOnNode(ei);
               cut->cut_value += cc;
               cut->cut_edges.push_back(make_pair(n, ei));
-            } 
-          } else {
-            assert(!nn->state());
-            
-            cut->gamma_sum[n_on] += n->influenceOnReduction(nn, ei);
-            cut->qii_sum[n_on] += n->fv();
+            } else {
+              assert(!(nn->matchesKey(key) && nn->state()));
+            }
           }
         }
+
+        // // Go through and fill in the values for the different partitions.
+        // for(uint ei = 0; ei < kernel_size; ++ei) {
+        //   node_cptr nn = n + Base::step_array[ei];          
+          
+        //   bool nn_on = nn->state();
+
+        //   if(nn->matchesKey(key)) {
+        //     if(!n_on && nn_on) {
+        //       dtype cc = n->edgeCapacityFromSaturatedOffNodeToOnNode(ei);
+        //       cut->cut_value += cc;
+        //       cut->cut_edges.push_back(make_pair(n, ei));
+        //     } 
+        //   } else {
+        //     assert(!nn->state());
+            
+        //     cut->gamma_sum[n_on] += n->influenceOnReduction(nn, ei);
+        //     cut->qii_sum[n_on] += n->fv();
+        //   }
+        // }
       }
 
       for(node_ptr n : cut->partitions[0]->nodes) {

@@ -11,6 +11,12 @@ namespace latticeQBP {
 
   using namespace std;
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+  
+#include "../common/debug.hpp"
+
   // The overall policy class 
 
   template <int _using_weights, int _using_scales, int _weights_binary>
@@ -390,6 +396,12 @@ namespace latticeQBP {
     // }
   };
 };
+
+#define        NDEBUG
+#include "../common/debug.hpp"
+  
+#include "../common/debug.hpp"
+
 
 #include "../common/debug_flymake_test.hpp"
 

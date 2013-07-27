@@ -259,31 +259,35 @@ public:
         if(!lattice.isValidNode(nn))
           continue;
 
-        uint rev_idx = lattice.reverseIndex(i);
+#ifndef NDEBUG
+        {
+          uint rev_idx = lattice.reverseIndex(i);
 
-        assert_equal(i, lattice.reverseIndex(rev_idx));
+          assert_equal(i, lattice.reverseIndex(rev_idx));
 
-        assert(this == lattice.neighbor(nn, rev_idx));
+          assert(this == lattice.neighbor(nn, rev_idx));
 
-        // r_compare += 2*edges[i] - abs(alpha[i]);
+          // r_compare += 2*edges[i] - abs(alpha[i]);
 
-        // cout << "Testing nodes " << lattice._tag(this) << ", " << lattice._tag(nn) << ", ei = " << i << endl;
+          // cout << "Testing nodes " << lattice._tag(this) << ", " << lattice._tag(nn) << ", ei = " << i << endl;
 
-        if(simple_mode)
-          assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), edges[i]);
-        else
-          assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), 2*edges[i]);
+          if(simple_mode)
+            assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), edges[i]);
+          else
+            assert_equal(abs(alpha[i]) + abs(nn->alpha[rev_idx]), 2*edges[i]);
 
-        if(simple_mode || adjustment_mode) {
-          if(this->state() != 0 && nn->state() == 0) {
-            assert_geq(alpha[i], 0);
-            assert_leq(nn->alpha[rev_idx], 0);
-          } 
-          else if (this->state() == 0 && nn->state() != 0) {
-            assert_leq(alpha[i], 0);
-            assert_geq(nn->alpha[rev_idx], 0);
+          if(simple_mode || adjustment_mode) {
+            if(this->state() != 0 && nn->state() == 0) {
+              assert_geq(alpha[i], 0);
+              assert_leq(nn->alpha[rev_idx], 0);
+            } 
+            else if (this->state() == 0 && nn->state() != 0) {
+              assert_leq(alpha[i], 0);
+              assert_geq(nn->alpha[rev_idx], 0);
+            }
           }
         }
+#endif
       }
 
       if(check_neighbors) {

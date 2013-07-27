@@ -10,6 +10,10 @@
 
 namespace latticeQBP {
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include "../common/debug.hpp"
 
 
@@ -412,7 +416,7 @@ namespace latticeQBP {
         }
       }
       
-      DetailedSplitInfo dsi{false,false,0}, last_dsi;
+      DetailedSplitInfo dsi{false,0}, last_dsi;
       dtype lambda_calc = lambda_calc_lb;
       bool cut_exists = false;
 
@@ -429,9 +433,6 @@ namespace latticeQBP {
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
         lambda_calc = dsi.lambda_of_split_capacity + 1;
-
-        if(dsi.like_trains_passing_in_the_dead_of_a_cold_moonless_night)
-          break;
       }
 
       // Store that information in the computation structure
@@ -447,6 +448,8 @@ namespace latticeQBP {
         // } 
         
         ci().split_information = last_dsi.cut;
+        ci().lambda_of_split = lambda_calc;
+
         return SplitInfo({true, lambda_calc, lambda_calc_lb});
 
       } else {
@@ -462,8 +465,6 @@ namespace latticeQBP {
     struct DetailedSplitInfo{ 
       bool split_occurs;
 
-      bool like_trains_passing_in_the_dead_of_a_cold_moonless_night;
-      
       // This gives the exact lambda of this cut; if it is one less
       // than this, then the cut will form.  Above this, there may be
       // a new cut, but at least this one won't form.
@@ -504,7 +505,7 @@ namespace latticeQBP {
 
     DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
 
-      ci().solver.enableChecks();
+      // ci().solver.enableChecks();
 
       cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
       cout << "Calculating split at lambda = " << lambda_lb << endl;
@@ -520,21 +521,16 @@ namespace latticeQBP {
       if(!cut_ptr->any_cut) {
         cout << "     > No split. " << endl;
         ci().solver.disableChecks();
-        return DetailedSplitInfo({false, false, 0, nullptr});
+        return DetailedSplitInfo({false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
       }
 
-      // Calculate the split point...
-      ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                    ci().nodeset.end(), lambda_lb, false);
-
       Array<RegionInformation, 2> p_info = {
         getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
         getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
       };
-
 
       comp_type c = cut_ptr->cut_value;
 
@@ -566,26 +562,26 @@ namespace latticeQBP {
       assert_equal(ri_ref.gamma_sum, p_info[0].gamma_sum + p_info[1].gamma_sum);
       assert_equal(ri_ref.qii_sum,   p_info[0].qii_sum   + p_info[1].qii_sum);
 
-      dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
+      // dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
 
-      cout << "cut_ptr->cut_value = " << cut_ptr->cut_value
-           << "; p_info[1].gamma_sum = " << p_info[1].gamma_sum 
-           << "; p_info[0].gamma_sum = " << p_info[0].gamma_sum
-           << "; p_info[1].qii_sum = " << p_info[1].qii_sum 
-           << "; p_info[0].qii_sum = " << p_info[0].qii_sum
-           << endl;
+      // cout << "cut_ptr->cut_value = " << cut_ptr->cut_value
+      //      << "; p_info[1].gamma_sum = " << p_info[1].gamma_sum 
+      //      << "; p_info[0].gamma_sum = " << p_info[0].gamma_sum
+      //      << "; p_info[1].qii_sum = " << p_info[1].qii_sum 
+      //      << "; p_info[0].qii_sum = " << p_info[0].qii_sum
+      //      << endl;
 
-      cout 
-        << "c = " << c << ".0\n" 
-        << "g1 = " << g1 << ".0\n"
-        << "g0 = " << g0 << ".0\n"
-        << "q1 = " << q1 << ".0\n"
-        << "q0 = " << q0 << ".0\n" 
-        << "s1 = " << s1 << ".0\n"
-        << "s0 = " << s0 << ".0\n" 
-        << "lm = " << Node::scaleToValue(lm_true)
-        << "dtlm = " << lm_true
-        << endl;
+      // cout 
+      //   << "c = " << c << ".0\n" 
+      //   << "g1 = " << g1 << ".0\n"
+      //   << "g0 = " << g0 << ".0\n"
+      //   << "q1 = " << q1 << ".0\n"
+      //   << "q0 = " << q0 << ".07\n" 
+      //   << "s1 = " << s1 << ".0\n"
+      //   << "s0 = " << s0 << ".0\n" 
+      //   << "lm = " << Node::scaleToValue(lm_true)
+      //   << "dtlm = " << lm_true
+      //   << endl;
 
 #endif
 
@@ -597,30 +593,35 @@ namespace latticeQBP {
 
       typedef typename TV_PR_Class::PartitionInfo PartitionInfo;
       
-      auto predict = [g0,g1,s0,s1,q0,q1,c](int f0, int f1, int f2) {
-        comp_type g1p = g1*f1;
-        comp_type g0p = g0*f0;
-        comp_type cp = c*f2;
+      // auto predict = [g0,g1,s0,s1,q0,q1,c](int f0, int f1, int f2) {
+      //   comp_type g1p = g1*f1;
+      //   comp_type g0p = g0*f0;
+      //   comp_type cp = c*f2;
 
-        comp_type intercept = (s1*g0p - s0*g1p) - cp*(s0 + s1);
-        comp_type denom = q1*s0 - q0*s1;
+      //   comp_type intercept = (s1*g0p - s0*g1p) - cp*(s0 + s1);
+      //   comp_type denom = q1*s0 - q0*s1;
 
-        dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+      //   dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
 
-        cout << "Predicted lambda = " << calc_lambda << "(" << Node::scaleToValue(calc_lambda) << "), " 
-        << f0 << ":" << f1 << ":" << f2 << endl;
+      //   cout << "Predicted lambda = " << calc_lambda << "(" << Node::scaleToValue(calc_lambda) << "), " 
+      //   << f0 << ":" << f1 << ":" << f2 << endl;
 
-        return calc_lambda;
-      }; 
+      //   return calc_lambda;
+      // }; 
 
-      dtype calc_lambda = predict(1,1,1);
-      predict(1,1,-1);
-      predict(1,-1,1);
-      predict(1,-1,-1);
-      predict(-1,1,1);
-      predict(-1,1,-1);
-      predict(-1,-1,1);
-      predict(-1,-1,-1);
+      comp_type intercept = (s1*g0 - s0*g1) + c*(s0 + s1);
+      comp_type denom = q1*s0 - q0*s1;
+
+      dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+
+      // dtype calc_lambda = predict(1,1,1);
+      // predict(1,1,-1);
+      // predict(1,-1,1);
+      // predict(1,-1,-1);
+      // predict(-1,1,1);
+      // predict(-1,1,-1);
+      // predict(-1,-1,1);
+      // predict(-1,-1,-1);
 
       // is_on being true means that this partition was on the
       // high end, so at the lambda = 0 end, it's got too much
@@ -634,7 +635,7 @@ namespace latticeQBP {
       //           || (!ri.pt->is_on && ( lambda_coeff <= 0 || cut >= -lambda_intcp) ) ));
 
       assert_leq(calc_lambda, rhs_lambda);
-            
+
       // if(cut_ptr->cut_value == 0)
       //   return DetailedSplitInfo({true, true, calc_lambda, cut_ptr});
 
@@ -642,9 +643,9 @@ namespace latticeQBP {
 
       cout << "Calculated split lambda = " << calc_lambda << endl;
 
-      ci().solver.disableChecks();
+      // ci().solver.disableChecks();
 
-      return DetailedSplitInfo({true, false, calc_lambda, cut_ptr});
+      return DetailedSplitInfo({true, calc_lambda, cut_ptr});
     }
 
 
@@ -705,8 +706,18 @@ namespace latticeQBP {
       size_t s1 = dest1->ci().nodeset.size();
       size_t s2 = dest2->ci().nodeset.size();
 
+      // For optimization 
       if(s1 > s2)
         swap(lhs_nodes[0], lhs_nodes[1]);
+
+      // Go through and remove this from the neighbors... Man, I am
+      // drunk on R. Jelinek fernet and a fine 7 yr. panama rum. 1:3
+      // they make a fine manhattan but damn I need some bitterman's
+      // burlesque bitters with it.  
+
+      for(TVRegPathSegment* n_rps : ci().neighbors) {
+        n_rps->ci().neighbors.erase(this);
+      }
     } 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -900,6 +911,9 @@ namespace latticeQBP {
   };
 
 }; 
+
+#define NDEBUG
+#include "../common/debug.hpp"
 
 #include "../common/debug_flymake_test.hpp"
 
