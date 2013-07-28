@@ -417,8 +417,6 @@ namespace latticeQBP {
       // Go through and push stuff down hill if it's possible; kinda a
       // faster first pass with no theoretic value.
 
-      assert(false);
-
       for(size_t level = top_level; level != 1; --level) {
         _debug_VerifyAccurateLevel(level);
         _debug_VerifyAccurateLevel(level-1);
