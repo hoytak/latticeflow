@@ -26,9 +26,6 @@
 
 namespace latticeQBP {
 
-#define NDEBUG
-#include "../common/debug.hpp"
-
   using namespace std;
 
   template <typename dtype, typename _KernelLattice, int partition> class PRFlow {
@@ -1303,7 +1300,7 @@ namespace latticeQBP {
       size_t starting_size = 0;
       size_t easy_count = 0;
 
-      if(false && OptPolicy::init_hotstart()) {
+      if(OptPolicy::init_hotstart()) {
         hotStart(lattice.begin(), lattice.end());
         if(OptPolicy::init_quickflow()) quickFlow();
         if(OptPolicy::init_rerun_hotstart()) {
@@ -1403,7 +1400,7 @@ namespace latticeQBP {
       } 
 #endif 
 
-      if(false && OptPolicy::init_hotstart()) {
+      if(OptPolicy::init_hotstart()) {
         hotStart(start, end);
         if(OptPolicy::init_quickflow()) quickFlow();
 
@@ -1479,7 +1476,5 @@ namespace latticeQBP {
       }
     }
   };
-#undef NDEBUG
-#include "../common/debug.hpp"
 };
 #endif

@@ -179,6 +179,9 @@ namespace latticeQBP {
       
       static constexpr dtype dtmax = numeric_limits<dtype>::max();
 
+      if(unlikely(denom == 0))
+        return dtmax;
+
 #ifndef NDEBUG
       comp_type old_numer = numer;
 #endif
@@ -411,7 +414,7 @@ namespace latticeQBP {
 // #define        NDEBUG
 // #include "../common/debug.hpp"
   
-#include "../common/debug.hpp"
+// #include "../common/debug.hpp"
 
 
 #include "../common/debug_flymake_test.hpp"

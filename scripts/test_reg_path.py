@@ -8,6 +8,7 @@ from itertools import product
 
 plot_type = "levels2"
 
+# image_file = "benchmarks/images/truffles.png"
 image_file = "benchmarks/images/truffles-small.png"
 #image_file = "benchmarks/images/sanity.png"
 
@@ -27,10 +28,10 @@ X /= X.std()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0.001, 0.0324, 50)
+lambdas = np.linspace(0.001, 0.3, 50)
+
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
-
 print "Done calculating Regpath Version."
 
 # Get the first round
@@ -41,6 +42,8 @@ for i, lm in enumerate(lambdas):
     Xtv_1[i,:,:] = calculate2dTV(X, lm)
 
 print "Done calculating indivdual models."
+
+
 def plotRegPath(a, Xtv):
 
     xc, yc = 0, 0
@@ -58,15 +61,32 @@ def plotRegPath(a, Xtv):
         ymin = min(ymin, y.min())
         ymax = max(ymax, y.max())
 
-    a.add_collection(collections.LineCollection(col, antialiaseds = True, linewidths=0.5))
+    a.add_collection(collections.LineCollection(col, antialiased = True, linewidths=0.5))
     a.legend()
     a.set_xlim([lambdas.min(),lambdas.max()])
     a.set_ylim([ymin, ymax])
 
 f = figure()
 
-plotRegPath(f.add_subplot(211), Xtv_1)
+plotRegPath(f.add_subplot(311), Xtv_1)
 
-plotRegPath(f.add_subplot(212), Xtv_2)
+plotRegPath(f.add_subplot(312), Xtv_2)
+
+for i in range(Xtv_1.shape[0]):
+    Xtv_1[i,:,:] -= Xtv_1[i,:,:].mean()
+
+
+Xtv_1 /= Xtv_1.std()    
+
+for i in range(Xtv_2.shape[0]):
+    Xtv_2[i,:,:] -= Xtv_2[i,:,:].mean()
+
+Xtv_2 /= Xtv_2.std()    
+
+max_diff = (abs(Xtv_1 - Xtv_2)).max()
+
+print "Max deviance = ", max_diff
+
+plotRegPath(f.add_subplot(313), Xtv_1 - Xtv_2)
 
 show()

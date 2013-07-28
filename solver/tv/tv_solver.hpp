@@ -59,9 +59,8 @@ namespace latticeQBP {
 
     TVSolver(index_vect dimensions)
       : lattice(dimensions)
-      , function_set(false)
-      , v_min(0)
-      , v_max(0)
+      , function_scale(0)
+      , function_mean(0)
       , solver(lattice)
       , calculated_lambda(-1)
       , max_lambda(0)
@@ -72,10 +71,26 @@ namespace latticeQBP {
     void setup(double *function, double _max_lambda) {
       // reset();
 
+      {
+        // Set up the main constants for the 
+        double v_min = function[0], v_max = function[0], v_sum = function[0];
+
+        for(size_t i = 1; i < lattice.sizeWithinBounds(); ++i) {
+          double v = function[i];
+          v_min = min(v_min, v);
+          v_max = max(v_max, v);
+          v_sum += v;
+        }
+
+        function_mean = v_sum / lattice.sizeWithinBounds();
+
+        v_min -= function_mean;
+        v_max -= function_mean;
+
+        function_scale = 2*max(v_max, -v_min);
+      }
+
       max_lambda = max(_max_lambda, 1e-8);
-      
-      v_min = *min_element(function, function + lattice.sizeWithinBounds()) - 1e-32;
-      v_max = *max_element(function, function + lattice.sizeWithinBounds()) + 1e-32;
 
       typename Node::template NodeFiller<Lattice> filler(lattice);
 
@@ -86,7 +101,7 @@ namespace latticeQBP {
       }
 
       // Since we are scaling the function value, scale the regularizer as well
-      double global_scale_value = 0.5 * (2.0 / ((v_max - v_min) * max_lambda));
+      double global_scale_value = 0.5 / (function_scale * max_lambda);
 
       for(auto edge_it = lattice.edgeIterator(); !edge_it.done(); ++edge_it) {
 
@@ -186,9 +201,11 @@ namespace latticeQBP {
         
         assert_equal(path_values.size(), n_lambda);
 
-        for(size_t i = 0; i < path_values.size(); ++i)
+        for(size_t i = 0; i < path_values.size(); ++i) {
           values[concat(lambda_idx_values[i].index, it.coords())] 
             = toFValue(path_values[i]);
+
+        }
       }
 
       return values;
@@ -199,28 +216,22 @@ namespace latticeQBP {
     // Common variables
 
     Lattice lattice;
-    bool function_set;
-    double v_min, v_max;
+    double function_scale, function_mean;
 
     inline dtype toFVDType(double x) const {
-      assert_leq(x / 2, v_max);
-      assert_leq(v_min, x / 2);
+      double v = 0.5 + (x - function_mean) / function_scale;
 
-      double centered = (x - v_min) / (v_max - v_min);
-      double v = 2*centered - 1;
+      assert_leq(abs(v), 1);
 
-      assert_leq(abs(v), 2);
-
-      return Node::toFVDType(v); // (x - (v_min + 0.5* (v_max - v_min) ) ) * (2.0 / (v_max - v_min)) );
+      return Node::toFVDType(v);
     }
 
     inline dtype toUnshiftedFVDType(double x) const {
-      return Node::toFVDType(x * (2.0 / (v_max - v_min)) );
+      return Node::toFVDType(x / function_scale); 
     }
 
     inline double toFValue(dtype x) const {
-      double centered = (Node::toFValue(x) + 1) / 2.0;
-      double v = v_min + centered*(v_max - v_min);
+      double v = (Node::toFValue(x) - 0.5) * function_scale + function_mean;
 
       assert_equal(x, toFVDType(v));
       return v;
@@ -401,12 +412,16 @@ namespace latticeQBP {
            || (fp.rps2 != nullptr && !isStillValid(fp.rps2, current_lambda)))
           continue;
 
+        if(PRINT_INTERATION_INFO_MESSAGES)
+          cout << "current_lambda = " << current_lambda;
+
         switch(fp.mode) {
         case FunPoint::Join: 
           {
-            // cout << "Applying Join at " 
-            //      << Node::scaleToValue(current_lambda) 
-            //      << endl;
+            if(PRINT_INTERATION_INFO_MESSAGES)
+              cout << "Applying Join at " 
+                   << Node::scaleToValue(current_lambda) 
+                   << endl;
 
             _TVRegPathSegment* rps1 = fp.rps1;
             _TVRegPathSegment* rps2 = fp.rps2;
@@ -424,6 +439,12 @@ namespace latticeQBP {
           }
         case FunPoint::Split:
           {
+            
+            if(PRINT_INTERATION_INFO_MESSAGES)
+              cout << "Applying Split at " 
+                   << Node::scaleToValue(current_lambda) 
+                   << endl;
+
             _TVRegPathSegment* rps = fp.rps1;
             assert(fp.rps2 == nullptr);
 
@@ -444,10 +465,13 @@ namespace latticeQBP {
           }
         case FunPoint::SplitUB:
           {
+            if(PRINT_INTERATION_INFO_MESSAGES)
+              cout << "Refining Split at " 
+                   << Node::scaleToValue(current_lambda) 
+                   << endl;
+
             _TVRegPathSegment* rps = fp.rps1;          
             assert(fp.rps2 == nullptr);
-
-            cout << "Improving splitUB on node " << rps->ci().key << endl;
 
             assert_equal(current_lambda, rps->ci().split_calculation_done_to_lambda);
 

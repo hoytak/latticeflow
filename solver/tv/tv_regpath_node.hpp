@@ -8,6 +8,9 @@
 #include <map>
 #include <vector>
 
+#define PRINT_PATH_MESSAGES false
+#define PRINT_INTERATION_INFO_MESSAGES false
+
 namespace latticeQBP {
 
 // #ifdef NDEBUG
@@ -377,7 +380,9 @@ namespace latticeQBP {
 
       assert(_construction_info != nullptr);
 
+#ifndef NDEBUG
       cout << "Deactivated node " << ci().key << "." << endl;
+#endif
 
       delete _construction_info;
       _construction_info = nullptr;
@@ -418,7 +423,7 @@ namespace latticeQBP {
         dtype join_lm = it->first;
         TVRegPathSegment* rps = it->second;
 
-        if(join_lm > current_lambda || rps->lhs_mode != Unset) {
+        if(join_lm >= current_lambda || rps->lhs_mode != Unset) {
           auto rem_it = it;
           ++it;
           ci().join_points.erase(rem_it);
@@ -446,11 +451,15 @@ namespace latticeQBP {
         assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-        lambda_calc = dsi.lambda_of_split_capacity;
         last_dsi = dsi;
 
-        if(dsi.lambda_is_exactly_known) 
+        if(dsi.lambda_is_exactly_known) {
+          lambda_calc = dsi.lambda_of_split_capacity;
           break;
+        } else { 
+          lambda_calc = dsi.lambda_of_split_capacity + 1;
+        }
+
       }
 
       // Store that information in the computation structure
@@ -538,7 +547,6 @@ namespace latticeQBP {
 
       if(!cut_ptr->any_cut) {
         // cout << "     > No split. " << endl;
-        ci().solver.disableChecks();
         return DetailedSplitInfo({false, false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
@@ -662,7 +670,7 @@ namespace latticeQBP {
       comp_type denom = q1*s0 - q0*s1;
 
       dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
-      dtype lambda_pm   = Node::getScaleFromQuotient_T(s0 + s1, denom);
+      // dtype lambda_pm   = Node::getScaleFromQuotient_T(s0 + s1, denom);
 
       if(unlikely(calc_lambda < lambda_lb || calc_lambda >= rhs_lambda)) {
         dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
@@ -672,12 +680,28 @@ namespace latticeQBP {
         cout << "          >>>> Dtype: calc_lambda = " << (calc_lambda) 
              << "; lm_true = " << (lm_true) << endl;
 
+          cout 
+             << "c = " << c << ".0\n" 
+             << "g1 = " << g1 << ".0\n"
+             << "g0 = " << g0 << ".0\n"
+             << "q1 = " << q1 << ".0\n"
+             << "q0 = " << q0 << ".07\n" 
+             << "s1 = " << s1 << ".0\n"
+             << "s0 = " << s0 << ".0\n" 
+             << "lm = " << Node::scaleToValue(lm_true) << "\n" 
+             << "dtlm = " << lm_true
+             << "(s1*g0 - s0*g1) = " << toDType(s1*g0 - s0*g1) << ".0\n"
+             << "c * (s0 + s1) = " << toDType(c * (s0 + s1)) << ".0\n"
+             << "(s1*g0 - s0*g1) + c * (s0 + s1) = " << toDType((s1*g0 - s0*g1) + c * (s0 + s1)) << ".0\n"
+             << "q1*s0 - q0*s1 = " << toDType(q1*s0 - q0*s1) << ".0\n"
+             << endl;
+
         calc_lambda = lm_true;
 
         return DetailedSplitInfo({true, true, lm_true, cut_ptr});
       } else {
-        cout << "   " << ci().key << " Split occurs at lambda = " << calc_lambda 
-             << "; pm=[" << (calc_lambda - lambda_pm) << ", " << (calc_lambda + lambda_pm) << "]" << endl;
+        if(PRINT_PATH_MESSAGES)
+          cout << "   " << ci().key << " Split occurs at lambda = " << calc_lambda << endl;
       }
 
       // is_on being true means that this partition was on the
@@ -777,7 +801,8 @@ namespace latticeQBP {
       if(dest[0]->ci().nodeset.size() > dest[1]->ci().nodeset.size())
         swap(lhs_nodes[0], lhs_nodes[1]);
 
-      cout << "Split  " << ci().key << " into " << lhs_nodes[0]->ci().key << " and " << lhs_nodes[1]->ci().key << "." << endl;
+        if(PRINT_PATH_MESSAGES)
+          cout << "Split  " << ci().key << " into " << lhs_nodes[0]->ci().key << " and " << lhs_nodes[1]->ci().key << "." << endl;
     } 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -887,7 +912,8 @@ namespace latticeQBP {
 
       checkKeySynced();
 
-      cout << "Joined " << rps1->ci().key << " and " << rps2->ci().key << " into " << ci().key << "." << endl;
+      if(PRINT_PATH_MESSAGES)
+        cout << "Joined " << rps1->ci().key << " and " << rps2->ci().key << " into " << ci().key << "." << endl;
     }
 
     static inline dtype lambdaOfJoin(TVRegPathSegment* r1,
