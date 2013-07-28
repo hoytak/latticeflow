@@ -529,6 +529,45 @@ namespace latticeQBP {
       // cout << "A cut occurs at " << lambda_lb << " but not at " << lambda_ub << endl;
       return lambda_lb;
     }
+    
+    dtype _exactFlow(dtype calc_lambda,  
+                     typename TV_PR_Class::cutinfo_ptr cut) {
+
+      ci().solver.setRegionToLambda(ci().nodeset.begin(), ci().nodeset.end(), calc_lambda);
+
+      
+
+      template <typename NodePtrIterator>  
+        inline void setRegionToLambda(const NodePtrIterator& start, 
+                                      const NodePtrIterator& end, 
+                                      dtype lambda, bool pull_to_center = false) {
+        
+
+      
+    }
+
+    dtype findExactPointOfCutExcess(dtype pred_lambda,  
+                                    typename TV_PR_Class::cutinfo_ptr cut) {      
+
+      auto excess_score = [&](dtype lm) {
+        // We're mainly concenrned about the point at which the positive excess 
+        ci().solver.setRegionToLambda(ci().nodeset.begin(), ci().nodeset.end(), lm);
+        return ci().solver.getExcessInRegion(cut->partitions[1].nodes.begin(),
+                                             cut->partitions[1].nodes.end());
+      };
+
+      // Now run the bisection algorithm to get the bounds to try and find the best version
+
+      dtype lb, ub; 
+      
+      dtype excess_of_pred_lambda = 
+
+
+    }
+
+
+
+
 
     DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
 
@@ -559,6 +598,19 @@ namespace latticeQBP {
       };
 
       comp_type c = cut_ptr->cut_value;
+
+      if(unlikely(c == 0)) {
+        // We're dealing with two disjoint sections, so should be split immediately.
+        DetailedSplitInfo dsi;
+
+        dsi.split_occurs = true;
+        dsi.lambda_is_exactly_known = true;
+        dsi.cut = cut_ptr;
+        dsi.lambda_of_split_capacity = rhs_lambda;
+
+        return dsi;
+      }
+
 
       comp_type g0 = p_info[0].gamma_sum - c;
       comp_type g1 = p_info[1].gamma_sum + c;
@@ -672,7 +724,7 @@ namespace latticeQBP {
       dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
       // dtype lambda_pm   = Node::getScaleFromQuotient_T(s0 + s1, denom);
 
-      if(unlikely(calc_lambda < lambda_lb || calc_lambda >= rhs_lambda)) {
+      if(unlikely(calc_lambda < lambda_lb || calc_lambda > rhs_lambda)) {
         dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
 
         cout << "Lambda Bizzaro on " << ci().key << ": calc_lambda = " << Node::scaleToValue(calc_lambda) 

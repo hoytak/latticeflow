@@ -369,7 +369,21 @@ namespace latticeQBP {
         }
       }
     }
-    
+
+    template <typename NodePtrIterator> 
+    inline dtype getExcessInRegion(const NodePtrIterator& start, 
+                                   const NodePtrIterator& end) {
+      
+      dtype flow_excess = 0;
+      
+      for(NodePtrIterator it = start; it != end; ++it) {
+        node_ptr n = *it;
+        flow_excess += Base::excess(n);
+      }
+
+      return flow_excess;
+    }
+
     template <typename NodePtrIterator>  
     inline void setRegionToLambda_reference(const NodePtrIterator& start, 
                                             const NodePtrIterator& end, 
