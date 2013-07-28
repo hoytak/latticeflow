@@ -381,9 +381,9 @@ namespace latticeQBP {
 
       auto isStillValid = [&](_TVRegPathSegment *rps, dtype lambda) {
         assert(rps != nullptr);
-        if(rps->lhs_lambda != -1) {
+        if(rps->lhs_mode != _TVRegPathSegment::Unset) {
           assert_leq(lambda, rps->lhs_lambda);
-          assert(rps->lhs_mode != _TVRegPathSegment::Unset);
+          assert(rps->lhs_lambda > 0);
           return false;
         } else {
           return true;
@@ -447,6 +447,8 @@ namespace latticeQBP {
             _TVRegPathSegment* rps = fp.rps1;          
             assert(fp.rps2 == nullptr);
 
+            cout << "Improving splitUB on node " << rps->ci().key << endl;
+
             assert_equal(current_lambda, rps->ci().split_calculation_done_to_lambda);
 
             registerPossibleSplit(rps, current_lambda);
@@ -476,6 +478,14 @@ namespace latticeQBP {
       }
 
       auto& last_rps = _regpathsegment_hold.back();
+
+      for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+        if(DEBUG_MODE && n->key() != 0) {
+          assert_equal(n->key(), last_rps.ci().key);
+          n->clearKey();
+        }
+      }
+
       last_rps.lhs_lambda = 0;
       last_rps.lhs_mode = _TVRegPathSegment::Initial;
       last_rps.deactivate();

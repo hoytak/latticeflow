@@ -11,11 +11,11 @@ namespace latticeQBP {
 
   using namespace std;
 
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
+// #ifdef NDEBUG
+// #undef NDEBUG
+// #endif
   
-#include "../common/debug.hpp"
+// #include "../common/debug.hpp"
 
   // The overall policy class 
 
@@ -103,8 +103,7 @@ namespace latticeQBP {
     static constexpr int n_weight_bits = (Policy::using_weights && !Policy::weights_binary
                                           ? 2*sizeof(dtype) : 0);
     
-
-    static constexpr int n_scale_bits_room = sizeof(dtype);
+    static constexpr int n_scale_bits_room = 2*sizeof(dtype);
     static constexpr int n_bits_scale_precision = 7*sizeof(dtype) - n_scale_bits_room;
 
     static constexpr int log2_scale_max = n_bits_scale_precision + n_scale_bits_room;
@@ -180,8 +179,20 @@ namespace latticeQBP {
       
       static constexpr dtype dtmax = numeric_limits<dtype>::max();
 
+#ifndef NDEBUG
+      comp_type old_numer = numer;
+#endif
       numer *= (dtype(1) << n_bits_scale_precision);
+
+      assert_equal(numer / (dtype(1) << n_bits_scale_precision), old_numer);
+
       numer /= denom;
+
+#ifndef NDEBUG
+      double v = static_cast<double>(old_numer) / static_cast<double>(denom);
+      assert_close(v, static_cast<double>(numer) / (dtype(1) << n_bits_scale_precision), 1e-6);
+#endif
+
       return likely(numer > dtmax) ? dtmax : toDType(numer);
     }
 
@@ -397,8 +408,8 @@ namespace latticeQBP {
   };
 };
 
-#define        NDEBUG
-#include "../common/debug.hpp"
+// #define        NDEBUG
+// #include "../common/debug.hpp"
   
 #include "../common/debug.hpp"
 

@@ -26,6 +26,9 @@
 
 namespace latticeQBP {
 
+#define NDEBUG
+#include "../common/debug.hpp"
+
   using namespace std;
 
   template <typename dtype, typename _KernelLattice, int partition> class PRFlow {
@@ -1476,5 +1479,7 @@ namespace latticeQBP {
       }
     }
   };
+#undef NDEBUG
+#include "../common/debug.hpp"
 };
 #endif

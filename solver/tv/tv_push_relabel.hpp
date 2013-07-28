@@ -168,13 +168,13 @@ namespace latticeQBP {
         // Now see about the cut.
         if(!n_on) {
           for(uint ei = 0; ei < kernel_size; ++ei) {
-            node_cptr nn = n + Base::step_array[ei];
+            node_ptr nn = n + Base::step_array[ei];
           
             if(nn->_isKeyState(key_state_check)) {
               assert(nn->matchesKey(key) && nn->state());
               dtype cc = n->edgeCapacityFromSaturatedOffNodeToOnNode(ei);
               cut->cut_value += cc;
-              cut->cut_edges.push_back(make_pair(n, ei));
+              cut->cut_edges.push_back(make_pair(nn, Base::reverseIndex(ei)));
             } else {
               assert(!(nn->matchesKey(key) && nn->state()));
             }
@@ -335,16 +335,18 @@ namespace latticeQBP {
     template <typename ForwardIterator>
     set<uint> getNeighborhoodKeySet(const ForwardIterator& start, 
                                     const ForwardIterator& end, 
-                                    uint key) const {
+                                    uint this_key) const {
       set<uint> keys;
 
       for(ForwardIterator it = start; it != end; ++it) {
         node_ptr n = (*it);
+
+        assert_equal(this_key, n->key());
         
         for(uint ei = 0; ei < Base::lattice.kernel_size; ++ei) {
           node_ptr nn = n + Base::step_array[ei];
 
-          if(!nn->matchesKey(key) &&
+          if(!nn->matchesKey(this_key) &&
              (Base::pushCapacity(n, nn, ei) 
               + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0)) {
             keys.insert(nn->key());
@@ -353,6 +355,19 @@ namespace latticeQBP {
       }
       
       return keys;
+    }
+
+    template <typename ForwardIterator>
+    void checkKeyIsGone(const ForwardIterator& start, 
+                        const ForwardIterator& end, 
+                        uint key) const {
+      if(DEBUG_MODE) {
+        for(ForwardIterator it = start; it != end; ++it) {
+          node_ptr n = (*it);
+
+          assert_notequal(key, n->key());
+        }
+      }
     }
     
     template <typename NodePtrIterator>  

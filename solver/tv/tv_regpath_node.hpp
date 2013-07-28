@@ -10,11 +10,11 @@
 
 namespace latticeQBP {
 
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
+// #ifdef NDEBUG
+// #undef NDEBUG
+// #endif
 
-#include "../common/debug.hpp"
+// #include "../common/debug.hpp"
 
 
   ////////////////////////////////////////////////////////////
@@ -95,11 +95,9 @@ namespace latticeQBP {
 
       syncInformation(lambda);
     }
-    
 
     ////////////////////////////////////////////////////////////////////////////////
     // Internal data 
-    
 
     ////////////////////////////////////////////////////////////////////////////////
     // Stuff for tracking things 
@@ -313,12 +311,11 @@ namespace latticeQBP {
 
     // Conditionally activate the nodes 
     void deactivate() {
-      checkKeySynced();
 
       assert(lhs_lambda != -1);
 
       // Depending on the rhs mode, create a set with all the active
-      // nodes in it. 
+      // nodes in it. 7
       if(rhs_mode == Split || rhs_mode == Initial) {
         nodeset.swap(ci().nodeset);
         sort(nodeset.begin(), nodeset.end());
@@ -372,10 +369,16 @@ namespace latticeQBP {
           assert(rps->neighbors().find(this) 
                  == rps->neighbors().end());
         }
+        
+        for(node_ptr n = ci().lattice.begin(); n != ci().lattice.end(); ++n)
+          assert_notequal(n->key(), ci().key);
 #endif
       }
 
       assert(_construction_info != nullptr);
+
+      cout << "Deactivated node " << ci().key << "." << endl;
+
       delete _construction_info;
       _construction_info = nullptr;
     }
@@ -410,18 +413,29 @@ namespace latticeQBP {
       
       dtype lambda_calc_lb = 0;
 
-      for(const auto& p : ci().join_points) {
-        if(p.first == p.second->firstJoinPoint()) {
-          lambda_calc_lb = max(p.first, lambda_calc_lb);
+      for(auto it = ci().join_points.begin(); it != ci().join_points.end();) {
+        // Remove things that are meaningless...
+        dtype join_lm = it->first;
+        TVRegPathSegment* rps = it->second;
+
+        if(join_lm > current_lambda || rps->lhs_mode != Unset) {
+          auto rem_it = it;
+          ++it;
+          ci().join_points.erase(rem_it);
+          continue;
+        } else {
+          if(join_lm == rps->firstJoinPoint())
+            lambda_calc_lb = max(join_lm, lambda_calc_lb);
+
+          ++it;
         }
       }
       
-      DetailedSplitInfo dsi{false,0}, last_dsi;
+      DetailedSplitInfo dsi{false,false, 0}, last_dsi{false, false, 0};
       dtype lambda_calc = lambda_calc_lb;
       bool cut_exists = false;
 
       while(true) {
-        last_dsi = dsi;
         dsi = _calculateSingleSplit(lambda_calc);
 
         if(!dsi.split_occurs)
@@ -432,7 +446,11 @@ namespace latticeQBP {
         assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
         assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-        lambda_calc = dsi.lambda_of_split_capacity + 1;
+        lambda_calc = dsi.lambda_of_split_capacity;
+        last_dsi = dsi;
+
+        if(dsi.lambda_is_exactly_known) 
+          break;
       }
 
       // Store that information in the computation structure
@@ -450,6 +468,8 @@ namespace latticeQBP {
         ci().split_information = last_dsi.cut;
         ci().lambda_of_split = lambda_calc;
 
+        assert_close( (1.0 - double(lambda_calc) / BisectionCheck(0, current_lambda)), 0, 1e-4);
+
         return SplitInfo({true, lambda_calc, lambda_calc_lb});
 
       } else {
@@ -464,6 +484,7 @@ namespace latticeQBP {
 
     struct DetailedSplitInfo{ 
       bool split_occurs;
+      bool lambda_is_exactly_known;
 
       // This gives the exact lambda of this cut; if it is one less
       // than this, then the cut will form.  Above this, there may be
@@ -475,10 +496,12 @@ namespace latticeQBP {
 
     dtype BisectionCheck(dtype lambda_lb, dtype lambda_ub) const {
 
+      bool div_4 = true;
+
       while(lambda_lb + 1 < lambda_ub) {
 
-        dtype try_lambda = (lambda_ub + lambda_lb) / 2;
-
+        dtype try_lambda = div_4 ? (lambda_ub + lambda_lb) / 4 : (lambda_ub + lambda_lb) / 2;
+        
         // Calculate the split point...
         ci().solver.setRegionToLambda(ci().nodeset.begin(), 
                                       ci().nodeset.end(), try_lambda, false);
@@ -486,20 +509,15 @@ namespace latticeQBP {
         auto cut_ptr = 
           ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
 
-
-        if(!cut_ptr->any_cut)
+        if(!cut_ptr->any_cut) {
           lambda_ub = try_lambda;
-        else
+        } else {
           lambda_lb = try_lambda;
-        
-        // cout << "[" 
-        //      << lambda_lb << ", " 
-        //      << try_lambda << ", " 
-        //      << lambda_ub << "]" << (cut_ptr->any_cut ? "Cut! " : "No Cut!") << endl;
-
+          div_4 = false;
+        }
       }
 
-      cout << "A cut occurs at " << lambda_lb << " but not at " << lambda_ub << endl;
+      // cout << "A cut occurs at " << lambda_lb << " but not at " << lambda_ub << endl;
       return lambda_lb;
     }
 
@@ -507,8 +525,8 @@ namespace latticeQBP {
 
       // ci().solver.enableChecks();
 
-      cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-      cout << "Calculating split at lambda = " << lambda_lb << endl;
+      // cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+      // cout << "Calculating split at lambda = " << lambda_lb << endl;
 
       // Calculate the split point...
       ci().solver.setRegionToLambda(ci().nodeset.begin(), 
@@ -519,9 +537,9 @@ namespace latticeQBP {
       const auto& piv = cut_ptr->partitions;
 
       if(!cut_ptr->any_cut) {
-        cout << "     > No split. " << endl;
+        // cout << "     > No split. " << endl;
         ci().solver.disableChecks();
-        return DetailedSplitInfo({false, 0, nullptr});
+        return DetailedSplitInfo({false, false, 0, nullptr});
       } else {
         assert(!piv[0]->nodes.empty());
         assert(!piv[1]->nodes.empty());
@@ -571,18 +589,6 @@ namespace latticeQBP {
       //      << "; p_info[0].qii_sum = " << p_info[0].qii_sum
       //      << endl;
 
-      // cout 
-      //   << "c = " << c << ".0\n" 
-      //   << "g1 = " << g1 << ".0\n"
-      //   << "g0 = " << g0 << ".0\n"
-      //   << "q1 = " << q1 << ".0\n"
-      //   << "q0 = " << q0 << ".07\n" 
-      //   << "s1 = " << s1 << ".0\n"
-      //   << "s0 = " << s0 << ".0\n" 
-      //   << "lm = " << Node::scaleToValue(lm_true)
-      //   << "dtlm = " << lm_true
-      //   << endl;
-
 #endif
 
       // Get the rest of the components to calculate the shape
@@ -609,19 +615,70 @@ namespace latticeQBP {
       //   return calc_lambda;
       // }; 
 
-      comp_type intercept = (s1*g0 - s0*g1) + c*(s0 + s1);
+      // auto predict = [&,s0,s1,g0,g1,c,q0,q1](int fg0, int fg1, int fc, int fq) {
+      //   comp_type intercept = (fg0*s1*g0 - s0*fg1*g1) + fc*c*(s0 + s1);
+      //   comp_type denom = q1*s0 - fq*q0*s1;
+        
+      //   dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+        
+      //   cout 
+      //   << "Predicted lambda = " << calc_lambda << "(" << Node::scaleToValue(calc_lambda) << "), " 
+      //   << fg0 << ":" << fg1 << ":" << fc << endl;
+        
+      //   return calc_lambda;
+      // };
+
+      // dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
+      // cout << "LM True = " << lm_true << endl;
+
+      // cout 
+      //   << "c = " << c << ".0\n" 
+      //   << "g1 = " << g1 << ".0\n"
+      //   << "g0 = " << g0 << ".0\n"
+      //   << "q1 = " << q1 << ".0\n"
+      //   << "q0 = " << q0 << ".07\n" 
+      //   << "s1 = " << s1 << ".0\n"
+      //   << "s0 = " << s0 << ".0\n" 
+      //   << "lm = " << Node::scaleToValue(lm_true) << "\n" 
+      //   << "dtlm = " << lm_true
+      //   << endl;
+
+      // predict(1,1,1, 1);
+      // predict(1,1,1, -1);
+      // predict(1,-1,1,1);
+      // predict(1,-1,1,-1);
+      // predict(1,-1,-1,1);
+      // predict(1,-1,-1,-1);
+      // predict(-1,1,1,1);
+      // predict(-1,1,1,-1);
+      // predict(-1,1,-1,1);
+      // predict(-1,1,-1,-1);
+      // predict(-1,-1,1,1);
+      // predict(-1,-1,1,-1);
+      // predict(-1,-1,-1,1);
+      // predict(-1,-1,-1,-1);
+
+      comp_type intercept = (s1*g0 - s0*g1) + c * (s0 + s1);
       comp_type denom = q1*s0 - q0*s1;
 
       dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+      dtype lambda_pm   = Node::getScaleFromQuotient_T(s0 + s1, denom);
 
-      // dtype calc_lambda = predict(1,1,1);
-      // predict(1,1,-1);
-      // predict(1,-1,1);
-      // predict(1,-1,-1);
-      // predict(-1,1,1);
-      // predict(-1,1,-1);
-      // predict(-1,-1,1);
-      // predict(-1,-1,-1);
+      if(unlikely(calc_lambda < lambda_lb || calc_lambda >= rhs_lambda)) {
+        dtype lm_true = BisectionCheck(lambda_lb, rhs_lambda);
+
+        cout << "Lambda Bizzaro on " << ci().key << ": calc_lambda = " << Node::scaleToValue(calc_lambda) 
+             << "; lm_true = " << Node::scaleToValue(lm_true) << endl;
+        cout << "          >>>> Dtype: calc_lambda = " << (calc_lambda) 
+             << "; lm_true = " << (lm_true) << endl;
+
+        calc_lambda = lm_true;
+
+        return DetailedSplitInfo({true, true, lm_true, cut_ptr});
+      } else {
+        cout << "   " << ci().key << " Split occurs at lambda = " << calc_lambda 
+             << "; pm=[" << (calc_lambda - lambda_pm) << ", " << (calc_lambda + lambda_pm) << "]" << endl;
+      }
 
       // is_on being true means that this partition was on the
       // high end, so at the lambda = 0 end, it's got too much
@@ -639,13 +696,13 @@ namespace latticeQBP {
       // if(cut_ptr->cut_value == 0)
       //   return DetailedSplitInfo({true, true, calc_lambda, cut_ptr});
 
-      // assert_geq(calc_lambda, lambda_lb);
+      assert_geq(calc_lambda, lambda_lb);
 
-      cout << "Calculated split lambda = " << calc_lambda << endl;
+      // cout << "Calculated split lambda = " << calc_lambda << endl;
 
       // ci().solver.disableChecks();
 
-      return DetailedSplitInfo({true, calc_lambda, cut_ptr});
+      return DetailedSplitInfo({true, false, calc_lambda, cut_ptr});
     }
 
 
@@ -662,11 +719,12 @@ namespace latticeQBP {
       // appropriate edges are saturated.
       ci().solver.applyPartioningCut(ci().split_information, ci().key);
       
+      checkKeySynced();
+
       // Split up the nodes
-      const auto& piv = ci().split_information->partitions;
 
       for(int i = 0; i < 2; ++i) {
-
+        assert(dest[i]->ci().neighbors.empty());
         assert(dest[i]->ci().nodeset.empty());
 
         dest[i]->ci().nodeset = move(ci().split_information->partitions[i]->nodes);
@@ -677,22 +735,38 @@ namespace latticeQBP {
         dest[i]->rhs_nodes = {this, nullptr};
       
         dest[i]->syncInformation(lambda);
-
-
-        dest[i]->checkKeySynced();
       }
 
+      // Make sure we got all the nodes
+      if(DEBUG_MODE)
+        ci().solver.checkKeyIsGone(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
 
       for(int i = 0; i < 2; ++i) {
-        auto& nb = dest[i]->ci().neighbors;
+        dest[i]->checkKeySynced();
 
         auto keys = ci().solver.getNeighborhoodKeySet
-          (ci().nodeset.begin(), ci().nodeset.end(), ci().key);
+          (dest[i]->ci().nodeset.begin(), 
+           dest[i]->ci().nodeset.end(), 
+           dest[i]->ci().key);
 
         for(uint key : keys) {
-          nb.insert(rpsLookup(key));
+          assert_notequal(key, ci().key);
+
+          TVRegPathSegment *rps = rpsLookup(key);
+          rps->ci().neighbors.insert(dest[i]);
+          assert(rps != this);
+
+          dest[i]->ci().neighbors.insert(rps);
         }
       }
+
+      // Go through and remove this from the neighbors... 
+      for(TVRegPathSegment* n_rps : ci().neighbors) {
+        n_rps->ci().neighbors.erase(this);
+      }
+
+      assert(dest[0]->ci().neighbors.find(this) == dest[0]->ci().neighbors.end());
+      assert(dest[1]->ci().neighbors.find(this) == dest[1]->ci().neighbors.end());
 
       // Now clean this one up
       lhs_lambda = lambda;
@@ -703,14 +777,7 @@ namespace latticeQBP {
       if(dest[0]->ci().nodeset.size() > dest[1]->ci().nodeset.size())
         swap(lhs_nodes[0], lhs_nodes[1]);
 
-      // Go through and remove this from the neighbors... Man, I am
-      // drunk on R. Jelinek fernet and a fine 7 yr. panama rum. 1:3
-      // they make a fine manhattan but damn I need some bitterman's
-      // burlesque bitters with it.  
-
-      for(TVRegPathSegment* n_rps : ci().neighbors) {
-        n_rps->ci().neighbors.erase(this);
-      }
+      cout << "Split  " << ci().key << " into " << lhs_nodes[0]->ci().key << " and " << lhs_nodes[1]->ci().key << "." << endl;
     } 
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -819,6 +886,8 @@ namespace latticeQBP {
       assert_close(get_r_AtLambda(rhs_lambda), rps2->get_r_AtLambda(rps2->lhs_lambda), 1);
 
       checkKeySynced();
+
+      cout << "Joined " << rps1->ci().key << " and " << rps2->ci().key << " into " << ci().key << "." << endl;
     }
 
     static inline dtype lambdaOfJoin(TVRegPathSegment* r1,
@@ -832,6 +901,9 @@ namespace latticeQBP {
       r1->checkKeySynced();
       r2->checkKeySynced();
 
+      if(r1->rhs_mode == Split && r2->rhs_mode == Split && (r1->rhs_nodes[0] == r2->rhs_nodes[0]))
+        return -1;
+    
       dtype r10 = r1->adjusted_r_at_0;
       dtype r20 = r2->adjusted_r_at_0;
       dtype r11 = r1->adjusted_r_at_1;
@@ -905,8 +977,9 @@ namespace latticeQBP {
 
 }; 
 
-#define NDEBUG
-#include "../common/debug.hpp"
+
+// #define NDEBUG
+// #include "../common/debug.hpp"
 
 #include "../common/debug_flymake_test.hpp"
 
