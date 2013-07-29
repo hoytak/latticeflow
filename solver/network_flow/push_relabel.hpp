@@ -317,11 +317,12 @@ namespace latticeQBP {
       initQueue();
 
       // Hot start the nodes by building trees from all the sinks
-      deque<node_ptr> original_nodes;
-
-      for(NodePtrIterator it = start; it != end; ++it) {
+      vector<node_ptr>& original_nodes = node_buffer;
+      original_nodes.clear();
       
+      for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = lattice.resolve(*it);
+        assert(eligible(n));
         if(n->sinkFlow() > 0) {
           assert_equal(n->height, 0);
           original_nodes.push_back(n);
@@ -381,35 +382,14 @@ namespace latticeQBP {
         }
       }
 
-      // Now, go through and see if the tree has missed any.  If so,
-      // and these have excess, then they will end up flipping things later on
-      deque<node_ptr> flip_nodes;
-
+      // Now, go through and see if the tree has missed any.  If
+      // so, then they will end up flipping things later on
       for(NodePtrIterator it = start; it != end; ++it) {
       
         node_ptr n = lattice.resolve(*it);
-
-        if(eligible(n) && n->height == 0 && excess(n) > 0) {
-          flip_nodes.push_back(n);
-          n->height = 1;
-        }
-      }
-    
-      if(unlikely(!flip_nodes.empty())) {
-        while(!flip_nodes.empty()) {
-          node_ptr n = flip_nodes.front();
-          flip_nodes.pop_front();
-          assert_equal(n->height, 1);
-	
-          for(uint i = 0; i < kernel_size; ++i) {
-            node_ptr nn = n + step_array[i];
-
-            if(pushCapacity(n, nn, i) > 0 && eligible(nn) && nn->height == 0) {
-              flip_nodes.push_back(nn);
-              nn->height = 1;
-            }
-          }
-
+        if(n->height == 0) {
+          assert(eligible(n));
+          assert_geq(excess(n), 0);
           flipNode(n);
         }
       }
@@ -418,10 +398,13 @@ namespace latticeQBP {
       for(node_ptr n : original_nodes) 
         n->height = 0;
 
+      original_nodes.clear();
+
 #if HAVE_OUTPUT
       if(!disable_printing)
         cout << "Time taken in hotstart = " << tt.asString() << endl;
 #endif
+      _debug_VerifyAll();
     }
 
     bool quickFlow() {
@@ -447,7 +430,9 @@ namespace latticeQBP {
           for(uint i = 0; i < kernel_size; ++i) {
             node_ptr nn =  n + step_array[i];
             dtype cap;
-            if( (cap = pushCapacity(n, nn, i)) != 0 && eligible(nn) && nn->height == level-1) {
+            if( (cap = pushCapacity(n, nn, i)) != 0 
+                && eligible(nn) 
+                && nn->height == level-1) {
               dtype amount = min(remaining_excess, cap);
               remaining_excess -= amount;
               push<1>(n, nn, i, amount);
