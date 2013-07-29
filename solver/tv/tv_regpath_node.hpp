@@ -12,6 +12,10 @@
 #define PRINT_PATH_MESSAGES false
 #define PRINT_INTERATION_INFO_MESSAGES false
 
+// #define PRINT_SPLIT_MESSAGES true
+// #define PRINT_PATH_MESSAGES true
+// #define PRINT_INTERATION_INFO_MESSAGES true
+
 namespace latticeQBP {
 
 // #ifdef NDEBUG
@@ -393,109 +397,7 @@ namespace latticeQBP {
     ////////////////////////////////////////////////////////////////////////////////
     // SPLITS
 
-    struct SplitInfo {
-      bool split_occurs;
-      dtype split_lambda;
-      dtype split_ub;
-    };
-
-    SplitInfo calculateSplit(dtype current_lambda) const {
-      checkKeySynced();
-
-      if(n_nodes == 1) {
-        ci().split_calculation_done_to_lambda = 0;
-        ci().lambda_of_split = -1;
-        
-        return SplitInfo({false, -1, 0});
-      }
-
-      if(DEBUG_MODE && ci().split_calculation_done_to_lambda != -1)
-        assert_leq(current_lambda, ci().split_calculation_done_to_lambda);
-
-      // Now, go through and calculate a likely lower bound on the
-      // split point.  There are situations where this ends up going
-      // off, and will require recalculations, but those are few and
-      // far between.
-      
-      dtype lambda_calc_lb = 0;
-
-      for(auto it = ci().join_points.begin(); it != ci().join_points.end();) {
-        // Remove things that are meaningless...
-        dtype join_lm = it->first;
-        TVRegPathSegment* rps = it->second;
-
-        if(join_lm >= current_lambda || rps->lhs_mode != Unset) {
-          auto rem_it = it;
-          ++it;
-          ci().join_points.erase(rem_it);
-          continue;
-        } else {
-          if(join_lm == rps->firstJoinPoint())
-            lambda_calc_lb = max(join_lm, lambda_calc_lb);
-
-          ++it;
-        }
-      }
-      
-      DetailedSplitInfo dsi{false,false, 0}, last_dsi{false, false, 0};
-      dtype lambda_calc = lambda_calc_lb;
-      bool cut_exists = false;
-
-      while(true) {
-        dsi = _calculateSingleSplit(lambda_calc, current_lambda);
-
-        if(!dsi.split_occurs)
-          break;
-        else 
-          cut_exists = true;
-
-        last_dsi = dsi;
-
-        if(dsi.lambda_is_exactly_known) {
-          lambda_calc = dsi.lambda_of_split_capacity;
-          break;
-        } else { 
-          assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
-          assert_leq(dsi.lambda_of_split_capacity, current_lambda);
-
-          lambda_calc = dsi.lambda_of_split_capacity + (dtype(1) << (max(1, Node::n_bits_scale_precision - 16)));
-
-          if(lambda_calc >= current_lambda) {
-            lambda_calc = current_lambda;
-            break;
-          }
-        }
-      }
-
-      // Store that information in the computation structure
-      if(cut_exists) {
-        assert(last_dsi.cut != nullptr);
-
-        assert(last_dsi.split_occurs);
-
-        // if(DEBUG_MODE) {
-        //   auto dsi2 = _calculateSingleSplit(last_dsi.lambda_of_split_capacity - 1);
-        //   assert_equal(dsi2.lambda_of_split_capacity, last_dsi.lambda_of_split_capacity);
-          
-        //   if(dsi.like_trains_passing_in_the_dead_of_a_cold_moonless_night)
-        // } 
-        
-        ci().split_information = last_dsi.cut;
-        ci().lambda_of_split = lambda_calc;
-
-        // assert_close( (1.0 - double(lambda_calc) / BisectionCheck(0, current_lambda).lambda_of_split_capacity), 0, 1e-4);
-
-        return SplitInfo({true, lambda_calc, lambda_calc_lb});
-
-      } else {
-        ci().split_calculation_done_to_lambda = lambda_calc_lb;
-        ci().lambda_of_split = -1;
-        return SplitInfo({false, -1, lambda_calc_lb});
-      }
-    }
-
   private:
-
 
     struct DetailedSplitInfo{ 
       bool split_occurs;
@@ -525,7 +427,7 @@ namespace latticeQBP {
         
         // Calculate the split point...
         ci().solver.setRegionToLambda(ci().nodeset.begin(), 
-                                      ci().nodeset.end(), try_lambda, false);
+                                      ci().nodeset.end(), try_lambda, true);
       
         auto cut = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
 
@@ -595,28 +497,96 @@ namespace latticeQBP {
       comp_type q0 = p_info[0].qii_sum;
       comp_type q1 = p_info[1].qii_sum;
 
-      comp_type s0 = cut->partitions[0]->nodes.size();
-      comp_type s1 = cut->partitions[1]->nodes.size();
+      dtype s0 = cut->partitions[0]->nodes.size();
+      dtype s1 = cut->partitions[1]->nodes.size();
 
-      comp_type intercept = (s1*g0 - s0*g1) + c * (s0 + s1);
-      comp_type denom = q1*s0 - q0*s1;
+      // Okay, it's a lot more accurate if we flip things around so
+      // that s1 is the smaller set of nodes....  For some reason...
+      
+      comp_type intercept = abs((s1*g0 - s0*g1) + c * (s0 + s1));
+      comp_type denom     = abs(q1*s0 - q0*s1);
+        
+      dtype denom_pm = (s0 + s1);
 
-      dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
+      dtype lb = max(Node::getScaleFromQuotient_T(intercept - max(s1,s0)*(s0 + s1), denom + denom_pm), lambda_lb);
+      dtype ub = min(Node::getScaleFromQuotient_T(move(intercept), denom - denom_pm), lambda_ub);
 
-      dtype pred_lambda = min(calc_lambda, lambda_ub); 
+      comp_type gs = g0 + g1;
+
+      auto nl0 = &(cut->partitions[0]->nodes);
+      auto nl1 = &(cut->partitions[1]->nodes);
+
+      auto value = [&,g0,g1,gs,c,s0,s1,nl0,nl1,q0,q1](dtype lm) {
+        comp_type lmq0 = 0, lmq1 = 0;
+
+        if(s0 > 32)
+          lmq0 = Node::multFVScale(q0, lm);
+        else
+          for(node_ptr n : *nl0) 
+            lmq0 += n->qii(lm);
+
+        if(s1 > 32)
+          lmq1 = Node::multFVScale(q1, lm);
+        else
+          for(node_ptr n : *nl1) 
+            lmq1 += n->qii(lm);
+
+        auto fl_avg = floorAverage_T(gs + lmq0 + lmq1, s0 + s1);
+
+        return min((lmq1 + g1 - c - s1 * fl_avg), (lmq0 + g0 + c - s0 * fl_avg));
+      };
+
+      comp_type value_lb = value(lb);
+      comp_type value_ub = value(ub);
+
+      if(value_lb >= 0)
+        ub = lb;
+
+      if(value_ub <= 0)
+        lb = ub;
+
+      while(lb + 1 < ub) {
+        // cout << "Finding Value! [" << lb << ',' << ub << "] = (" << value(lb) << ',' << value(ub) << ")" << endl;
+        assert_leq(value_lb, 0);
+        assert_geq(value_ub, 0);
+        
+        dtype mid_point = (lb + ub) / 2;
+        
+        // double query_lm_dbl = (weight_linear * (lb + ((double(-value_lb) * (ub - lb)) / (value_ub - value_lb))) 
+        //                        + (1 - weight_linear)*mid_point);
+
+        // weight_linear *= 0.75;
+
+        // assert_lt(query_lm_dbl, ub);
+        // assert_gt(query_lm_dbl, lb); 
+
+        dtype query_lm = mid_point; // dtype( (query_lm_dbl < mid_point) ? ceil(query_lm_dbl) : floor(query_lm_dbl));
+        comp_type v_mid = value(query_lm);
+
+        if(v_mid < 0) {
+          lb = query_lm;
+          value_lb = v_mid;
+        } else {
+          ub = query_lm;
+          value_ub = v_mid;
+        }
+      }
+
+      dtype pred_lambda = ub;
 
       // //
       // findExactPointOfCutFeasibility(max(min(calc_lambda, lambda_ub), lambda_lb), lambda_lb, cut);
+      // dtype pred_lambda = min(calc_lambda, lambda_ub); 
 
-      if(pred_lambda < lambda_lb) {
-        // Time to find the correct one here.  
-        DetailedSplitInfo dsi = BisectionCheck(lambda_lb, lambda_ub);
+      // if(pred_lambda < lambda_lb) {
+      //   // Time to find the correct one here.  
+      //   DetailedSplitInfo dsi = BisectionCheck(lambda_lb, lambda_ub);
 
-        cout << "Pred too low; Correct split location = " << dsi.lambda_of_split_capacity
-             << "; calculation = " << pred_lambda << endl; 
+      //   cout << "Pred too low; Correct split location = " << dsi.lambda_of_split_capacity
+      //        << "; calculation = " << pred_lambda << endl; 
 
-        return dsi;
-      }
+      //   return dsi;
+      // }
 
       assert_geq(pred_lambda, lambda_lb);
       assert_leq(pred_lambda, lambda_ub);
@@ -624,13 +594,117 @@ namespace latticeQBP {
       // cout << "DIFF: " << (pred_lambda - BisectionCheck(lambda_lb, lambda_ub)) << endl; 
 
       if(PRINT_SPLIT_MESSAGES)
-        cout << "   " << ci().key << " Split occurs at lambda = " << calc_lambda << endl;
+        cout << "   " << ci().key << " Split occurs at lambda = " << pred_lambda << endl;
 
       return DetailedSplitInfo({true, false, pred_lambda, cut});
     }
 
 
+
   public:
+
+
+    struct SplitInfo {
+      bool split_occurs;
+      dtype split_lambda;
+      dtype split_ub;
+    };
+
+    SplitInfo calculateSplit(dtype current_lambda) const {
+      checkKeySynced();
+
+      if(n_nodes == 1) {
+        ci().split_calculation_done_to_lambda = 0;
+        ci().lambda_of_split = -1;
+        
+        return SplitInfo({false, -1, 0});
+      }
+
+      if(DEBUG_MODE && ci().split_calculation_done_to_lambda != -1)
+        assert_leq(current_lambda, ci().split_calculation_done_to_lambda);
+
+      // Now, go through and calculate a likely lower bound on the
+      // split point.  There are situations where this ends up going
+      // off, and will require recalculations, but those are few and
+      // far between.
+      
+      dtype lambda_calc_lb = 0;
+
+      for(auto it = ci().join_points.begin(); it != ci().join_points.end();) {
+        // Remove things that are meaningless...
+        dtype join_lm = it->first;
+        TVRegPathSegment* rps = it->second;
+
+        if(join_lm >= current_lambda || rps->lhs_mode != Unset) {
+          auto rem_it = it;
+          ++it;
+          ci().join_points.erase(rem_it);
+          continue;
+        } else {
+          if(join_lm == rps->firstJoinPoint())
+            lambda_calc_lb = max(join_lm, lambda_calc_lb);
+
+          ++it;
+        }
+      }
+      
+      DetailedSplitInfo dsi{false,false, 0}, last_dsi{false, false, 0};
+      dtype lambda_calc = lambda_calc_lb;
+      bool cut_exists = false;
+
+      while(true) {
+        dsi = _calculateSingleSplit(lambda_calc, current_lambda);
+
+        if(!dsi.split_occurs)
+          break;
+        else 
+          cut_exists = true;
+
+        last_dsi = dsi;
+
+        if(dsi.lambda_is_exactly_known) {
+          lambda_calc = dsi.lambda_of_split_capacity;
+          break;
+        } else { 
+          assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
+          assert_leq(dsi.lambda_of_split_capacity, current_lambda);
+
+          lambda_calc = dsi.lambda_of_split_capacity + (dtype(1) << (max(1, Node::n_bits_scale_precision - 24)));
+
+          if(lambda_calc >= current_lambda) {
+            lambda_calc = current_lambda;
+            break;
+          }
+        }
+      }
+
+      // Store that information in the computation structure
+      if(cut_exists) {
+        assert(last_dsi.cut != nullptr);
+
+        assert(last_dsi.split_occurs);
+        
+        ci().split_information = last_dsi.cut;
+        ci().lambda_of_split = last_dsi.lambda_of_split_capacity;
+
+        // dtype true_lm = BisectionCheck(0, current_lambda).lambda_of_split_capacity;
+
+        // cout << "Split calculated at lambda = " << ci().lambda_of_split
+        //      << "; true = " << true_lm 
+        //      << "; diff = " << (true_lm - ci().lambda_of_split) << endl;
+
+        if(ENABLE_EXPENSIVE_CHECKS)
+          assert_close( (1.0 - double(lambda_calc) / BisectionCheck(0, current_lambda).lambda_of_split_capacity), 0, 1e-4);
+
+        return SplitInfo({true, lambda_calc, lambda_calc_lb});
+
+      } else {
+        ci().split_calculation_done_to_lambda = lambda_calc_lb;
+        ci().lambda_of_split = -1;
+        return SplitInfo({false, -1, lambda_calc_lb});
+      }
+    }
+
 
     template <typename RPSLookupFunction>
     void applySplit(Array<TVRegPathSegment*, 2> dest,

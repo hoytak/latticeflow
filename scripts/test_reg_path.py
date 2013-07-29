@@ -28,7 +28,7 @@ X /= X.std()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0.001, 0.1, 50)
+lambdas = np.linspace(0.001, 3, 100)
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
 print "Done calculating Regpath Version."

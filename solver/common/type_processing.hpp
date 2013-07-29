@@ -54,6 +54,13 @@ namespace latticeQBP {
     sum /= n;
     return toDType(sum);
   }
+
+  template <typename CompType> 
+  static inline typename DTypeMap<CompType>::Type floorAverage_T(CompType&& sum, long n) {
+    if(sum < 0) sum -= (n-1);
+    sum /= n;
+    return toDType(sum);
+  }
 }; 
 
 // std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const latticeQBP::int128_type& t) {

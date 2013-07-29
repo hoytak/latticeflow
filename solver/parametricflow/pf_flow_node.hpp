@@ -103,12 +103,12 @@ namespace latticeQBP {
     static constexpr int n_weight_bits = (Policy::using_weights && !Policy::weights_binary
                                           ? 2*sizeof(dtype) : 0);
     
-    static constexpr int n_scale_bits_room = 2*sizeof(dtype);
+    static constexpr int n_scale_bits_room = 3*sizeof(dtype) / 2;
     static constexpr int n_bits_scale_precision = 7*sizeof(dtype) - n_scale_bits_room;
 
     static constexpr int log2_scale_max = n_bits_scale_precision + n_scale_bits_room;
 
-    static constexpr int n_bits_function_room = (5*sizeof(dtype)) / 2;
+    static constexpr int n_bits_function_room = 2*sizeof(dtype);
     static constexpr int n_bits_function_precision = (7*sizeof(dtype) 
                                                       - n_weight_bits 
                                                       - n_bits_function_room);
@@ -167,6 +167,7 @@ namespace latticeQBP {
 
         fv *= lm;
         fv += ((fv > 0) ? 1 : -1) * ( (dtype(1) << (n_bits_scale_precision - 1)));
+        //fv += ((fv < 0) ? (dtype(1) << n_bits_scale_precision) - 1 : 0);
         fv /= (dtype(1) << n_bits_scale_precision);
       }
 
@@ -225,20 +226,26 @@ namespace latticeQBP {
       return current_fv;
     }
 
-    dtype fv(dtype scale) const {
+    inline dtype fv(dtype scale) const {
       assert(Policy::using_scales);
       return multFVScale(base_fv, scale);
     }
 
-    dtype r() const {
+    inline dtype r() const {
       return Base::r() + current_fv_offset;
     }
 
-    dtype qii() const {
+    inline dtype qii() const {
       return base_fv;
     }
 
-    dtype lm_qii() const {
+
+    inline dtype qii(dtype scale) const {
+      return fv(scale);
+    }
+
+
+    inline dtype lm_qii() const {
       return current_fv;
     }
 
