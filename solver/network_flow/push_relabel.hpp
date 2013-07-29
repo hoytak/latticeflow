@@ -5,6 +5,10 @@
 #define ENABLE_PR_CHECKS false
 #endif
 
+#if ENABLE_PR_CHECKS
+#warning "Push-relabel consistency checks enabled; ganna be slowwwww...."
+#endif
+
 #define NO_EXCESS    0
 #define HAS_EXCESS   1
 #define CHECK_EXCESS 2
@@ -23,6 +27,12 @@
 #include "fixed_sorting_functions.hpp"
 #include "pr_auxilary_structures.hpp"
 #include "../kernels/optimization_policies.hpp"
+
+#if !ENABLE_PR_CHECKS && !defined(NDEBUG) 
+#define REINSTATE_NDEBUG
+#define NDEBUG
+#include "../common/debug.hpp"
+#endif
 
 namespace latticeQBP {
 
@@ -241,8 +251,9 @@ namespace latticeQBP {
     }
 
     inline void _debug_VerifyAll(bool check = true) {
-      if(ENABLE_PR_CHECKS || enable_checks) 
+      if(ENABLE_PR_CHECKS || enable_checks) {
         _debug_forceVerifyAll(check);
+      }
     }
 #else
     inline void _debug_checkPrerunStatus() { } 
@@ -328,7 +339,7 @@ namespace latticeQBP {
 
           if(eligible(nn) && nn->height == 0 
              && pushCapacity(nn, n, reverseIndex(i)) > 0) {
-            addToLevel<CHECK_EXCESS, 0>(nn, 1);
+            addToLevel<CHECK_EXCESS, 1>(nn, 1);
             queue.push_back(nn);
           }
         }
@@ -363,7 +374,7 @@ namespace latticeQBP {
 
           if(eligible(nn) && nn->height == 0 
              && pushCapacity(nn, n, reverseIndex(i)) > 0) {
-            addToLevel<CHECK_EXCESS, 0>(nn, current_level + 1);
+            addToLevel<CHECK_EXCESS, 1>(nn, current_level + 1);
             queue.push_back(nn);
             assert_equal(nn->height, current_level + 1);
           }
@@ -494,6 +505,8 @@ namespace latticeQBP {
         }
       }
 
+      _debug_VerifyAll();
+
       if(top_level_with_excess == 1 && lv.active_nodes.empty()) {
         --top_level_with_excess;
         return true;
@@ -604,11 +617,12 @@ namespace latticeQBP {
 #ifndef NDEBUG
       unsigned int old_height = n->height;
 
-      if(!no_current_height_checks)
+      if(!no_current_height_checks) {
         _debug_VerifyAccurateLevel(old_height);
 
-      if(new_level <= top_level)
-        _debug_VerifyAccurateLevel(new_level);
+        if(new_level <= top_level)
+          _debug_VerifyAccurateLevel(new_level);
+      }
 #endif
 
       if(new_level > top_level) {
@@ -637,10 +651,10 @@ namespace latticeQBP {
       }
 
 #ifndef NDEBUG
-      if(!no_current_height_checks)
+      if(!no_current_height_checks) {
         _debug_VerifyAccurateLevel(old_height);
-
-      _debug_VerifyAccurateLevel(new_level);
+        _debug_VerifyAccurateLevel(new_level);
+      }
 #endif
     }
 
@@ -1437,7 +1451,7 @@ namespace latticeQBP {
       _debug_VerifyAll();
 
 #ifndef NDEBUG
-      if(!disable_printing) {
+      if(HAVE_OUTPUT && !disable_printing) {
         cerr << "Partition " << partition
              << ": Set size = " << set_size << "; queue start size = " 
              << starting_size << "; " << num_flips << " total flips. " << endl;
@@ -1475,4 +1489,10 @@ namespace latticeQBP {
     }
   };
 };
+
+#ifdef REINSTATE_NDEBUG
+#undef NDEBUG
+#include "../common/debug.hpp"
+#endif 
+
 #endif

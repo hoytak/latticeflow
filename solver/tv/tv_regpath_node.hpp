@@ -8,7 +8,8 @@
 #include <map>
 #include <vector>
 
-#define PRINT_PATH_MESSAGES true
+#define PRINT_SPLIT_MESSAGES false
+#define PRINT_PATH_MESSAGES false
 #define PRINT_INTERATION_INFO_MESSAGES false
 
 namespace latticeQBP {
@@ -89,7 +90,8 @@ namespace latticeQBP {
       ci().nodeset = vector<node_ptr>(start, end);
       assert(!ci().nodeset.empty());
 
-      assert_equal(set<node_ptr>(start, end).size(), ci().nodeset.size());
+      if(ENABLE_EXPENSIVE_CHECKS)
+        assert_equal(set<node_ptr>(start, end).size(), ci().nodeset.size());
 
       rhs_lambda   = lambda;
       rhs_mode     = Initial;
@@ -181,13 +183,11 @@ namespace latticeQBP {
         ri.r_sum_d += n->r() - ri.zero_reference;
 
         ri.qii_sum += n->qii();
-        
+
         ++ri.partition_size;
       }
 
       ri.gamma_sum = (ri.r_sum_d - ri.lm_qii_sum_d);
-
-
       return ri;
     }
 
@@ -373,6 +373,7 @@ namespace latticeQBP {
                  == rps->neighbors().end());
         }
         
+      if(ENABLE_EXPENSIVE_CHECKS)
         for(node_ptr n = ci().lattice.begin(); n != ci().lattice.end(); ++n)
           assert_notequal(n->key(), ci().key);
 #endif
@@ -441,15 +442,12 @@ namespace latticeQBP {
       bool cut_exists = false;
 
       while(true) {
-        dsi = _calculateSingleSplit(lambda_calc);
+        dsi = _calculateSingleSplit(lambda_calc, current_lambda);
 
         if(!dsi.split_occurs)
           break;
         else 
           cut_exists = true;
-
-        assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
-        assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
         last_dsi = dsi;
 
@@ -457,12 +455,21 @@ namespace latticeQBP {
           lambda_calc = dsi.lambda_of_split_capacity;
           break;
         } else { 
-          lambda_calc = dsi.lambda_of_split_capacity + 1;
+          assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
+          assert_leq(dsi.lambda_of_split_capacity, current_lambda);
+
+          lambda_calc = dsi.lambda_of_split_capacity + (dtype(1) << (max(1, Node::n_bits_scale_precision - 16)));
+
+          if(lambda_calc >= current_lambda) {
+            lambda_calc = current_lambda;
+            break;
+          }
         }
       }
 
       // Store that information in the computation structure
       if(cut_exists) {
+        assert(last_dsi.cut != nullptr);
 
         assert(last_dsi.split_occurs);
 
@@ -476,7 +483,7 @@ namespace latticeQBP {
         ci().split_information = last_dsi.cut;
         ci().lambda_of_split = lambda_calc;
 
-        assert_close( (1.0 - double(lambda_calc) / BisectionCheck(0, current_lambda)), 0, 1e-4);
+        // assert_close( (1.0 - double(lambda_calc) / BisectionCheck(0, current_lambda).lambda_of_split_capacity), 0, 1e-4);
 
         return SplitInfo({true, lambda_calc, lambda_calc_lb});
 
@@ -502,144 +509,50 @@ namespace latticeQBP {
       typename TV_PR_Class::cutinfo_ptr cut;
     };
 
-    dtype BisectionCheck(dtype lambda_lb, dtype lambda_ub) const {
+    DetailedSplitInfo BisectionCheck(dtype lambda_lb, dtype lambda_ub) const {
 
-      bool div_4 = true;
+      int bisect_rate = 4;
+
+      typename TV_PR_Class::cutinfo_ptr best_cut;
+
+      bool cut_occured = false;
 
       while(lambda_lb + 1 < lambda_ub) {
 
-        dtype try_lambda = div_4 ? (lambda_ub + lambda_lb) / 4 : (lambda_ub + lambda_lb) / 2;
+        dtype try_lambda = (bisect_rate != 1
+                            ? ((lambda_lb + 1) + ((lambda_ub - (lambda_lb + 1)) / (dtype(1) << bisect_rate))) 
+                            : (lambda_ub + lambda_lb) / 2);
         
         // Calculate the split point...
         ci().solver.setRegionToLambda(ci().nodeset.begin(), 
                                       ci().nodeset.end(), try_lambda, false);
       
-        auto cut_ptr = 
-          ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
+        auto cut = ci().solver.runPartitionedSection(ci().nodeset.begin(), ci().nodeset.end(), ci().key);
 
-        if(!cut_ptr->any_cut) {
+        if(!cut->any_cut) {
           lambda_ub = try_lambda;
         } else {
           lambda_lb = try_lambda;
-          div_4 = false;
+          best_cut = cut;
+          cut_occured = true;
+          if(bisect_rate > 1)
+            --bisect_rate;
         }
       }
 
-      // cout << "A cut occurs at " << lambda_lb << " but not at " << lambda_ub << endl;
-      return lambda_lb;
-    }
-    
-    dtype findExactPointOfCutFeasibility(dtype pred_lambda, dtype lambda_lb, 
-                                         typename TV_PR_Class::cutinfo_ptr cut) const {      
-
-      auto score = [&](dtype lm) {
-        // We're mainly concenrned about the point at which the positive excess 
-        ci().solver.setRegionToLambda(ci().nodeset.begin(), ci().nodeset.end(), lm);
-        dtype excess = ci().solver.getExcessInRegion(cut->partitions[1]->nodes.begin(),
-                                                     cut->partitions[1]->nodes.end());
-        return cut->cut_value - excess;
-      };
-
-      // Now run the bisection algorithm to get the bounds to try and find the best version
-      dtype lb, ub; 
-      dtype score_lb, score_ub;
-      
-      dtype plm_score = score(pred_lambda);
-      bool searching_right;
-      
-      if(plm_score < 0) {
-        lb = pred_lambda;
-        score_lb = plm_score;
-        searching_right = true;
-      } else {
-        ub = pred_lambda;
-        score_ub = plm_score;
-        searching_right = false;
-      }
-
-      // Now go back until it's negative 
-      for(int shift_attempt = 8;;++shift_attempt) {
-          
-        dtype query_lm = pred_lambda + (searching_right ? 1 : -1) * (dtype(1) << shift_attempt);
-        
-        if(unlikely(!searching_right && query_lm <= lambda_lb)) {
-          lb = lambda_lb; 
-          score_lb = score(lb);
-          assert_lt(score_lb, 0);
-          break;
-        }
-
-        if(unlikely(searching_right && query_lm >= rhs_lambda)) {
-          ub = rhs_lambda;
-          score_ub = score(rhs_lambda);
-          assert_geq(score_ub, 0);
-          break;
-        }
-
-        dtype qs = score(query_lm);
-
-        cout << "(" << lb << ":" << score(lb) << ") : (" << query_lm << "," << qs << ") : (" << ub << "," << score(ub) << ")" << endl;
-
-        if(qs < 0) {
-          lb = query_lm;
-          score_lb = qs;
-          if(!searching_right) 
-            break;
-        } else {
-          ub = query_lm;
-          score_ub = qs;
-          if(searching_right)
-            break;
-        }
-      }
-
-      double weight_linear = 1;
-
-      while(lb + 1 < ub) {
-        cout << "lb = " << lb << "; ub = " << ub << endl;
-
-        assert_lt(lb, ub);
-        assert_equal(score_lb, score(lb));
-        assert_equal(score_ub, score(ub));
-        assert_lt(score_lb, 0);
-        assert_geq(score_ub, 0);
-        
-        // The function is assumed to be close to linear.  Thus we
-        // should start by attempting to nail that.   Error on the side 
-        dtype mid_point = ((ub + lb) / 2);
-
-        // double query_lm_dbl = (weight_linear * (lb + ((double(-score_lb) * (ub - lb)) / (score_ub - score_lb))) 
-        //                        + (1 - weight_linear)*mid_point);
-
-        // weight_linear *= 0.75;
-
-        // assert_lt(query_lm_dbl, ub);
-        // assert_gt(query_lm_dbl, lb); 
-
-        // dtype query_lm = dtype( (query_lm_dbl < mid_point) ? ceil(query_lm_dbl) : floor(query_lm_dbl));
-
-        dtype query_lm = mid_point;
-
-        dtype qs = score(query_lm);
-
-        if(qs < 0) {
-          lb = query_lm;
-          score_lb = qs;
-        } else {
-          ub = query_lm;
-          score_ub = qs;
-        }
-      }
-
-      return ub;
+      if(cut_occured)
+        return DetailedSplitInfo{true, true, lambda_lb, best_cut};
+      else
+        return DetailedSplitInfo{false, false, lambda_lb, nullptr};
     }
 
-    DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb) const {
+    DetailedSplitInfo _calculateSingleSplit(const dtype lambda_lb, dtype lambda_ub) const {
 
       // ci().solver.enableChecks();
 
       // cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-      // cout << "Calculating split at lambda = " << lambda_lb << endl;
+      if(PRINT_SPLIT_MESSAGES)
+        cout << ci().key << ": Calculating split at lambda = " << lambda_lb << endl;
 
       // Calculate the split point...
       ci().solver.setRegionToLambda(ci().nodeset.begin(), 
@@ -671,7 +584,7 @@ namespace latticeQBP {
         dsi.split_occurs = true;
         dsi.lambda_is_exactly_known = true;
         dsi.cut = cut;
-        dsi.lambda_of_split_capacity = rhs_lambda;
+        dsi.lambda_of_split_capacity = lambda_ub;
 
         return dsi;
       }
@@ -690,16 +603,27 @@ namespace latticeQBP {
 
       dtype calc_lambda = Node::getScaleFromQuotient_T(std::move(intercept), denom);
 
-      dtype pred_lambda = min(calc_lambda, rhs_lambda); 
+      dtype pred_lambda = min(calc_lambda, lambda_ub); 
 
-      //findExactPointOfCutFeasibility(max(min(calc_lambda, rhs_lambda), lambda_lb), lambda_lb, cut);
+      // //
+      // findExactPointOfCutFeasibility(max(min(calc_lambda, lambda_ub), lambda_lb), lambda_lb, cut);
+
+      if(pred_lambda < lambda_lb) {
+        // Time to find the correct one here.  
+        DetailedSplitInfo dsi = BisectionCheck(lambda_lb, lambda_ub);
+
+        cout << "Pred too low; Correct split location = " << dsi.lambda_of_split_capacity
+             << "; calculation = " << pred_lambda << endl; 
+
+        return dsi;
+      }
 
       assert_geq(pred_lambda, lambda_lb);
-      assert_leq(pred_lambda, rhs_lambda);
+      assert_leq(pred_lambda, lambda_ub);
         
-      // cout << "DIFF: " << (pred_lambda - BisectionCheck(lambda_lb, rhs_lambda)) << endl; 
+      // cout << "DIFF: " << (pred_lambda - BisectionCheck(lambda_lb, lambda_ub)) << endl; 
 
-      if(PRINT_PATH_MESSAGES)
+      if(PRINT_SPLIT_MESSAGES)
         cout << "   " << ci().key << " Split occurs at lambda = " << calc_lambda << endl;
 
       return DetailedSplitInfo({true, false, pred_lambda, cut});

@@ -30,7 +30,6 @@ X /= X.std()
 
 lambdas = np.linspace(0.001, 0.1, 50)
 
-
 Xtv_2 = calculate2dTVPath(X, lambdas)
 print "Done calculating Regpath Version."
 

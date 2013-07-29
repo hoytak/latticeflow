@@ -246,6 +246,10 @@ namespace latticeQBP {
       return r() - lm_qii(); 
     }
 
+    dtype current_excess() const {
+      return Base::template excess<0>();
+    }
+
     template <class Lattice> 
     void _debug_checkLevelsetMethodsNode(Lattice& lattice) {
 #ifndef NDEBUG

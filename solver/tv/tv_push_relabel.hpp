@@ -52,11 +52,12 @@ namespace latticeQBP {
 
     typedef shared_ptr<CutInfo> cutinfo_ptr;
 
-#ifndef NDEBUG        
+#if !defined(NDEBUG) && ENABLE_EXPENSIVE_CHECKS
 
     template <typename NodePtrIterator> 
     void checkPartitionedSection(const NodePtrIterator& start, 
                                  const NodePtrIterator& end, uint key) {
+
 
       for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = *it;
@@ -243,7 +244,7 @@ namespace latticeQBP {
     vector<node_ptr>  
     walkConnectedRegion(node_ptr seed_node, const UnaryNodeCriterionFunction& test_f) {
       
-      if(DEBUG_MODE) {
+      if(DEBUG_MODE && ENABLE_EXPENSIVE_CHECKS) {
         for(const auto& n : Base::lattice) {
           assert_equal(n.height, 0);
         }
@@ -274,7 +275,7 @@ namespace latticeQBP {
       for(node_ptr n : nodes) 
         n->height = 0;
 
-      if(DEBUG_MODE) {
+      if(DEBUG_MODE && ENABLE_EXPENSIVE_CHECKS) {
         for(const auto& n : Base::lattice) {
           assert_equal(n.height, 0);
         }
@@ -411,7 +412,7 @@ namespace latticeQBP {
     }
 
     template <typename NodePtrIterator>  
-    inline void setRegionToLambda(const NodePtrIterator& start, 
+    inline dtype setRegionToLambda(const NodePtrIterator& start, 
                                   const NodePtrIterator& end, 
                                   dtype lambda, bool pull_to_center = false) {
 
@@ -462,6 +463,8 @@ namespace latticeQBP {
         n->setOffsetAndScale(Base::lattice, offset, lambda);
         n->_debug_checkLevelsetMethodsNode(Base::lattice);
       }
+
+      return fv_offset;
     }
   };
 }
