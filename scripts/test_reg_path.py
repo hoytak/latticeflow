@@ -9,7 +9,8 @@ from itertools import product
 plot_type = "levels2"
 
 # image_file = "benchmarks/images/truffles.png"
-image_file = "benchmarks/images/truffles-small.png"
+# image_file = "benchmarks/images/truffles-small.png"
+image_file = "benchmarks/images/branches-small.png"
 #image_file = "benchmarks/images/sanity.png"
 
 Xo = imread(image_file)
@@ -28,7 +29,7 @@ X /= X.std()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0.001, 0.1, 50)
+lambdas = np.linspace(0.001, 10, 100)
 
 Xtv_2 = calculate2dTVPath(X, lambdas)
 print "Done calculating Regpath Version."
