@@ -127,6 +127,8 @@ namespace latticeQBP {
 
       vector<vector<node_ptr> > levelset_maps = pfs.run();
 
+      cout << "Finished running initial solution." << endl;
+
       // cout << "After running!!!! " << endl;
 
       // for(auto node_it = lattice.vertexIterator(); !node_it.done(); ++node_it) {
@@ -156,8 +158,18 @@ namespace latticeQBP {
       
       FuncArray R(lattice.shape());
       
+      double sum = 0;
+
       for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
-        R[it.coords()] = toFValue(Node::translateFromRaw(it->r()));
+        double v = toFValue(Node::translateFromRaw(it->r()));
+        R[it.coords()] = v;
+        sum += v;
+      }
+
+      double scale = function_scale;
+
+      for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
+        R[it.coords()] = (R[it.coords()] - (sum / lattice.sizeWithinBounds()) )*scale + function_mean;
       }
 
       return R;
@@ -195,16 +207,36 @@ namespace latticeQBP {
       
       FuncPathArray values(concat(n_lambda, lattice.shape()));
 
+      vector<double> sums(n_lambda, 0);
+
       for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
 
         vector<dtype> path_values = traceRegularizationPath(it.coords(), lambda_calc_values);
         
         assert_equal(path_values.size(), n_lambda);
 
-        for(size_t i = 0; i < path_values.size(); ++i) {
-          values[concat(lambda_idx_values[i].index, it.coords())] 
-            = toFValue(path_values[i]);
+        for(size_t i = 0; i < n_lambda; ++i) {
+          double v = toFValue(path_values[i]);
+          values[concat(lambda_idx_values[i].index, it.coords())] = v;
+          sums[lambda_idx_values[i].index] += v;
+        }
+      }
 
+      vector<double> means(n_lambda, 0);
+
+      // cout << "max_lambda = " << max_lambda << endl;
+      // cout << "sqrt(max_lambda) = " << sqrt(max_lambda) << endl;
+
+      double scale = function_scale;
+
+      for(size_t i = 0; i < n_lambda; ++i) {
+        means[i] = sums[i] / lattice.sizeWithinBounds();
+      }
+
+      for(size_t i = 0; i < n_lambda; ++i) {
+        for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
+          double& v = values[concat(i, it.coords())];
+          v = (v - means[i])*scale + function_mean;
         }
       }
 
@@ -232,7 +264,6 @@ namespace latticeQBP {
 
     inline double toFValue(dtype x) const {
       double v = (Node::toFValue(x) - 0.5) * function_scale + function_mean;
-
       assert_equal(x, toFVDType(v));
       return v;
     }
@@ -401,6 +432,13 @@ namespace latticeQBP {
         }
       };
 
+      cout << "Set up initial regularization path structures; running...  " << endl;
+
+      TimeTracker tt;
+      tt.start();
+
+      double next_time = 5;
+
       // Now we have something for it
       while(!run_heap.empty()) {
         FunPoint fp = run_heap.top();
@@ -412,8 +450,15 @@ namespace latticeQBP {
            || (fp.rps2 != nullptr && !isStillValid(fp.rps2, current_lambda)))
           continue;
 
+        if(tt.elapsedSeconds() > next_time) {
+          cout << "\n[" << tt.timeAsString(next_time) << ": " 
+               << (100 - 100*Node::scaleToValue(current_lambda)) 
+               << "% done]" << flush;
+          next_time += 5;
+        }
+
         if(PRINT_INTERATION_INFO_MESSAGES)
-          cout << "current_lambda = " << current_lambda;
+          cout << "current_lambda = " << current_lambda << "; ";
 
         switch(fp.mode) {
         case FunPoint::Join: 

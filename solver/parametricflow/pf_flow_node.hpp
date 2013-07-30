@@ -103,11 +103,10 @@ namespace latticeQBP {
     static constexpr int n_weight_bits = (Policy::using_weights && !Policy::weights_binary
                                           ? 2*sizeof(dtype) : 0);
     
-    static constexpr int n_scale_bits_room = 3*sizeof(dtype) / 2;
-    static constexpr int n_bits_scale_precision = 7*sizeof(dtype) - n_scale_bits_room;
+    static constexpr int n_bits_scale_precision = 6*sizeof(dtype) > 24 ? 6*sizeof(dtype) : 24;
 
-    static constexpr int log2_scale_max = n_bits_scale_precision + n_scale_bits_room;
-
+    static constexpr int log2_scale_max = 7*sizeof(dtype);
+    
     static constexpr int n_bits_function_room = 2*sizeof(dtype);
     static constexpr int n_bits_function_precision = (7*sizeof(dtype) 
                                                       - n_weight_bits 

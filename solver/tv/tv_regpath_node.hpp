@@ -11,6 +11,8 @@
 #define PRINT_SPLIT_MESSAGES false
 #define PRINT_PATH_MESSAGES false
 #define PRINT_INTERATION_INFO_MESSAGES false
+#define ENHANCE_ACCURACY false
+#define PRINT_SPLIT_STAT_CHARS true
 
 // #define PRINT_SPLIT_MESSAGES true
 // #define PRINT_PATH_MESSAGES true
@@ -472,10 +474,13 @@ namespace latticeQBP {
         assert(!piv[1]->nodes.empty());
       }
 
-      Array<RegionInformation, 2> p_info = {
-        getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
-        getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
-      };
+      dtype s0 = cut->partitions[0]->nodes.size();
+      dtype s1 = cut->partitions[1]->nodes.size();
+
+      if(ENHANCE_ACCURACY && max(s0, s1) >= 500*min(s0, s1)) {
+        cout << 'E';
+        return BisectionCheck(lambda_lb, lambda_ub);
+      }
 
       comp_type c = cut->cut_value;
 
@@ -491,14 +496,16 @@ namespace latticeQBP {
         return dsi;
       }
 
+      Array<RegionInformation, 2> p_info = {
+        getRegionInfo(piv[0]->nodes.begin(), piv[0]->nodes.end(), lambda_lb),
+        getRegionInfo(piv[1]->nodes.begin(), piv[1]->nodes.end(), lambda_lb),
+      };
+
       comp_type g0 = p_info[0].gamma_sum - c;
       comp_type g1 = p_info[1].gamma_sum + c;
 
       comp_type q0 = p_info[0].qii_sum;
       comp_type q1 = p_info[1].qii_sum;
-
-      dtype s0 = cut->partitions[0]->nodes.size();
-      dtype s1 = cut->partitions[1]->nodes.size();
 
       // Okay, it's a lot more accurate if we flip things around so
       // that s1 is the smaller set of nodes....  For some reason...
@@ -508,8 +515,33 @@ namespace latticeQBP {
         
       dtype denom_pm = (s0 + s1);
 
-      dtype lb = max(Node::getScaleFromQuotient_T(intercept - max(s1,s0)*(s0 + s1), denom + denom_pm), lambda_lb);
-      dtype ub = min(Node::getScaleFromQuotient_T(move(intercept), denom - denom_pm), lambda_ub);
+      dtype lb = Node::getScaleFromQuotient_T(intercept - max(s1,s0)*(s0 + s1), denom + denom_pm);
+      dtype ub = Node::getScaleFromQuotient_T(move(intercept), denom - denom_pm);
+
+      if(unlikely(ub < lambda_lb)) {
+        if(PRINT_SPLIT_STAT_CHARS)
+          cout << 'U';
+
+        // This one seems to really mess things up when it occurs
+        return BisectionCheck(lambda_lb, lambda_ub);
+
+        // if(ENHANCE_ACCURACY)
+        //   return BisectionCheck(lambda_lb, lambda_ub);
+        // else
+        //   return DetailedSplitInfo({true, false, lambda_lb, cut});
+      }
+
+      if(unlikely(lb > lambda_ub)) {
+        if(PRINT_SPLIT_STAT_CHARS)
+          cout << 'L';
+        if(ENHANCE_ACCURACY)
+          return BisectionCheck(lambda_lb, lambda_ub);
+        else
+          return DetailedSplitInfo({true, false, lambda_ub, cut});
+      }
+
+      lb = max(lb, lambda_lb);
+      ub = min(ub, lambda_ub);
 
       comp_type gs = g0 + g1;
 
@@ -535,17 +567,33 @@ namespace latticeQBP {
 
         return min((lmq1 + g1 - c - s1 * fl_avg), (lmq0 + g0 + c - s0 * fl_avg));
       };
-
+                                              
       comp_type value_lb = value(lb);
       comp_type value_ub = value(ub);
+                                              
+      if(unlikely(value_lb >= 0)) {
+        if(PRINT_SPLIT_STAT_CHARS)
+          cout << 'v';
+        if(ENHANCE_ACCURACY)
+          return BisectionCheck(lambda_lb, lambda_ub);
+        else
+          return DetailedSplitInfo({true, false, lb, cut});
+      }
 
-      if(value_lb >= 0)
-        ub = lb;
-
-      if(value_ub <= 0)
-        lb = ub;
+      if(unlikely(value_ub < 0)) { 
+        if(PRINT_SPLIT_STAT_CHARS)
+          cout << '^';
+        if(ENHANCE_ACCURACY)
+          return BisectionCheck(lambda_lb, lambda_ub);
+        else
+          return DetailedSplitInfo({true, false, ub, cut});
+      }
 
       while(lb + 1 < ub) {
+
+        if(value_ub == 0)
+          break;
+
         // cout << "Finding Value! [" << lb << ',' << ub << "] = (" << value(lb) << ',' << value(ub) << ")" << endl;
         assert_leq(value_lb, 0);
         assert_geq(value_ub, 0);
@@ -669,7 +717,7 @@ namespace latticeQBP {
           assert_gt(dsi.lambda_of_split_capacity, lambda_calc);
           assert_leq(dsi.lambda_of_split_capacity, current_lambda);
 
-          lambda_calc = dsi.lambda_of_split_capacity + (dtype(1) << (max(1, Node::n_bits_scale_precision - 24)));
+          lambda_calc = dsi.lambda_of_split_capacity + (dtype(1) << (max(0, Node::n_bits_scale_precision - 24)));
 
           if(lambda_calc >= current_lambda) {
             lambda_calc = current_lambda;
@@ -901,9 +949,11 @@ namespace latticeQBP {
       r1->checkKeySynced();
       r2->checkKeySynced();
 
-      if(r1->rhs_mode == Split && r2->rhs_mode == Split && (r1->rhs_nodes[0] == r2->rhs_nodes[0]))
+      // Make sure we are not joining one that's right here 
+      if(r1->rhs_mode == Split && r2->rhs_mode == Split 
+         && (r1->rhs_lambda == current_lambda && r2->rhs_lambda == current_lambda))
         return -1;
-    
+
       dtype r10 = r1->adjusted_r_at_0;
       dtype r20 = r2->adjusted_r_at_0;
       dtype r11 = r1->adjusted_r_at_1;

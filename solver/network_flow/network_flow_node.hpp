@@ -13,6 +13,7 @@ namespace latticeQBP {
     static constexpr bool on_by_reduction = false;
     static constexpr bool enable_key_partitioning = true;
     static constexpr bool adjustment_mode = true;
+    static constexpr bool allow_for_multithreading = false;
   };
 
   ////////////////////////////////////////////////////////////////////////////////

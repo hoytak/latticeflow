@@ -3,13 +3,20 @@
 
 #include <iostream>
 #include <cstdint>
+#include <cmath>
 #include <boost/multiprecision/cpp_int.hpp>
 
 namespace latticeQBP {
 
   using namespace std;
 
+  // typedef boost::multiprecision::int128_t int128_type;
+#if true
+  typedef __int128 int128_type;
+  inline __int128 abs(__int128 __x) { return __x >= 0 ? __x : -__x; }
+#else
   typedef boost::multiprecision::int128_t int128_type;
+#endif
 
 #ifndef NDEBUG
   typedef boost::multiprecision::checked_int256_t int256_type;

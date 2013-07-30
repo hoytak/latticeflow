@@ -53,9 +53,10 @@ namespace latticeQBP {
     typedef typename Lattice::value_type Node;
 
     // Pull in the computation types 
-    static constexpr bool reduction_mode  = Node::reduction_mode;
-    static constexpr bool adjustment_mode = Node::adjustment_mode;
-    static constexpr bool enable_keys     = Node::enable_keys;
+    static constexpr bool reduction_mode           = Node::reduction_mode;
+    static constexpr bool adjustment_mode          = Node::adjustment_mode;
+    static constexpr bool enable_keys              = Node::enable_keys;
+    static constexpr bool allow_for_multithreading = Node::allow_for_multithreading;
 
   public:
     PRFlow(Lattice& _lattice)
@@ -109,6 +110,7 @@ namespace latticeQBP {
     size_t num_flips;
 
     vector<node_ptr> node_buffer;
+    vector<node_ptr> flip_back_stack;
 
     bool disable_printing;
 
@@ -447,7 +449,10 @@ namespace latticeQBP {
           for(uint i = 0; i < kernel_size; ++i) {
             node_ptr nn =  n + step_array[i];
             dtype cap;
-            if( (cap = pushCapacity(n, nn, i)) != 0 && eligible(nn) && nn->height == level-1) {
+            if(( (cap = pushCapacity(n, nn, i)) != 0) 
+               && eligible(nn) 
+               && nn->height == level-1) {
+
               dtype amount = min(remaining_excess, cap);
               remaining_excess -= amount;
               push<1>(n, nn, i, amount);
@@ -458,7 +463,7 @@ namespace latticeQBP {
                 --node_index;
 
                 break;
-              }
+              } 
             }
           }
         }
@@ -722,8 +727,7 @@ namespace latticeQBP {
     }
 
     void finish() {
-
-      _debug_forceVerifyAll();
+      _debug_VerifyAll();
 
       assert(levels[0].nodes.empty());
 

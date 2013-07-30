@@ -179,7 +179,7 @@ def configure(ctx):
         cxxflags.append("-DENABLE_PR_CHECKS")
         linkflags.append("-DENABLE_PR_CHECKS")
 
-    ctx.env.append_value('CXXFLAGS', cxxflags)
+    W.addOption(ctx, cxxflags)
     ctx.env.append_value('LINKFLAGS', linkflags)
 
     ################################################################################
