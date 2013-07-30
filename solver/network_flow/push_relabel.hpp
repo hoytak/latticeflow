@@ -1,6 +1,10 @@
 #ifndef _PUSH_RELABEL_H_
 #define _PUSH_RELABEL_H_
 
+#ifndef ALLOW_FOR_MULTITHREADING
+#define ALLOW_FOR_MULTITHREADING false
+#endif
+
 #ifndef ENABLE_PR_CHECKS
 #define ENABLE_PR_CHECKS false
 #endif
@@ -56,7 +60,6 @@ namespace latticeQBP {
     static constexpr bool reduction_mode           = Node::reduction_mode;
     static constexpr bool adjustment_mode          = Node::adjustment_mode;
     static constexpr bool enable_keys              = Node::enable_keys;
-    static constexpr bool allow_for_multithreading = Node::allow_for_multithreading;
 
   public:
     PRFlow(Lattice& _lattice)
@@ -321,7 +324,7 @@ namespace latticeQBP {
       // Hot start the nodes by building trees from all the sinks
       vector<node_ptr>& original_nodes = node_buffer;
       original_nodes.clear();
-      
+
       for(NodePtrIterator it = start; it != end; ++it) {
         node_ptr n = lattice.resolve(*it);
         assert(eligible(n));
@@ -332,28 +335,42 @@ namespace latticeQBP {
         }
       }
 
-      // Go through and add all these node neighbors to the queue
       deque<node_ptr> queue;
-
-      for(node_ptr n : original_nodes) {
+      
+      auto addNeighbors = [&queue, this](node_ptr n, size_t current_level) {
         for(uint i = 0; i < kernel_size; ++i) {
-
           node_ptr nn = n + step_array[i];
 
-          if(eligible(nn) && nn->height == 0 
-             && pushCapacity(nn, n, reverseIndex(i)) > 0) {
-            addToLevel<CHECK_EXCESS, 1>(nn, 1);
-            queue.push_back(nn);
+          if(eligible(nn)) {
+            if(nn->height == 0 
+               && pushCapacity(nn, n, reverseIndex(i)) > 0) {
+              this->addToLevel<CHECK_EXCESS, 1>(nn, current_level + 1);
+              queue.push_back(nn);
+              assert_equal(nn->height, current_level + 1);
+            }
+          } else if (ALLOW_FOR_MULTITHREADING) {
+            if(pushCapacity(n, nn, i) > 0) {
+              flipNode(nn);
+              flip_back_stack.push_back(nn);
+            }
           }
         }
-      }
-    
+      };
+
+      levels[1].nodes.reserve(2*original_nodes.size());
+
+      // Go through and add all these node neighbors to the queue
+      for(node_ptr n : original_nodes)
+        addNeighbors(n, 0);
+
       // Now go through and run the queue
-      size_t current_level = 0; // Triggers the resizing
+      size_t current_level = 0; 
 
       while(!queue.empty()) {
       
         node_ptr n = queue.front();
+        queue.pop_front();
+
         assert(eligible(n));
 
         if(n->height != current_level) {
@@ -361,27 +378,15 @@ namespace latticeQBP {
           assert_equal(current_level, n->height);
           assert_equal(queue.back()->height, n->height);
 
-          if(unlikely(current_level >= levels.size())) {
+          if(unlikely(current_level + 1 >= levels.size())) {
             levels.resize(2*levels.size());
             cerr << "LEVELS RESIZE! " << endl;
           }
 
-          levels[current_level].nodes.reserve(3*queue.size() / 2);
+          levels[current_level+1].nodes.reserve(3*queue.size() / 2);
         }
 
-        queue.pop_front();
-
-        for(uint i = 0; i < kernel_size; ++i) {
-
-          node_ptr nn = n + step_array[i];
-
-          if(eligible(nn) && nn->height == 0 
-             && pushCapacity(nn, n, reverseIndex(i)) > 0) {
-            addToLevel<CHECK_EXCESS, 1>(nn, current_level + 1);
-            queue.push_back(nn);
-            assert_equal(nn->height, current_level + 1);
-          }
-        }
+        addNeighbors(n, current_level);
       }
 
       // Now, go through and see if the tree has missed any.  If
@@ -712,6 +717,11 @@ namespace latticeQBP {
     void finish() {
       _debug_VerifyAll();
 
+      for(node_ptr n : flip_back_stack) 
+        flipNode(n);
+
+      flip_back_stack.clear();
+
       assert(levels[0].nodes.empty());
 
       for(size_t level = 1; level <= top_level ; ++level) {
@@ -731,6 +741,7 @@ namespace latticeQBP {
       }
 
       top_level = 1;
+
     }
   
     ////////////////////////////////////////////////////////////////////////////////

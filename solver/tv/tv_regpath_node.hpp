@@ -478,7 +478,9 @@ namespace latticeQBP {
       dtype s1 = cut->partitions[1]->nodes.size();
 
       if(ENHANCE_ACCURACY && max(s0, s1) >= 500*min(s0, s1)) {
-        cout << 'E';
+        if(PRINT_SPLIT_STAT_CHARS)
+          cout << 'E';
+
         return BisectionCheck(lambda_lb, lambda_ub);
       }
 

@@ -11,7 +11,7 @@ namespace latticeQBP {
   using namespace std;
 
   // typedef boost::multiprecision::int128_t int128_type;
-#if true
+#ifdef NDEBUG
   typedef __int128 int128_type;
   inline __int128 abs(__int128 __x) { return __x >= 0 ? __x : -__x; }
 #else
