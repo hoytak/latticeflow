@@ -9,6 +9,7 @@ from itertools import product
 plot_type = "levels2"
 
 image_file = "benchmarks/images/truffles.png"
+image_file = "benchmarks/images/branches.png"
 #image_file = "benchmarks/images/truffles-small.png"
 # image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
@@ -18,7 +19,7 @@ Xo = imread(image_file)
 if not Xo.size:
     raise IOError("Error loading image %s." % image_file)
 
-X = (Xo.mean(axis=2) / Xo.max())[::2, ::2]
+X = (Xo.mean(axis=2) / Xo.max())
 
 X -= X.mean()
 X /= X.std()

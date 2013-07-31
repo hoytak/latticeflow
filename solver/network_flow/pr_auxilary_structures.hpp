@@ -15,7 +15,7 @@ public:
     return _height < nq._height;
   }
     
-  inline void set(level_index_type h, int idx) {
+  inline void set(level_index_type h, int32_t idx) {
     _height = h;
     _index = idx;
   }
@@ -42,7 +42,7 @@ public:
 
 private:
   level_index_type _height;
-  unsigned int _index;
+  uint32_t _index;
 };
 
 template <typename level_index_type, int kernel_size> 

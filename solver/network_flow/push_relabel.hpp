@@ -25,6 +25,7 @@
 #include <iostream>
 #include <memory>
 #include <type_traits>
+#include <cstdint>
 
 #include "../common.hpp"
 #include "level_heap.hpp"
@@ -90,7 +91,7 @@ namespace latticeQBP {
     typedef typename Lattice::value_ptr node_ptr;
     typedef typename Lattice::value_direct_ptr node_dptr;
     typedef typename Lattice::value_cptr node_cptr;
-    typedef typename Lattice::value_type::level_index_type level_index_type;
+    typedef uint32_t level_index_type;
 
     typedef unsigned int uint;
     static constexpr uint kernel_size = Lattice::kernel_size;
