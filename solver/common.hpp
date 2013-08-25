@@ -3,9 +3,9 @@
 
 #define ENABLE_EXPENSIVE_CHECKS false
 
-// #ifdef NDEBUG
-// #undef NDEBUG
-// #endif
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 
 #include "common/array_wrapper.hpp"
 #include "common/code_optimizations.hpp"

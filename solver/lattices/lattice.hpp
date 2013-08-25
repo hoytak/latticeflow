@@ -176,7 +176,7 @@ namespace latticeQBP {
       return *(*this)(index_vect({pos...}));
     }
 
-    size_t index(value_cptr v) const {
+    size_t index(const value_cptr& v) const {
     
       assert(v >= begin());
       assert(v < data.end());
@@ -195,8 +195,6 @@ namespace latticeQBP {
 
       size_t idx = (v - start);
 
-      assert_lt(idx, size());
-
       assert( &((*this)[idx]) == v);
 
       return idx;
@@ -211,7 +209,7 @@ namespace latticeQBP {
     }
 
     size_t size() const {
-      return indexer.size() - 2*indexer.stride(0);
+      return indexer.size() - 2*indexer.stride(0)*edge_buffers[0];
     }
 
     bool isValidNode(value_ptr v) const {
@@ -330,11 +328,11 @@ namespace latticeQBP {
       return prod(bounds);
     }
 
-    size_t index(index_vect x) const {
+    size_t index(const index_vect& x) const {
       return indexer.getIndex(x);
     }
 
-    size_t boundedIndex(index_vect x) const {
+    size_t boundedIndex(const index_vect& x) const {
       return Indexer<nd>(bounds).getIndex(x);
     }
 

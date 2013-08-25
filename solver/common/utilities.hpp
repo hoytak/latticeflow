@@ -19,25 +19,26 @@ Array<size_t, nd> dim_vector_factors(const Array<size_t, nd>& a) {
   return dim_factor;
 }
 
-template <typename dtype, int nd>
-Array<dtype, nd + 1> concat(const Array<dtype, nd>& a, dtype v) {
+template <typename dtype, typename T, int nd>
+Array<dtype, nd + 1> concat(const Array<dtype, nd>& a, const T& v,
+                            typename std::enable_if<std::is_convertible<T, dtype>::value>::type* = 0) {
 
   Array<dtype, nd+1> ret;
 
   for(size_t i = 0; i < nd; ++i)
     ret[i] = a[i];
 
-  ret[nd] = v;
+  ret[nd] = static_cast<dtype>(v);
 
   return ret;
 }
 
-template <typename dtype, int nd>
-Array<dtype, nd + 1> concat(dtype v, const Array<dtype, nd>& a) {
-
+template <typename dtype, typename T, int nd>
+Array<dtype, nd + 1> concat(T v, const Array<dtype, nd>& a,
+                            typename std::enable_if<std::is_convertible<T, dtype>::value>::type* = 0) {
   Array<dtype, nd+1> ret;
 
-  ret[0] = v;
+  ret[0] = static_cast<dtype>(v);
 
   for(size_t i = 0; i < nd; ++i)
     ret[i+1] = a[i];
@@ -45,8 +46,9 @@ Array<dtype, nd + 1> concat(dtype v, const Array<dtype, nd>& a) {
   return ret;
 }
 
-template <typename dtype, int nd1, int nd2>
-Array<dtype, nd1 + nd2> concat(const Array<dtype, nd1>& a1, const Array<dtype, nd2>& a2) {
+template <typename dtype, int nd1, typename T, int nd2>
+Array<dtype, nd1 + nd2> concat(const Array<dtype, nd1>& a1, const Array<T, nd2>& a2, 
+                               typename std::enable_if<std::is_convertible<T, dtype>::value>::type* = 0) {
 
   Array<dtype, nd1 + nd2> ret;
 
@@ -54,7 +56,7 @@ Array<dtype, nd1 + nd2> concat(const Array<dtype, nd1>& a1, const Array<dtype, n
     ret[i] = a1[i];
 
   for(int i = 0; i < nd2; ++i)
-    ret[i+nd1] = a2[i];
+    ret[i+nd1] = static_cast<dtype>(a2[i]);
 
   return ret;
 }

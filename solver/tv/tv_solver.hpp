@@ -48,6 +48,9 @@ namespace latticeQBP {
     typedef LatticeArray<double, n_dimensions + 1> FuncPathArray;
     typedef LatticeArray<double, n_dimensions> FuncArray;
 
+    typedef LatticeArray<double, n_dimensions + 2> ImagePathArray;
+    typedef LatticeArray<double, n_dimensions + 1> ImageArray;
+
     static_assert(Kernel::is_geocut_applicable,
                   "Kernel is not valid for GeoCuts or TV Minimization.");
 
@@ -175,6 +178,60 @@ namespace latticeQBP {
       return R;
     }
 
+    ////////////////////////////////////////////////////////////////////////////////
+    // Functions to deal with getting images together on a local level 
+
+    ImageArray runSingleLambdaOnImage(double *function, double lambda, double *image, size_t k) {
+
+      setup(function, lambda);
+      
+      ParametricFlowSolver<dtype, Lattice> pfs(lattice);
+
+      pfs.run();
+      
+      LatticeArray<size_t, n_dimensions> groups(lattice.shape());
+
+      size_t n_groups = solver.findAllConnectedRegions(groups,
+                                                       [](node_ptr n1, node_ptr n2) 
+                                                       {
+                                                         return abs(n1->r() - n2->r()) <= 1;
+                                                       });
+      
+      vector<double> sums(n_groups * k);
+      vector<double> counts(n_groups);
+      
+      for(auto it = groups.begin(); it != groups.end(); ++it) {
+
+        size_t idx = groups.index(it);
+        size_t grp = *it;
+        
+        assert_lt(grp, n_groups);
+
+        counts[grp] += 1;
+        for(size_t i = 0; i < k; ++i) {
+          sums[idx*k + i] += image[idx*k + i];
+        }
+      }
+
+      // for(size_t grp = 0; grp < n_groups; ++grp) {
+      //   for(size_t i = 0; i < k; ++i) {
+      //     sums[grp*k + i] /= counts[grp];
+      //   }
+      // }
+
+      ImageArray R(concat(lattice.shape(), k));
+
+      // for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
+      //   size_t grp = groups[it.nodeIndex()];
+      //   assert_lt(grp, n_groups);
+      //   for(size_t i = 0; i < k; ++i) {
+      //     R[concat(it.coords(), i)] = sums[grp*k + i];
+      //   }
+      // }
+
+      return R;
+    }
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Retrieving the path
     
@@ -653,6 +710,17 @@ namespace latticeQBP {
     TVSolver<Kernel, dtype> solver({nx, ny});
     return FuncMapPtr(new LatticeArray<double, 2>(solver.runSingleLambda(function, lambda)));
   }
+
+  typedef shared_ptr<LatticeArray<double, 3> > ImageMapPtr;
+
+  template <typename Kernel, typename dtype = long>
+  ImageMapPtr calculate2dTVImage(size_t nx, size_t ny, 
+                                 double *function, double lambda, 
+                                 double *image, size_t k) {
+    TVSolver<Kernel, dtype> solver({nx, ny});
+    return ImageMapPtr(new LatticeArray<double, 3>(solver.runSingleLambdaOnImage(function, lambda, image, k)));
+  }
+
 
   typedef shared_ptr<LatticeArray<double, 3> > RegPathPtr;
 

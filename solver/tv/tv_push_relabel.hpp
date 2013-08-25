@@ -3,6 +3,7 @@
 
 #include "../common.hpp"
 #include "../network_flow/push_relabel.hpp"
+#include "../lattices.hpp"
 
 #include <unordered_set>
 
@@ -23,6 +24,7 @@ namespace latticeQBP {
 
     typedef unsigned int uint;
     static constexpr uint kernel_size = Lattice::kernel_size;
+    static constexpr uint n_dimensions = Lattice::n_dimensions;
 
     TV_PRFlow(Lattice& lattice) 
       : Base(lattice)
@@ -282,6 +284,62 @@ namespace latticeQBP {
       }
 
       return nodes;
+    }
+
+
+    template <typename BinaryNodeCriterionFunction> 
+    size_t findAllConnectedRegions(LatticeArray<size_t, n_dimensions>& R, 
+                                   const BinaryNodeCriterionFunction& test_f) {
+      
+      if(DEBUG_MODE && ENABLE_EXPENSIVE_CHECKS) {
+        for(const auto& n : Base::lattice) {
+          assert_equal(n.height, 0);
+        }
+      }
+
+      assert(R.shape() == Base::lattice.shape());
+
+      size_t group_index = 0;
+      vector<node_ptr> nodes;
+
+      for(auto it = Base::lattice.vertexIterator(); !it.done(); ++it) {
+        if(it->height == 1)
+          continue;
+
+        nodes.clear();
+        nodes.push_back(it.node());
+
+        size_t visit_index = 0;
+        node_ptr seed_node = it.node();
+
+        do {
+          node_ptr n = nodes[visit_index];
+
+          for(uint ei = 0; ei < kernel_size; ++ei) {
+
+            node_ptr nn = n + Base::step_array[ei];
+          
+            if(nn->height == 0
+               && (Base::pushCapacity(n, nn, ei) 
+                   + Base::pushCapacity(nn, n, Base::reverseIndex(ei)) > 0)
+               && (test_f(seed_node, nn))) {
+           
+              nn->height = 1;
+              nodes.push_back(nn);
+            }
+          }
+        } while( ( (++visit_index) != nodes.size()));
+
+        for(node_ptr n : nodes) 
+          R[Base::lattice.getCoords(n)] = group_index;
+
+        ++group_index;
+      }
+
+      for(auto& n : Base::lattice)
+        n.height = 0;
+
+      return group_index;
     }
 
     template <typename ForwardIterator, typename ExtractFunction>

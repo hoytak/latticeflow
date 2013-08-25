@@ -49,14 +49,23 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     cdef cppclass FuncArray "latticeQBP::LatticeArray<double, 2>":
         double at(size_t, size_t) nogil except +
 
+    cdef cppclass ImageArray "latticeQBP::LatticeArray<double, 3>":
+        double at(size_t, size_t, size_t) nogil except +
+
     cdef cppclass FuncPathArray "latticeQBP::LatticeArray<double, 3>":
         double at(size_t, size_t, size_t) nogil except +
 
     ctypedef FuncArray* FuncMapPtr
+    ctypedef ImageArray* ImageMapPtr
     ctypedef FuncPathArray* RegPathPtr
 
     FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_16, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
+
+    ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_16, int64_t>" (
+        size_t nx, size_t ny, 
+        double *function, double lm,
+        double *image, size_t k) nogil except +
 
     RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_16, int64_t>" (
         size_t nx, size_t ny, double *function, vector[double]) nogil except +
@@ -449,7 +458,30 @@ def calculate2dTV(ar Xo, double flt):
 
     for xi in range(nx):
         for yi in range(ny):
-            R[xi,yi] = Rv.at(xi, yi) * flt
+            R[xi,yi] = Rv.at(xi, yi)
+        
+    return R
+
+def calculate2dTVImage(ar Xo, double flt):
+
+    cdef ar[double, ndim=3, mode='c'] X = np.ascontiguousarray(Xo, dtype='d')
+
+    cdef ar[double, ndim=2, mode='c'] X_r = (X.mean(axis=2) / X.max())
+
+    cdef size_t nx = X.shape[0]
+    cdef size_t ny = X.shape[1]
+    cdef size_t nz = X.shape[2]
+
+    cdef ImageMapPtr Rv = _calculate2dTVImage(nx, ny, &X_r[0,0], flt, &X[0,0,0], nz)
+
+    cdef ar[double, ndim=3, mode='c'] R = np.empty( (X.shape[0], X.shape[1], X.shape[2]) )
+
+    cdef size_t i, j, k
+
+    for xi in range(nx):
+        for yi in range(ny):
+            for zi in range(nz):
+                R[xi,yi,zi] = Rv.at(xi, yi,zi)
         
     return R
 
@@ -479,7 +511,7 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
     for li in range(n_lm):
         for xi in range(nx):
             for yi in range(ny):
-                R[li,xi,yi] = Rv.at(li, xi, yi) / lma[i]
+                R[li,xi,yi] = Rv.at(li, xi, yi)
         
     return R
 

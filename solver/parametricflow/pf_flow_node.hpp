@@ -52,7 +52,6 @@ namespace latticeQBP {
     static inline dtype mult(dtype x) { return x; }
     static inline dtype fvToNf(dtype x) { return x; }
     static inline dtype nfToFv(dtype x) { return x; }
-
   };
 
   template <typename dtype, int bits_precision, int weights_binary> 
