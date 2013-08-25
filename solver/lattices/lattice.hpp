@@ -125,6 +125,14 @@ namespace latticeQBP {
     inline value_ptr end() const {
       return end_ptr;
     }
+
+    inline value_cptr cbegin() const {
+      return begin_ptr;
+    }
+
+    inline value_cptr cend() const {
+      return end_ptr;
+    }
   
     inline value_ptr ptr(const index_vect& idxv) const {
       return begin() + indexer.getIndex(idxv);

@@ -200,7 +200,7 @@ namespace latticeQBP {
       vector<double> sums(n_groups * k);
       vector<double> counts(n_groups);
       
-      for(auto it = groups.begin(); it != groups.end(); ++it) {
+      for(auto it = groups.cbegin(); it != groups.cend(); ++it) {
 
         size_t idx = groups.index(it);
         size_t grp = *it;
