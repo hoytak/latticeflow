@@ -209,25 +209,25 @@ namespace latticeQBP {
 
         counts[grp] += 1;
         for(size_t i = 0; i < k; ++i) {
-          sums[idx*k + i] += image[idx*k + i];
+          sums[grp*k + i] += image[idx*k + i];
         }
       }
 
-      // for(size_t grp = 0; grp < n_groups; ++grp) {
-      //   for(size_t i = 0; i < k; ++i) {
-      //     sums[grp*k + i] /= counts[grp];
-      //   }
-      // }
+      for(size_t grp = 0; grp < n_groups; ++grp) {
+        for(size_t i = 0; i < k; ++i) {
+          sums[grp*k + i] /= counts[grp];
+        }
+      }
 
       ImageArray R(concat(lattice.shape(), k));
 
-      // for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
-      //   size_t grp = groups[it.nodeIndex()];
-      //   assert_lt(grp, n_groups);
-      //   for(size_t i = 0; i < k; ++i) {
-      //     R[concat(it.coords(), i)] = sums[grp*k + i];
-      //   }
-      // }
+      for(auto it = lattice.vertexIterator(); !it.done(); ++it) {
+        size_t grp = groups[it.nodeIndex()];
+        assert_lt(grp, n_groups);
+        for(size_t i = 0; i < k; ++i) {
+          R[concat(it.coords(), i)] = sums[grp*k + i];
+        }
+      }
 
       return R;
     }
