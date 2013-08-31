@@ -8,8 +8,13 @@ from matplotlib.pylab import imread, figure, show
 lm = float(sys.argv[1])
 #image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/truffles-small.png"
-image_file = "benchmarks/images/trees.png"
+#image_file = "benchmarks/images/truffles.png"
+#image_file = "benchmarks/images/trees-cut.png"
+#image_file = "benchmarks/images/marmot.png"
+#image_file = "benchmarks/images/mona_lisa.png"
 #image_file = "benchmarks/images/branches.png"
+image_file = "benchmarks/images/Bodiam-castle.png"
+
 
 Xo = imread(image_file)
 
@@ -28,25 +33,22 @@ Xtv = calculate2dTV(X, lm)
 Xtv -= X.mean()
 Xtv /= X.std()
 
-f = figure()
-a = f.add_subplot(111)
-a.title("Original Image.")
-a.imshow(X, interpolation='nearest', cm="gray")
+# X += X.min()
+# X /= X.max()
+
+# Xtv += X.min()
+# Xtv /= X.max()
+
 
 f = figure()
 a = f.add_subplot(111)
-a.title("Total Variation Levels.")
-a.imshow(Xtv,  interpolation='nearest', cm="gray")
+a.set_title("Original Image.")
+a.imshow(X, interpolation='nearest', cmap="gray")
 
 f = figure()
 a = f.add_subplot(111)
-a.title("Original Colored Image.")
-a.imshow(Xo, interpolation='nearest')
-
-f = figure()
-a = f.add_subplot(111)
-a.title("Original Colored Image.")
-a.imshow(Xo, interpolation='nearest')
+a.set_title("Total Variation Solution, $\lambda=%0.2f$." % lm)
+a.imshow(Xtv,  interpolation='nearest', cmap="gray")
 
 show()
 

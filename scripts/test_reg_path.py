@@ -8,11 +8,12 @@ from itertools import product
 
 plot_type = "levels2"
 
-image_file = "benchmarks/images/truffles.png"
-image_file = "benchmarks/images/branches.png"
+# image_file = "benchmarks/images/truffles.png"
+# image_file = "benchmarks/images/branches.png"
 #image_file = "benchmarks/images/truffles-small.png"
 # image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
+image_file = "benchmarks/images/mona_lisa.png"
 
 Xo = imread(image_file)
 
@@ -30,9 +31,9 @@ X /= X.std()
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-lambdas = np.linspace(0.1, 1, 50)
+lambdas = np.linspace(0.1, 1, 100)
 
-Xtv_2 = calculate2dTVPath(X, lambdas)
+Xtv_2 = calculate2dTVPath(X, np.linspace(0.1, 1, 10000)
 print "Done calculating Regpath Version."
 
 # Get the first round
@@ -67,11 +68,9 @@ def plotRegPath(a, Xtv):
     a.set_xlim([lambdas.min(),lambdas.max()])
     a.set_ylim([ymin, ymax])
 
-f = figure()
+plotRegPath(figure().add_subplot(111), Xtv_1)
 
-plotRegPath(f.add_subplot(411), Xtv_1)
-
-plotRegPath(f.add_subplot(412), Xtv_2)
+plotRegPath(figure().add_subplot(111), Xtv_2)
 
 for i in range(Xtv_1.shape[0]):
     Xtv_1[i,:,:] -= Xtv_1[i,:,:].mean()

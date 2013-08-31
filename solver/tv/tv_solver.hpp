@@ -355,7 +355,7 @@ namespace latticeQBP {
     // INITIAL: methods for constructing the initial reg paths
 
     void _constructInitialRegPathsFromSolvedLattice(
-        const vector<vector<node_ptr> >& level_sets, dtype solved_lamba) {
+        const vector<vector<node_ptr> >& level_sets, dtype solved_lamba, dtype lambda_min) {
 
 #ifndef NDEBUG
         for(auto& n : lattice)
@@ -516,6 +516,14 @@ namespace latticeQBP {
 
         if(PRINT_INTERATION_INFO_MESSAGES)
           cout << "current_lambda = " << current_lambda << "; ";
+
+        if(current_lambda < lambda_min) {
+          // Clean up and exit
+          
+
+
+          break;
+        }
 
         switch(fp.mode) {
         case FunPoint::Join: 
