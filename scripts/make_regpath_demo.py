@@ -7,16 +7,16 @@ from matplotlib import collections
 from itertools import product
 from time import clock
 
-lambda_bounds = [0.001, 0.05]
+lambda_bounds = [0.25, .5]
 lineweight = 0.05
 
 
 plot_type = "levels2"
 
-# image_file = "benchmarks/images/truffles.png"
-# image_file = "benchmarks/images/branches.png"
-#image_file = "benchmarks/images/truffles-small.png"
-# image_file = "benchmarks/images/sanity.png"
+#image_file = "benchmarks/images/truffles.png"
+#image_file = "benchmarks/images/branches.png"
+# image_file = "benchmarks/images/truffles-small.png"
+#image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
 #image_file = "benchmarks/images/mona_lisa.png"
 image_file = "benchmarks/images/Bodiam-castle.png"
@@ -55,9 +55,13 @@ def plotRegPath(a, lambdas, Xtv, transform):
     
     ymin, ymax = 0,0
 
+    Xtv += np.random.normal(0,0.01,size=Xtv.shape)
+
     for xi, yi in product(range(0, Xtv.shape[1]), range(0, Xtv.shape[2])):
 
+
         y = Xtv[:,xi, yi]
+        
         if transform:
             y /= lambdas
 
@@ -74,12 +78,12 @@ def plotRegPath(a, lambdas, Xtv, transform):
 f = figure()
 a = f.add_subplot(111)
 plotRegPath(a, tv_path_lambdas, Xtv_path, False)
-a.set_title("Raw Reg Path on $\lambda \in \Icc{%0.2f, %0.2f}$" % (tv_path_lambdas.min(), tv_path_lambdas.max()))
+a.set_title(r"Raw Reg Path on $\lambda \in \Icc{%0.2f, %0.2f}$" % (tv_path_lambdas.min(), tv_path_lambdas.max()))
 
 f = figure()
 a = f.add_subplot(111)
 plotRegPath(a, tv_path_lambdas, Xtv_path, True)
-a.set_title("Reg Path on $\lambda \in \Icc{%0.2f, %0.2f}$" % (tv_path_lambdas.min(), tv_path_lambdas.max()))
+a.set_title(r"Reg Path on $\lambda \in \Icc{%0.2f, %0.2f}$" % (tv_path_lambdas.min(), tv_path_lambdas.max()))
 
 show()
 

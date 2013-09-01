@@ -660,14 +660,14 @@ namespace latticeQBP {
       dtype split_ub;
     };
 
-    SplitInfo calculateSplit(dtype current_lambda) const {
+    SplitInfo calculateSplit(dtype current_lambda, dtype lambda_min) const {
       checkKeySynced();
 
       if(n_nodes == 1) {
-        ci().split_calculation_done_to_lambda = 0;
+        ci().split_calculation_done_to_lambda = lambda_min;
         ci().lambda_of_split = -1;
         
-        return SplitInfo({false, -1, 0});
+        return SplitInfo({false, -1, lambda_min});
       }
 
       if(DEBUG_MODE && ci().split_calculation_done_to_lambda != -1)
@@ -678,7 +678,7 @@ namespace latticeQBP {
       // off, and will require recalculations, but those are few and
       // far between.
       
-      dtype lambda_calc_lb = 0;
+      dtype lambda_calc_lb = lambda_min;
 
       for(auto it = ci().join_points.begin(); it != ci().join_points.end();) {
         // Remove things that are meaningless...
@@ -698,7 +698,8 @@ namespace latticeQBP {
         }
       }
       
-      DetailedSplitInfo dsi{false,false, 0}, last_dsi{false, false, 0};
+      DetailedSplitInfo dsi{false,false, lambda_min};
+      DetailedSplitInfo last_dsi{false, false, lambda_min};
       dtype lambda_calc = lambda_calc_lb;
       bool cut_exists = false;
 

@@ -67,14 +67,18 @@ namespace latticeQBP {
       , solver(lattice)
       , calculated_lambda(-1)
       , max_lambda(0)
+      , min_lambda(0)
       , node_map_at_lambda_max(lattice.shape())
     {
     }
 
-    void setup(double *function, double _max_lambda) {
+    void setup(double *function, double _max_lambda, double _min_lambda) {
       // reset();
 
       {
+        
+        // need to set max_lambda to be positive here
+
         // Set up the main constants for the 
         double v_min = function[0], v_max = function[0], v_sum = function[0];
 
@@ -94,6 +98,7 @@ namespace latticeQBP {
       }
 
       max_lambda = max(_max_lambda, 1e-8);
+      min_lambda = _min_lambda / max_lambda;
 
       typename Node::template NodeFiller<Lattice> filler(lattice);
 
@@ -117,6 +122,7 @@ namespace latticeQBP {
     void run() {
 
       dtype initial_lambda = Node::toScaleDType(1);
+      dtype lambda_min = Node::toScaleDType(min_lambda);
 
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
       
@@ -143,17 +149,18 @@ namespace latticeQBP {
       // }
 
       // Now build the whole regularization path
-      _constructInitialRegPathsFromSolvedLattice(levelset_maps, initial_lambda);
+      _constructInitialRegPathsFromSolvedLattice(levelset_maps, initial_lambda, 
+                                                 lambda_min);
     }
 
-    void run(double *function, double max_lambda) {
-      setup(function, max_lambda);
+    void run(double *function, double max_lambda, double _min_lambda ) {
+      setup(function, max_lambda, _min_lambda);
       run();
     }
 
     FuncArray runSingleLambda(double *function, double lambda) {
 
-      setup(function, lambda);
+      setup(function, lambda, 0);
       
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
 
@@ -183,7 +190,7 @@ namespace latticeQBP {
 
     ImageArray runSingleLambdaOnImage(double *function, double lambda, double *image, size_t k) {
 
-      setup(function, lambda);
+      setup(function, lambda, 0);
       
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
 
@@ -330,7 +337,7 @@ namespace latticeQBP {
 
     PRSolver solver;
     dtype calculated_lambda;
-    double max_lambda;
+    double max_lambda, min_lambda;
     LatticeArray<_TVRegPathSegment*, n_dimensions> node_map_at_lambda_max;
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -430,9 +437,9 @@ namespace latticeQBP {
       };
 
       auto registerPossibleSplit = 
-        [&run_heap](_TVRegPathSegment *rps, dtype lambda_start) {
+        [&run_heap, lambda_min](_TVRegPathSegment *rps, dtype lambda_start) {
 
-        auto sp_info = rps->calculateSplit(lambda_start);
+        auto sp_info = rps->calculateSplit(lambda_start, lambda_min);
         
         if(sp_info.split_occurs) {
           run_heap.push(FunPoint({sp_info.split_lambda, FunPoint::Split, rps, nullptr}));
@@ -496,6 +503,8 @@ namespace latticeQBP {
 
       double next_time = 5;
 
+      bool stopped_at_lambda_min = false;
+
       // Now we have something for it
       while(!run_heap.empty()) {
         FunPoint fp = run_heap.top();
@@ -503,13 +512,44 @@ namespace latticeQBP {
 
         dtype current_lambda = fp.lambda;
 
+        if(current_lambda <= lambda_min) {
+          // Clean up and exit; set all the lambda values to the
+          // clipped value. 
+
+          while(!run_heap.empty()) {
+            FunPoint fp = run_heap.top();
+            run_heap.pop();
+
+            if(isStillValid(fp.rps1, lambda_min)) {
+              fp.rps1->lhs_lambda = lambda_min;
+              fp.rps1->lhs_mode = _TVRegPathSegment::Initial;
+              fp.rps1->deactivate();
+            }
+
+            if(fp.rps2 != nullptr && isStillValid(fp.rps2, current_lambda)) {
+              fp.rps2->lhs_lambda = lambda_min;
+              fp.rps2->lhs_mode = _TVRegPathSegment::Initial;
+              fp.rps2->deactivate();
+            }
+          }
+
+          stopped_at_lambda_min = true; 
+
+          break;
+        }
+
         if(!isStillValid(fp.rps1, current_lambda) 
            || (fp.rps2 != nullptr && !isStillValid(fp.rps2, current_lambda)))
           continue;
 
         if(tt.elapsedSeconds() > next_time) {
-          cout << "\n[" << tt.timeAsString(next_time) << ": " 
-               << (100 - 100*Node::scaleToValue(current_lambda)) 
+          cout << "\n[" << tt.timeAsString(next_time) << ", at lambda = " 
+               << (Node::scaleToValue(current_lambda) * max_lambda) << " / "
+               << (Node::scaleToValue(lambda_min) * max_lambda) << "; "
+               << (current_lambda) << " / "
+               << (lambda_min) << "; "
+               << (100 - 100*(Node::scaleToValue(current_lambda) 
+                              - Node::scaleToValue(lambda_min))) 
                << "% done]" << flush;
           next_time += 5;
         }
@@ -517,13 +557,6 @@ namespace latticeQBP {
         if(PRINT_INTERATION_INFO_MESSAGES)
           cout << "current_lambda = " << current_lambda << "; ";
 
-        if(current_lambda < lambda_min) {
-          // Clean up and exit
-          
-
-
-          break;
-        }
 
         switch(fp.mode) {
         case FunPoint::Join: 
@@ -599,30 +632,42 @@ namespace latticeQBP {
       // lhs_lambda value, its rhs_lambda value is > 0, and all the
       // other RegPath entries have lhs_lambda > 0. 
 
-      if(DEBUG_MODE) {
-        assert_equal(_regpathsegment_hold.back().lhs_lambda, -1);
-        assert_equal(_regpathsegment_hold.back().lhs_mode, _TVRegPathSegment::Unset);
+      if(stopped_at_lambda_min) {
 
-        for(const auto& rps : _regpathsegment_hold) {
-          if(&rps != &(_regpathsegment_hold.back())) {
-            assert_gt(rps.lhs_lambda, 0);
-            assert(rps.lhs_mode != _TVRegPathSegment::Unset);
+        if(DEBUG_MODE) {
+          assert_equal(_regpathsegment_hold.back().lhs_lambda, -1);
+          assert_equal(_regpathsegment_hold.back().lhs_mode, _TVRegPathSegment::Unset);
+
+          for(const auto& rps : _regpathsegment_hold) {
+            if(&rps != &(_regpathsegment_hold.back())) {
+              assert_gt(rps.lhs_lambda, lambda_min);
+              assert(rps.lhs_mode != _TVRegPathSegment::Unset);
+            }
           }
         }
-      }
 
-      auto& last_rps = _regpathsegment_hold.back();
+        auto& last_rps = _regpathsegment_hold.back();
 
-      for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
-        if(DEBUG_MODE && n->key() != 0) {
-          assert_equal(n->key(), last_rps.ci().key);
-          n->clearKey();
+        for(node_ptr n = lattice.begin(); n != lattice.end(); ++n) {
+          if(DEBUG_MODE && n->key() != 0) {
+            assert_equal(n->key(), last_rps.ci().key);
+            n->clearKey();
+          }
         }
-      }
 
-      last_rps.lhs_lambda = 0;
-      last_rps.lhs_mode = _TVRegPathSegment::Initial;
-      last_rps.deactivate();
+        last_rps.lhs_lambda = lambda_min;
+        last_rps.lhs_mode = _TVRegPathSegment::Initial;
+        last_rps.deactivate();
+
+      } else {
+
+#ifndef NDEBUG        
+        for(const auto& rps : _regpathsegment_hold) {
+          assert_geq(rps.lhs_lambda, lambda_min);
+          assert(rps.lhs_mode != _TVRegPathSegment::Unset);
+        }
+#endif
+      }
 
       // And we are done.
       calculated_lambda = solved_lamba;
@@ -751,7 +796,9 @@ namespace latticeQBP {
 
     TVSolver<Kernel, dtype> solver({nx, ny});
 
-    solver.run(function, *max_element(lambda.begin(), lambda.end()));
+    solver.run(function, 
+               *max_element(lambda.begin(), lambda.end()),
+               *min_element(lambda.begin(), lambda.end()));
 
     return RegPathPtr(new LatticeArray<double, 3>(solver.getRegularizationPath(lambda)));
   }
