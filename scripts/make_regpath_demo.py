@@ -7,7 +7,7 @@ from matplotlib import collections
 from itertools import product
 from time import clock
 
-lambda_bounds = [0.25, .5]
+lambda_bounds = [0.1, .25]
 lineweight = 0.05
 
 
@@ -15,7 +15,7 @@ plot_type = "levels2"
 
 #image_file = "benchmarks/images/truffles.png"
 #image_file = "benchmarks/images/branches.png"
-# image_file = "benchmarks/images/truffles-small.png"
+#image_file = "benchmarks/images/truffles-small.png"
 #image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
 #image_file = "benchmarks/images/mona_lisa.png"
@@ -55,7 +55,7 @@ def plotRegPath(a, lambdas, Xtv, transform):
     
     ymin, ymax = 0,0
 
-    Xtv += np.random.normal(0,0.01,size=Xtv.shape)
+
 
     for xi, yi in product(range(0, Xtv.shape[1]), range(0, Xtv.shape[2])):
 
@@ -65,6 +65,8 @@ def plotRegPath(a, lambdas, Xtv, transform):
         if transform:
             y /= lambdas
 
+        y += np.random.normal(0,0.001)
+        
         col.append( np.vstack([lambdas, y]).T )
         
         ymin = min(ymin, y.min())
