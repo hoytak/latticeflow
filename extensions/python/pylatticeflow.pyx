@@ -69,7 +69,7 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
-    FuncMapPtr _calculate2dPWReg "latticeQBP::calculate2dTV<latticeQBP::Full2d_4, int32_t>" (
+    FuncMapPtr _calculate2dPWReg "latticeQBP::estimate2dTVProximal<latticeQBP::Full2d_4, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
     ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_24, int64_t>" (
@@ -557,7 +557,9 @@ cdef double QL(ar[double, ndim=2, mode="c"] X,
             + value_g)
 
 
-cdef pL(ar[double, ndim=2, mode="c"] Y, ar[double, ndim=2, mode="c"] grad_Y, double L, double reg_p):
+cdef pL(ar[double, ndim=2, mode="c"] Y,
+        ar[double, ndim=2, mode="c"] grad_Y,
+        double L, double reg_p):
 
     cdef ar[double, ndim=2, mode="c"] Yt = Y - (1.0 / L) * grad_Y
 
@@ -565,6 +567,9 @@ cdef pL(ar[double, ndim=2, mode="c"] Y, ar[double, ndim=2, mode="c"] grad_Y, dou
     cdef size_t ny = Yt.shape[1]
 
     cdef double flt = 2 * reg_p / L 
+
+    # print "Yt = ",
+    # print Yt
 
     cdef FuncMapPtr Rv = _calculate2dPWReg(nx, ny, &Yt[0,0], flt)
 
@@ -576,6 +581,10 @@ cdef pL(ar[double, ndim=2, mode="c"] Y, ar[double, ndim=2, mode="c"] grad_Y, dou
         for yi in range(ny):
             R[xi,yi] = Rv.at(xi, yi)
         
+
+    # print "R = ",
+    # print R
+    
     return R
     
     
@@ -595,32 +604,47 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
     cdef double t = 1, t_new = 1
 
     cdef double value_f_Xtr, value_g_Xtr, value_F_Xtr, value_QL
-
-    cdef ar[double, ndim=2, mode="c"] Y = X.copy()
-
+    
     cdef list solution_track = []
+
+    #print "X.shape = ", X.shape[0], X.shape[1]
+
+    Y = X.copy()
 
     for iteration in range(n_iterations):
 
+        # print "Y.shape = ", Y.shape[0], Y.shape[1]
+        
         value_Y, grad_Y = f(Y)
 
-        if sample_interval != 0 and (iteration % sample_interval) == 0:
-            solution_track.append( (value_Y, Y.copy()) )
+        assert grad_Y.shape == Y.shape
 
-        print "Iteration", iteration, "; value = ", value_Y
+        if sample_interval != 0 and (iteration % sample_interval) == 0:
+            value_F_Y = value_Y + calculate_g(Y, reg_p)
+            solution_track.append( (value_F_Y, Y.copy()) )
+
+            print "Iteration", iteration, "; value = ", value_F_Y
+            
+        # print "; ".join(["%1.5f" % v for v in (Y.ravel())])
+
+        # print "Y = "
+        # print Y
 
         while True:
             
-            Xtr = pL(X, grad_Y, L, reg_p)
-            
+            Xtr = pL(Y, grad_Y, L, reg_p)
+
+            # print "Xtr = " #"; ".join(["%1.5f" % v for v in (Y.ravel())])
+            # print Xtr
+
             value_f_Xtr, grad_f_Xtr = f(Xtr)
             
             value_g_Xtr = calculate_g(Xtr, reg_p)
             value_F_Xtr = value_f_Xtr + value_g_Xtr
             
-            value_QL = QL(Xtr, X, value_Y, grad_Y, L, value_g_Xtr)
+            value_QL = QL(Xtr, Y, value_Y, grad_Y, L, value_g_Xtr)
 
-            print "value_QL, value_F_Xtr = ", value_QL, value_F_Xtr
+            # print " >>>> value_QL, value_F_Xtr = ", value_QL, value_F_Xtr
 
             if value_F_Xtr > value_QL:
                 L *= eta
@@ -629,9 +653,11 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
 
         t_new = 0.5*(1 + fsqrt(1 + 4*t*t))
 
-        Y = Xtr +  ((t - 1) / t_new ) * (Xtr - Y)
+        Y = Xtr + ((t - 1) / t_new ) * (Xtr - Y)
 
-    return Xtr, solution_track
+        t = t_new
+
+    return Y, solution_track
 
 
 def regularizedRegression(A, ar y, double reg_parameter,
@@ -647,28 +673,39 @@ def regularizedRegression(A, ar y, double reg_parameter,
 
     Ars = A.reshape(-1, A.shape[-1]).T
 
-    yA = dot(y, Ars)
+    yA = dot(y, Ars).reshape(1,-1)
     
     def f(X):
+
+        assert X.shape == A.shape[:-1]
 
         Xrs = X.reshape(-1,1)
 
         assert yA.size == Xrs.shape[0]
-        assert A.shape[1] == Xrs.shape[0]
+        assert Ars.shape[1] == Xrs.shape[0], \
+               ("A.shape[1] = %d != %d = Xrs.shape[0]"
+                % (A.shape[1], Xrs.shape[0]))
 
-        xtAtA = dot(dot(Xrs.T, A.T), A)
+        xtAtA = dot(dot(Xrs.T, Ars.T), Ars)
 
-        value = la.inner(xtAtA, Xrs) - 2 * la.inner(yA, Xrs)
+        # print "xtAtA.shape", xtAtA.shape
+        # print "Xrs.shape", Xrs.shape
+        # print "yA.shape", yA.shape
 
-        assert np.isscalar(value)
+        value = dot(xtAtA, Xrs) - 2 * dot(yA, Xrs)
+
+        assert value.size == 1
 
         grad = 2 * (xtAtA - yA)
 
-        grad.reshape(X.shape)
-        
-        return value, grad
+        # print "Grad = "
+        # print grad.reshape(X.shape)
 
-    starting_X = la.lstsq(Ars, y).reshape(A.shape[:-1])
+        return value[0,0], grad.reshape(X.shape)
+
+    starting_X = np.zeros(A.shape[:-1])
+
+    #dot(la.pinv(Ars), y).reshape(A.shape[:-1])
 
     print "Running Fista"
 

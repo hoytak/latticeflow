@@ -81,6 +81,8 @@ namespace latticeQBP {
 
         // cout << endl;
 
+        // cerr << "<<<<<<<<<<<<<<<" << '\n';
+
         // Set them to their initial value
         if(Node::setToMeanReductionPoint(lattice, ls_range.start, ls_range.end)) {
           // cout << "DONE" << endl;
@@ -106,9 +108,9 @@ namespace latticeQBP {
         assert(it_fwd != it_bck);
 
         while(true) {
-          // cerr << "Fwd: starting; at ." << (it_fwd - ls_range.start) << endl;
-          // cerr << "Bck starting; at ." << (it_bck - ls_range.start) << endl;
-          
+          // cerr << "Fwd: starting; at " << (it_fwd - ls_range.start) << endl;
+          // cerr << "Bck starting; at " << (it_bck - ls_range.start) << endl;
+
           assert(it_fwd != it_bck);
 
           while( (*it_fwd)->state() == 0 ) {
@@ -116,7 +118,6 @@ namespace latticeQBP {
             if(unlikely(it_bck == it_fwd))
               goto separation_done;
             // cerr << "ran fwd; at ." << (it_fwd - ls_range.start) << endl;
- 
           }
           
           // cerr << "Done" << endl;
@@ -129,6 +130,7 @@ namespace latticeQBP {
           }
           
           // cerr << "Done" << endl;
+
           swap(*it_fwd, *it_bck);
           ++it_fwd;
 
@@ -151,7 +153,7 @@ namespace latticeQBP {
           }
         }
 
-        // cout << "Adding mid_point = [" << mid_point 
+        // cerr << "Adding mid_point = [" << mid_point 
         //      << "/" << (ls_range.end - ls_range.start) << endl;
 
         long top_idx = (ls_range.end - ls_range.start); 
@@ -207,6 +209,11 @@ namespace latticeQBP {
       return level_sets;
     }
   };
+
+  
+
+
+
 };
 
 #include "../common/debug_flymake_test.hpp"

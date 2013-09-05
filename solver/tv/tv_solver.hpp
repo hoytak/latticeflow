@@ -160,6 +160,13 @@ namespace latticeQBP {
 
     FuncArray runSingleLambda(double *function, double lambda) {
 
+      // if(lambda == 0) {
+      //   FuncArray R(lattice.shape());
+      //   for(auto it = lattice.vertexIterator(); !it.done(); ++it) 
+      //     R[it.coords()] = function[it.nodeIndex()];
+      //   return R;
+      // }
+
       setup(function, lambda, 0);
       
       ParametricFlowSolver<dtype, Lattice> pfs(lattice);
@@ -803,6 +810,82 @@ namespace latticeQBP {
     return RegPathPtr(new LatticeArray<double, 3>(solver.getRegularizationPath(lambda)));
   }
 
+  template <typename Kernel, typename dtype = long>
+  FuncMapPtr estimate2dTVProximal(size_t nx, size_t ny, 
+                                  double *function, double reg_p) {
+
+    static_assert(Kernel::is_geocut_applicable,
+                  "Kernel is not valid for GeoCuts or TV Minimization.");
+    static_assert(Kernel::n_dimensions == 2, "Currently only dealing with 2d stuff.");
+
+    typedef LatticeLevelReductions<2, Kernel, dtype> rsolver_type;
+    typedef typename rsolver_type::index_vect index_vect;
+
+    // cout << "reg_p = " << reg_p << endl;
+
+    // cout << "nx = " << nx << "; ny = " << ny << endl;
+
+    double min_x = *min_element(function, function + nx*ny);
+    double max_x = *max_element(function, function + nx*ny);
+
+    double w = max_x - min_x;
+    double mid = 0.5*(max_x + min_x);
+
+    const double conversion_factor = 
+      (pow(2.0, (sizeof(dtype)*5))
+       / (max(1.0, reg_p) * (max_x - min_x)));
+
+    auto toDtype = [conversion_factor, mid](double x) {
+      return dtype(round(x * conversion_factor));
+    }; 
+
+    auto toDbl = [conversion_factor, mid](dtype x) {
+      return double(x) / conversion_factor;
+    }; 
+
+    rsolver_type rsolver(index_vect({nx, ny}));
+
+    for(auto ufi = rsolver.getUnaryFillingIterator(); !ufi.done(); ++ufi) {
+
+      size_t idx_x = ufi.coords()[0];
+      size_t idx_y = ufi.coords()[1];
+      size_t idx = ufi.nodeIndex();
+
+      dtype fv = toDtype(function[idx] - mid);
+
+      ufi.addUnaryPotential(0, fv);
+      assert_equal(2*fv, ufi.node()->r());
+    }
+
+    // for(auto it = rsolver.getLattice().vertexIterator(); !it.done(); ++it) {
+    //   assert_almost_equal(function[it.nodeIndex()], mid + 0.5*toDbl(it->r()));
+    // }
+
+
+    for(auto pwfi = rsolver.getPairwiseFillingIterator(); !pwfi.done(); ++pwfi) {
+        
+      size_t src_idx_x = pwfi.coordsOf1()[0];
+      size_t src_idx_y = pwfi.coordsOf1()[1];
+
+      size_t dest_idx_x = pwfi.coordsOf2()[0];
+      size_t dest_idx_y = pwfi.coordsOf2()[1];
+
+      dtype pwf = toDtype(0.5*reg_p);
+
+      pwfi.addPairwisePotential(0, pwf, pwf, 0);
+    }
+    
+    rsolver.run();
+
+    FuncMapPtr Rptr = FuncMapPtr(new LatticeArray<double, 2>(index_vect({nx, ny})));
+
+    for(auto it = rsolver.getLattice().vertexIterator(); !it.done(); ++it) {
+      (*Rptr)[it.coords()] = mid + 0.5*toDbl(it->r());
+      // assert_almost_equal(function[it.nodeIndex()], (*Rptr)[it.coords()]);
+    }
+   
+    return Rptr;
+  }
 }; 
 
 #include "../common/debug_flymake_test.hpp"

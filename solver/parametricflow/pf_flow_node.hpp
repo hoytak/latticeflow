@@ -358,7 +358,7 @@ namespace latticeQBP {
 
       // cout << endl;
 
-      // cout << "r_max = " << r_max << "; r_min = " << r_min << endl;
+      // cerr << "r_max = " << r_max << "; r_min = " << r_min << "; count = " << count << endl;
 
       if(r_max - r_min <= 1)
         return true;

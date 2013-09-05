@@ -61,7 +61,7 @@ for i in xrange(n_observations):
 
 print "Starting regularization." 
 
-Xtr, path = regularizedRegression(A, y, 0.01, 100, 1)
+Xtr, path = regularizedRegression(A, y, 1, 100, 1)
 
 f = figure()
 a = f.add_subplot(111)
