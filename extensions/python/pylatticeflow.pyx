@@ -1,10 +1,17 @@
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 import numpy as np
+import numpy.linalg as la
+from numpy import dot, inner
 from numpy cimport ndarray as ar
 from cython cimport view
 from cPickle import dumps
 from hashlib import md5
+cimport cython
+
+cdef extern from "math.h":
+    double fabs "abs"(double)
+    double fsqrt "sqrt"(double)
 
 cdef extern from "interface.hpp"  namespace "latticeQBP":
 
@@ -59,15 +66,18 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     ctypedef ImageArray* ImageMapPtr
     ctypedef FuncPathArray* RegPathPtr
 
-    FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_16, int64_t>" (
+    FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
-    ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_16, int64_t>" (
+    FuncMapPtr _calculate2dPWReg "latticeQBP::calculate2dTV<latticeQBP::Full2d_4, int32_t>" (
+        size_t nx, size_t ny, double *function, double lm) nogil except +
+
+    ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, 
         double *function, double lm,
         double *image, size_t k) nogil except +
 
-    RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_16, int64_t>" (
+    RegPathPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, vector[double]) nogil except +
 
     
@@ -515,4 +525,152 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
         
     return R
 
+
+@cython.boundscheck(False)
+cdef double calculate_g(ar[double, ndim=2, mode="c"] X, double reg_p):
+    cdef size_t i, j
+
+    cdef double r = 0
     
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            if i != X.shape[0] - 1:
+                r += fabs(X[i,j] - X[i+1,j])
+            if j != X.shape[1] - 1:
+                r += fabs(X[i,j] - X[i,j+1])
+                
+    return reg_p * r
+
+
+cdef double QL(ar[double, ndim=2, mode="c"] X,
+               ar[double, ndim=2, mode="c"] Y,
+               double value_Y,
+               ar[double, ndim=2, mode="c"] grad_Y,
+               double L,
+               double value_g):
+
+    XYdiff = X - Y
+    
+    return (value_Y 
+            + ((XYdiff)*grad_Y).sum()
+            + 0.5*L * la.norm(XYdiff)**2
+            + value_g)
+
+
+cdef pL(ar[double, ndim=2, mode="c"] Y, ar[double, ndim=2, mode="c"] grad_Y, double L, double reg_p):
+
+    cdef ar[double, ndim=2, mode="c"] Yt = Y - (1.0 / L) * grad_Y
+
+    cdef size_t nx = Yt.shape[0]
+    cdef size_t ny = Yt.shape[1]
+
+    cdef double flt = 2 * reg_p / L 
+
+    cdef FuncMapPtr Rv = _calculate2dPWReg(nx, ny, &Yt[0,0], flt)
+
+    cdef ar[double, ndim=2, mode='c'] R = np.empty( (Y.shape[0], Y.shape[1]) )
+
+    cdef size_t i, j
+
+    for xi in range(nx):
+        for yi in range(ny):
+            R[xi,yi] = Rv.at(xi, yi)
+        
+    return R
+    
+    
+
+
+@cython.boundscheck(False)
+cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
+                  double reg_p,
+                  size_t n_iterations, size_t sample_interval, double eta = 1.2):
+
+    cdef ar[double, ndim=2, mode="c"] X = initial_X.copy()
+
+    cdef double L = 1
+
+    cdef size_t iteration
+
+    cdef double t = 1, t_new = 1
+
+    cdef double value_f_Xtr, value_g_Xtr, value_F_Xtr, value_QL
+
+    cdef ar[double, ndim=2, mode="c"] Y = X.copy()
+
+    cdef list solution_track = []
+
+    for iteration in range(n_iterations):
+
+        value_Y, grad_Y = f(Y)
+
+        if sample_interval != 0 and (iteration % sample_interval) == 0:
+            solution_track.append( (value_Y, Y.copy()) )
+
+        print "Iteration", iteration, "; value = ", value_Y
+
+        while True:
+            
+            Xtr = pL(X, grad_Y, L, reg_p)
+            
+            value_f_Xtr, grad_f_Xtr = f(Xtr)
+            
+            value_g_Xtr = calculate_g(Xtr, reg_p)
+            value_F_Xtr = value_f_Xtr + value_g_Xtr
+            
+            value_QL = QL(Xtr, X, value_Y, grad_Y, L, value_g_Xtr)
+
+            print "value_QL, value_F_Xtr = ", value_QL, value_F_Xtr
+
+            if value_F_Xtr > value_QL:
+                L *= eta
+            else:
+                break
+
+        t_new = 0.5*(1 + fsqrt(1 + 4*t*t))
+
+        Y = Xtr +  ((t - 1) / t_new ) * (Xtr - Y)
+
+    return Xtr, solution_track
+
+
+def regularizedRegression(A, ar y, double reg_parameter,
+                          size_t n_iterations = 1000, size_t sample_interval = 10,
+                          double eta = 1.2):
+    
+    """
+    Runs that model.  Blah!
+
+    """
+
+    assert A.ndim == 3
+
+    Ars = A.reshape(-1, A.shape[-1]).T
+
+    yA = dot(y, Ars)
+    
+    def f(X):
+
+        Xrs = X.reshape(-1,1)
+
+        assert yA.size == Xrs.shape[0]
+        assert A.shape[1] == Xrs.shape[0]
+
+        xtAtA = dot(dot(Xrs.T, A.T), A)
+
+        value = la.inner(xtAtA, Xrs) - 2 * la.inner(yA, Xrs)
+
+        assert np.isscalar(value)
+
+        grad = 2 * (xtAtA - yA)
+
+        grad.reshape(X.shape)
+        
+        return value, grad
+
+    starting_X = la.lstsq(Ars, y).reshape(A.shape[:-1])
+
+    print "Running Fista"
+
+    return _run2DFista(f, starting_X, reg_parameter,
+                       n_iterations, sample_interval, eta)

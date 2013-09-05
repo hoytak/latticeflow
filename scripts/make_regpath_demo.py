@@ -18,8 +18,8 @@ plot_type = "levels2"
 #image_file = "benchmarks/images/truffles-small.png"
 #image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
-#image_file = "benchmarks/images/mona_lisa.png"
-image_file = "benchmarks/images/Bodiam-castle.png"
+image_file = "benchmarks/images/mona_lisa.png"
+#image_file = "benchmarks/images/Bodiam-castle.png"
 
 Xo = imread(image_file)
 
@@ -31,13 +31,15 @@ X = (Xo.mean(axis=2) / Xo.max())[::2, ::2]
 X -= X.mean()
 X /= X.std()
 
+print "Image shape = ", X.shape
+
 # X = np.linspace(0,1.25,6).reshape( (3,2) )
 
 # Xtv0 = calculate2dTV(X, 0)
 
 # assert abs(X - Xtv0).mean() <= 1e-4, abs(X - Xtv0).mean()
 
-tv_path_lambdas = np.linspace(lambda_bounds[0], lambda_bounds[1], 100)
+tv_path_lambdas = np.linspace(lambda_bounds[0], lambda_bounds[1], 3)
 
 time_start = clock()
 Xtv_path = calculate2dTVPath(X, tv_path_lambdas)
