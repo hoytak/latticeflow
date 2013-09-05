@@ -870,7 +870,7 @@ namespace latticeQBP {
       size_t dest_idx_x = pwfi.coordsOf2()[0];
       size_t dest_idx_y = pwfi.coordsOf2()[1];
 
-      dtype pwf = toDtype(0.5*reg_p);
+      dtype pwf = toDtype(0.25*reg_p);
 
       pwfi.addPairwisePotential(0, pwf, pwf, 0);
     }

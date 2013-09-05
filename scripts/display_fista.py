@@ -30,7 +30,7 @@ X = (Xo.mean(axis=2) / Xo.max())
 X -= X.mean()
 X /= X.std()
 
-n_observations = 100
+n_observations = 500
 
 y_idx = set()
 
@@ -39,12 +39,15 @@ def add_set(xl, xh, yl, yh):
         y_idx.add( (i, j) )
 
 
-b = int(min(X.shape[0], X.shape[1]) / 4)
+#b = int(min(X.shape[0], X.shape[1]) )
 
-add_set(0, b, 0, X.shape[1])
-add_set(X.shape[0]-b, X.shape[0], 0, X.shape[1])
-add_set(0, X.shape[0], 0, b)
-add_set(0, X.shape[0], X.shape[1] - b, X.shape[1])
+# add_set(0, b, 0, X.shape[1])
+# add_set(X.shape[0]-b, X.shape[0], 0, X.shape[1])
+# add_set(0, X.shape[0], 0, b)
+# add_set(0, X.shape[0], X.shape[1] - b, X.shape[1])
+
+for i in xrange(n_observations):
+    y_idx.add( (np.random.randint(X.shape[0]), np.random.randint(X.shape[1]) ) )
 
 y_idx = sorted(list(y_idx))
 
@@ -61,7 +64,7 @@ for i in xrange(n_observations):
 
 print "Starting regularization." 
 
-Xtr, path = regularizedRegression(A, y, 1, 100, 1)
+Xtr, path = regularizedRegression(A, y, 0.01, 1000, 1)
 
 f = figure()
 a = f.add_subplot(111)
