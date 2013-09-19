@@ -18,15 +18,16 @@ plot_type = "levels2"
 #image_file = "benchmarks/images/truffles-small.png"
 #image_file = "benchmarks/images/sanity.png"
 #image_file = "benchmarks/images/branches-small.png"
-image_file = "benchmarks/images/mona_lisa.png"
+#image_file = "benchmarks/images/mona_lisa.png"
 #image_file = "benchmarks/images/Bodiam-castle.png"
+image_file = "benchmarks/images/ct-brain.png"
 
 Xo = imread(image_file)
 
 if not Xo.size:
     raise IOError("Error loading image %s." % image_file)
 
-X = (Xo.mean(axis=2) / Xo.max())[::2, ::2]
+X = (Xo.mean(axis=2) / Xo.max())
 
 X -= X.mean()
 X /= X.std()
