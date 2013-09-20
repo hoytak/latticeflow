@@ -7,7 +7,7 @@ from matplotlib import collections
 from itertools import product
 from time import clock
 
-lambda_bounds = [0.1, .25]
+lambda_bounds = [0.01, .05]
 lineweight = 0.05
 
 
@@ -27,7 +27,7 @@ Xo = imread(image_file)
 if not Xo.size:
     raise IOError("Error loading image %s." % image_file)
 
-X = (Xo.mean(axis=2) / Xo.max())
+X = (Xo.mean(axis=2) / Xo.max())[::3, ::3]
 
 X -= X.mean()
 X /= X.std()
@@ -48,7 +48,7 @@ tv_path_time = clock() - time_start
 
 print "Done calculating Regpath Version; time = %f" % tv_path_time
 
-tv_lambdas = np.linspace(lambda_bounds[0], lambda_bounds[1], 100)
+tv_lambdas = np.linspace(lambda_bounds[0], lambda_bounds[1], 500)
 
 def plotRegPath(a, lambdas, Xtv, transform):
 
