@@ -1,7 +1,7 @@
 #ifndef _KERNEL_LATTICE_H_
 #define _KERNEL_LATTICE_H_
 
-#include "lattice.hpp"
+#include "latticearray.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 // A more advanced lattice of kernel stuff
