@@ -3,7 +3,7 @@
 import numpy as np
 import sys
 from itertools import product
-from pylatticeflow import regularizedRegression
+from pylatticeflow import partiallyObservedRegression
 from matplotlib.pylab import imread, figure, show
 
 # lm = float(sys.argv[1])
@@ -25,7 +25,7 @@ std_thresh = 0
 image_file = "benchmarks/images/ct-brain.png"
 np.random.seed(0)
 
-max_n_opservations = 10000
+max_n_opservations = 1000
 
 Xo = imread(image_file)
 
@@ -34,10 +34,11 @@ if not Xo.size:
 
 print "Image file %s loaded." % image_file
 
-X = (Xo.mean(axis=2) / Xo.max())[::2, ::2]
+X = (Xo.mean(axis=2) / Xo.max())[::5, ::5]
 
 X -= X.mean()
 X /= X.std()
+
 
 y_idx = set()
 
@@ -45,7 +46,6 @@ def add_set(xl, xh, yl, yh):
     for i, j in product(xrange(xl, xh), xrange(yl,yh)):
         if 0 <= i < X.shape[0] and 0 <= j < X.shape[1]:
             y_idx.add( (i, j) )
-
 
 #b = int(min(X.shape[0], X.shape[1]) )
 
@@ -65,7 +65,7 @@ def add_block(x, y):
 
     for i, j in product(xrange(ix - 2, ix + 3), xrange(iy - 2, iy + 3)):
         if 0 <= i < X.shape[0] and 0 <= j < X.shape[1]:
-            samples.append( (i, j) )
+            samples.append( X[i,j] )
 
     assert samples
 
@@ -93,15 +93,10 @@ if n_observations > max_n_opservations:
     elements = np.random.choice(range(len(y_idx)), n_observations, replace = False)
     y_idx = [y_idx[i] for i in elements]
 
-A = np.zeros( X.shape + (n_observations,) ) 
-y = np.empty(n_observations)
-Obs = np.zeros(X.shape)
+value_matrix = np.zeros(X.shape)
 
-for i in xrange(n_observations):
-    xi, yi = y_idx[i]
-    A[xi,yi,i] = 1
-    y[i] = Obs[xi,yi] = X[xi,yi]
-
+for i, j in y_idx:
+    value_matrix[i,j] = X[i,j]
 
 f = figure()
 a = f.add_subplot(111)
@@ -111,11 +106,11 @@ a.imshow(X, interpolation='nearest', cmap="gray")
 f = figure()
 a = f.add_subplot(111)
 a.set_title("Inpainting Solution")
-a.imshow(Obs,  interpolation='nearest', cmap="gray")
+a.imshow(value_matrix,  interpolation='nearest', cmap="gray")
 
 print "Starting regularization." 
 
-Xtr, path = regularizedRegression(A, y, reg_p, n_iterations, 1)
+Xtr, path = partiallyObservedRegression(value_matrix, reg_p, n_iterations, 1)
 
 f = figure()
 a = f.add_subplot(111)
@@ -123,4 +118,5 @@ a.set_title("FISTA solution")
 a.imshow(Xtr,  interpolation='nearest', cmap="gray")
 
 show()
+
 

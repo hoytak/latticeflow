@@ -7,6 +7,7 @@ from numpy cimport ndarray as ar
 from cython cimport view
 from cPickle import dumps
 from hashlib import md5
+import scipy.interpolate as ip
 cimport cython
 
 cdef extern from "math.h":
@@ -867,7 +868,8 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
         # print Y
 
         while True:
-            
+
+            print "running pL"
             Xtr = pL(Y, grad_Y, L, reg_p, f)
 
             # print "Xtr = " #"; ".join(["%1.5f" % v for v in (Y.ravel())])
@@ -948,3 +950,78 @@ def regularizedRegression(A, ar y, double reg_parameter,
 
     return _run2DFista(f, starting_X, reg_parameter,
                        n_iterations, sample_interval, eta, diff_eps)
+
+
+class _PartObsModel(object):
+
+    def __init__(self, values):
+        self.values = values
+
+    def __call__(self, ar[double, ndim=2, mode="c"] X):
+
+        cdef int xi, yi, nx, ny
+
+        nx = X.shape[0]
+        ny = X.shape[1]
+
+        cdef ar[double, ndim=2, mode="c"] grad = np.zeros( (X.shape[0], X.shape[1]) )
+
+        cdef double cost = 0
+
+        cdef ar[double, ndim=2, mode="c"] Y = self.values
+        
+        for xi in range(nx):
+            for yi in range(ny):
+                if Y[xi,yi] != 0:
+                    cost += (Y[xi,yi] - X[xi, yi])**2 
+                    
+                    grad[xi,yi] = 2*(X[xi,yi] - Y[xi, yi])
+
+        print "cost = ", cost 
+                    
+        return cost, grad 
+        
+
+    
+    
+    
+def partiallyObservedRegression(ar[double, ndim=2, mode="c"] values, 
+                                double reg_parameter,
+                                size_t n_iterations = 1000, size_t sample_interval = 10,
+                                double eta = 1.2, double diff_eps = 0):
+    
+    """
+    Runs that model.  Blah!
+
+    """
+
+    cdef int i, xi, yi, nx, ny
+
+    nx, ny = values.shape[0], values.shape[1]
+    
+    cdef list xyv = []
+    
+    # Get a starting X
+    for xi in range(nx):
+        for yi in range(ny):
+            if values[xi,yi] != 0:
+                xyv.append( (xi,yi,values[xi,yi]) )
+
+    value_loc = np.array(xyv, dtype= 'd')
+                
+    cdef ar[double, ndim=2, mode="c"] query_loc = np.array([(i,j) for i in range(nx) for j in range(ny)], dtype='d')
+
+    cdef ar[double] Xv = ip.griddata(value_loc[:,:2], value_loc[:,2], query_loc, method = "nearest") #fill_value = values.mean())
+
+    cdef ar[double, ndim=2, mode="c"] starting_X = np.zeros( (values.shape[0], values.shape[1] ) )
+
+    for i in range(Xv.shape[0]):
+        starting_X[<int>(query_loc[i,0]), <int>(query_loc[i,1])] = Xv[i]
+    
+    print "Running Fista"
+
+    call_f = _PartObsModel(values) 
+
+    return _run2DFista(call_f, starting_X, reg_parameter,
+                       n_iterations, sample_interval, eta, diff_eps)
+    

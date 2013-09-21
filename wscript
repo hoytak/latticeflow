@@ -232,9 +232,12 @@ def build(ctx):
               )
 
     if ctx.options.python:
+        import numpy
+        
         ctx(features = 'cxx cxxshlib pyext cython',
             source   = ['extensions/python/pylatticeflow.pyx'],
             target   = 'pylatticeflow',
+            includes = [numpy.get_include()],
             use      = ['stlatticeflow']
             )
 
