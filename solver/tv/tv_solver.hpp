@@ -811,7 +811,7 @@ namespace latticeQBP {
   }
 
   template <typename Kernel, typename dtype = long>
-  FuncMapPtr estimate2dTVProximal(size_t nx, size_t ny, 
+  FuncMapPtr run2dTVProximal(size_t nx, size_t ny, 
                                   double *function, double reg_p) {
 
     static_assert(Kernel::is_geocut_applicable,
@@ -845,22 +845,9 @@ namespace latticeQBP {
 
     rsolver_type rsolver(index_vect({nx, ny}));
 
-    for(auto ufi = rsolver.getUnaryFillingIterator(); !ufi.done(); ++ufi) {
-
-      size_t idx_x = ufi.coords()[0];
-      size_t idx_y = ufi.coords()[1];
-      size_t idx = ufi.nodeIndex();
-
-      dtype fv = toDtype(function[idx] - mid);
-
-      ufi.addUnaryPotential(0, fv);
-      assert_equal(2*fv, ufi.node()->r());
-    }
-
     // for(auto it = rsolver.getLattice().vertexIterator(); !it.done(); ++it) {
     //   assert_almost_equal(function[it.nodeIndex()], mid + 0.5*toDbl(it->r()));
     // }
-
 
     for(auto pwfi = rsolver.getPairwiseFillingIterator(); !pwfi.done(); ++pwfi) {
         
@@ -870,9 +857,24 @@ namespace latticeQBP {
       size_t dest_idx_x = pwfi.coordsOf2()[0];
       size_t dest_idx_y = pwfi.coordsOf2()[1];
 
-      dtype pwf = toDtype(0.25*reg_p);
+      dtype pwf = toDtype(0.25*reg_p*pwfi.geocutEdgeWeight());
 
-      pwfi.addPairwisePotential(0, pwf, pwf, 0);
+      pwfi.addPairwisePotential(-pwf, pwf, pwf, -pwf);
+    }
+
+    for(auto ufi = rsolver.getUnaryFillingIterator(); !ufi.done(); ++ufi) {
+
+      size_t idx_x = ufi.coords()[0];
+      size_t idx_y = ufi.coords()[1];
+      size_t idx = ufi.nodeIndex();
+
+      dtype fv = toDtype(function[idx] - mid);
+
+      ufi.addUnaryPotential(0, fv);
+
+      // cerr << "WTF " << fv << "; " << ufi.node()->r() << endl;
+      strong_assert_equal(2*fv, ufi.node()->r());
+      // strong_assert_equal(2, ufi.node()->r());
     }
     
     rsolver.run();

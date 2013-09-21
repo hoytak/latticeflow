@@ -169,7 +169,7 @@ class KernelEdgeGenerator:
             # Verify that it's ok; if not, then just say so
 
             if len(set(angles)) != len(edges):
-                return (False, [1]*len(edges))
+                return (False, defaultdict(lambda: 1))
             
             edge_info = sorted(zip(angles, edges))
             angles = [aw for aw, e in edge_info]
@@ -192,9 +192,17 @@ class KernelEdgeGenerator:
                 (e, aw / (2.0 * math.sqrt(e[0]*e[0] + e[1]*e[1])))
                 for aw, (ang, e) in zip(angle_widths, edge_info))
 
-            return (True, [weight_map[e] for e in edges])
+            for e in edges:
+                if abs(weight_map[e] - weight_map[tuple(sorted(abs(ev) for ev in e))]) > 1e-5:
+                    print "!"*60
+                    print e, " --> ", weight_map[e]
+                    print tuple(sorted(abs(ev) for ev in e)), " --> ", weight_map[tuple(sorted(abs(ev) for ev in e))]
+                    assert False
+
+            return (True, weight_map) 
+
         else:
-            return (False, [1]*len(edges))
+            return (False, defaultdict(lambda: 1)) 
         
 
     def Full(self, dimension, radius):
@@ -241,7 +249,6 @@ class KernelEdgeGenerator:
         # print "\n".join(str(edge + (ang,)) for edge, ang in zip(lr_s, angles))
 
         seen_angles = set()
-        del_set = set()
         
         for ang, e in zip(angles, lr_s):
             if ang in seen_angles:
@@ -341,14 +348,23 @@ class SourceFileSetup:
         ################################################################################
         # Create the edge string
 
+        # print "##"
+
         edge_list_str = '{'
 
         for i, x in enumerate(edge_list):
+            
             edge_list_str += ('{' + ','.join(str(xe) for xe in x)
                               + ('},' if i != len(edge_list) - 1 else '}'))
 
             if (i+1) % (dimension * 2) == 0:
                 edge_list_str += '\n '
+
+            # if len(edge_list) == 24:
+            #     print "ii, jj, gc = i + %d, j + %d, %0.16f" % (x[0], x[1], edge_info.geocut_edge_weights[x])
+              
+            # print x,
+            # print edge_info.geocut_edge_weights[x]
 
         edge_list_str += '}'
 
@@ -357,7 +373,10 @@ class SourceFileSetup:
         d['is_geocut_applicable'] = 1 if edge_info.is_geocut_applicable else 0
         d['geocut_edge_weights'] = (
             '{' + ', '.join( ('%1.16f' % w if w != 1 else "1.0")
-                            for w in edge_info.geocut_edge_weights) + '}')
+                            for w in (
+                                 edge_info.geocut_edge_weights[x]
+                                 for x in edge_list))
+            + '}')
         
         d['n_edges'] = len(edge_list)
 

@@ -43,6 +43,7 @@ def setupCompilerFlags(ctx, cxx11support = False):
             '-march=native',
             '-fipa-struct-reorg',
             '-fipa-cp',
+            '-fsched-stalled-insns=0',
             '-ftree-loop-linear',
             '-mfpmath=sse',
             '-ffast-math',

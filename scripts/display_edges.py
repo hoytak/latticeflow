@@ -13,7 +13,8 @@ lm = float(sys.argv[1])
 #image_file = "benchmarks/images/marmot.png"
 #image_file = "benchmarks/images/mona_lisa.png"
 #image_file = "benchmarks/images/branches.png"
-image_file = "benchmarks/images/Bodiam-castle.png"
+image_file = "benchmarks/images/ct-brain.png"
+# image_file = "benchmarks/images/Bodiam-castle.png"
 
 Xo = imread(image_file)
 
