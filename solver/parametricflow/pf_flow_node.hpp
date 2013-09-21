@@ -323,12 +323,6 @@ namespace latticeQBP {
       //typename Base::template NodeFiller<Lattice>(lattice).addE1(this, 0, _weight.mult(delta)); 
     }
 
-    void setValue(Lattice& lattice, dtype v) {
-      dtype adjust = 
-
-
-    }
-
     ////////////////////////////////////////////////////////////////////////////////
     // Convenience methods for working with the mean flow stuff.
 

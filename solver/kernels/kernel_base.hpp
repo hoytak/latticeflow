@@ -30,33 +30,6 @@ __to_nested_array(std::initializer_list<std::initializer_list<int> > ll) {
   return rr;
 }
 
-template <int pick_start, int pick_end, int outer_d, int inner_d>
-static inline Array<Array<int, pick_end - pick_start>, outer_d> 
-__pick_nested_array_from_nested_array(Array<Array<int, inner_d>, outer_d> aa) {
-  Array<Array<int, pick_end - pick_start>, outer_d> rr;
-
-  for(size_t i = 0; i < outer_d; ++i) {
-    for(size_t j = 0; j < pick_end - pick_start; ++j) {
-      rr[i][j] = aa[i][j + pick_start];
-    }
-  }
-
-  return rr;
-}
-
-template <int pick, int outer_d, int inner_d>
-static inline Array<int, outer_d> 
-__pick_array_from_nested_array(Array<Array<int, inner_d>, outer_d> aa) {
-  Array<int, outer_d> r;
-
-  for(size_t i = 0; i < outer_d; ++i) {
-    r[i] = aa[i][pick];
-  }
-
-  return r;
-}
-
-
 template <int _n_dimensions, int _size, int _geocut_applicable>
 class KernelBase {
 public:
@@ -68,13 +41,10 @@ public:
   typedef Array<delta_type, _size> deltas_type;
   typedef Array<double, _size> geocut_edge_weight_type;
 
-  static constexpr int nested_array_size = _n_dimensions + 1;
-  static constexpr int geocut_index = _n_dimensions;
-
-  inline KernelBase(std::initializer_list<std::initializer_list<int> > _edges) 
-    : deltas(__to_nested_array<_size, nested_array_size>(_info))),
-    , geocut_edge_weights(__pick_array_from_nested_array<geocut_edg>
-                          (__to_nested_array<_size, nested_array_size>(_info))))
+  inline KernelBase(std::initializer_list<std::initializer_list<int> > _deltas, 
+                    std::initializer_list<double> _geocut_edge_weights)
+    : deltas(__to_nested_array<_size, _n_dimensions>(_deltas))
+    , geocut_edge_weights(_geocut_edge_weights)
   {}
 
   const deltas_type deltas;
