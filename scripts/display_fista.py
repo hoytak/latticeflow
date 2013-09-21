@@ -25,7 +25,7 @@ if not Xo.size:
 
 print "Image file %s loaded." % image_file
 
-X = (Xo.mean(axis=2) / Xo.max())
+X = (Xo.mean(axis=2) / Xo.max()) #[:3, :3]
 
 X -= X.mean()
 X /= X.std()
@@ -64,7 +64,7 @@ for i in xrange(n_observations):
 
 print "Starting regularization." 
 
-Xtr, path = regularizedRegression(A, y, 0.01, 1000, 1)
+Xtr, path = regularizedRegression(A, y, 0.01, 500, 1, 1.3, 0)
 
 f = figure()
 a = f.add_subplot(111)

@@ -69,7 +69,7 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
-    FuncMapPtr _calculate2dPWReg "latticeQBP::estimate2dTVProximal<latticeQBP::Star2d_24, int64_t>" (
+    FuncMapPtr _calculate2dPWReg "latticeQBP::run2dTVProximal<latticeQBP::Star2d_8, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
     ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_24, int64_t>" (
@@ -535,106 +535,143 @@ cdef double calculate_g(ar[double, ndim=2, mode="c"] X, double reg_p):
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
 
-            ii, jj, gc = i + -3, j + -1, 0.0366545619033433
+            # ii, jj, gc = i + -3, j + -1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -3, j + 1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -2, j + -1, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -2, j + 1, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + -3, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + -2, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + -1, 0.1137559994321984
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + 0, 0.1608752771983211
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + 1, 0.1137559994321984
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + 2, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + -1, j + 3, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 0, j + -1, 0.1608752771983211
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 0, j + 1, 0.1608752771983211
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + -3, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + -2, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + -1, 0.1137559994321984
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + 0, 0.1608752771983211
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + 1, 0.1137559994321984
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + 2, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + 3, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 2, j + -1, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 2, j + 1, 0.0518373785665523
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 3, j + -1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 3, j + 1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 3, j + -1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 3, j + 1, 0.0366545619033433
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ################################################################################
+
+            ii, jj, gc = i + 0, j - 1, 0.3926990816987241,
             if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
                 r += gc*fabs(X[i,j] - X[ii,jj])
 
-            ii, jj, gc = i + -3, j + 1, 0.0366545619033433
+            ii, jj, gc = i + 1, j - 1, 0.2776801836348979
             if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
                 r += gc*fabs(X[i,j] - X[ii,jj])
 
-            ii, jj, gc = i + -2, j + -1, 0.0518373785665523
+            ii, jj, gc = i + 1, j + 0, 0.3926990816987241
             if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
                 r += gc*fabs(X[i,j] - X[ii,jj])
 
-            ii, jj, gc = i + -2, j + 1, 0.0518373785665523
+            ii, jj, gc = i + 1, j + 1, 0.2776801836348979
             if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
                 r += gc*fabs(X[i,j] - X[ii,jj])
 
-            ii, jj, gc = i + -1, j + -3, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + -2, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + -1, 0.1137559994321984
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + 0, 0.1608752771983211
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + 1, 0.1137559994321984
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + 2, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + -1, j + 3, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 0, j + -1, 0.1608752771983211
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 0, j + 1, 0.1608752771983211
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + -3, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + -2, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + -1, 0.1137559994321984
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + 0, 0.1608752771983211
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + 1, 0.1137559994321984
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + 2, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 1, j + 3, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 2, j + -1, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 2, j + 1, 0.0518373785665523
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 3, j + -1, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-
-            ii, jj, gc = i + 3, j + 1, 0.0366545619033433
-            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
-                r += gc*fabs(X[i,j] - X[ii,jj])
-               
-    return reg_p * r
+            ################################################################################
 
 
-cdef double QL(ar[double, ndim=2, mode="c"] X,
+            # ii, jj, gc = i + 0, j + 1, 0.7853981633974483
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+            # ii, jj, gc = i + 1, j + 0, 0.7853981633974483
+            # if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+            #     r += gc*fabs(X[i,j] - X[ii,jj])
+
+    return  2*r * reg_p
+
+
+cdef QL(ar[double, ndim=2, mode="c"] X,
                ar[double, ndim=2, mode="c"] Y,
                double value_Y,
                ar[double, ndim=2, mode="c"] grad_Y,
@@ -645,34 +682,132 @@ cdef double QL(ar[double, ndim=2, mode="c"] X,
     
     return (value_Y 
             + ((XYdiff)*grad_Y).sum()
-            + 0.5*L * la.norm(XYdiff)**2
+            + 0.5*L * (la.norm(XYdiff)**2)
             + value_g)
+
+def check_shit(Yo):
+
+    cdef ar[double, ndim=2, mode="c"] Y = Yo
+
+    print "Y = "
+    print Y
+
+    cdef size_t nx = Y.shape[0]
+    cdef size_t ny = Y.shape[1]
+
+    cdef FuncMapPtr Rv = _calculate2dPWReg(nx, ny, &Y[0,0], 0)
+
+    cdef size_t xi, yi
+    cdef size_t i, j
+
+    for xi in range(nx):
+        for yi in range(ny):
+            assert fabs(Rv.at(xi, yi) - Y[xi, yi]) < 1e-5
+
+    cdef double lm = 0.001
+
+    Rv = _calculate2dPWReg(nx, ny, &Y[0,0], lm)
+
+    cdef ar[double, ndim=2, mode='c'] R = np.empty( (Y.shape[0], Y.shape[1]) )
+    
+    for xi in range(nx):
+        for yi in range(ny):
+            R[xi,yi] = Rv.at(xi, yi)
+
+    # print "R = "
+    # print R
+
+    # print " "
+
+    cdef double v1, v2, v3, cv, gv1, gv2, gv3, fv1, fv2, fv3
+
+    cdef double eps = .1
+            
+    # Make sure it's found the optimal there
+    fv1 = ((Y - R)**2).sum()
+    gv1 = calculate_g(R, lm)
+    v1 = gv1 + fv1
+
+    assert gv1 != 0
+
+    cdef ar[double, ndim=2] R2 = R.copy()
+
+    is_okay = True
+
+    Lset = set(list(np.linspace(0,16,50)) + list(np.linspace(-16,0,50)))
+
+    for xi in range(nx):
+        for yi in range(ny):
+
+            R2[xi,yi] += eps
+
+            gv2 = calculate_g(R2, lm)
+
+            assert gv2 != 0
+            fv2 = ((Y - R2)**2).sum()
+
+            v2 = fv2 + gv2
+
+            R2[xi, yi] -= 2*eps
+
+            gv3 = calculate_g(R2, lm)
+            fv3 = ((Y - R2)**2).sum()
+
+            v3 = fv3 + gv3
+
+            if v2 < v1 or v3 < v1:
+                L = [c for c in np.linspace(0,16,500)
+                     if ((fv1 + (2.0**c) * gv1) <= (fv2 + (2.0**c) * gv2) 
+                         and (fv1 + (2.0**c) * gv1) <= (fv3 + (2.0**c) * gv3))]
+
+                L += [c for c in np.linspace(-16,0,500)
+                      if ((fv1 + (2.0**c) * gv1) <= (fv2 + (2.0**c) * gv2) 
+                         and (fv1 + (2.0**c) * gv1) <= (fv3 + (2.0**c) * gv3))]
+
+                Lset = Lset & set(L)
+                
+                print "gv2=%f, gv1=%f, gv3=%f" % (gv2,gv1,gv3)
+                print "fv2=%f, fv1=%f, fv3=%f" % (fv2,fv1,fv3)
+                print "v2=%f,  v1=%f,  v3=%f" % (v2,v1,v3)
+                print " " 
+
+                is_okay = False
+
+            R2[xi, yi] += eps
+
+
+    if not is_okay:
+        print "Lset = ", "\n".join([("%f" % v) for v in sorted(Lset)])
+        assert is_okay
+    
+
 
 
 cdef pL(ar[double, ndim=2, mode="c"] Y,
         ar[double, ndim=2, mode="c"] grad_Y,
-        double L, double reg_p):
+        double L, double reg_p, f):
 
     cdef ar[double, ndim=2, mode="c"] Yt = Y - (1.0 / L) * grad_Y
+
+    # check_shit(Yt)
+
 
     cdef size_t nx = Yt.shape[0]
     cdef size_t ny = Yt.shape[1]
 
-    cdef double flt = 2 * reg_p / L 
-
     # print "Yt = ",
     # print Yt
 
-    cdef FuncMapPtr Rv = _calculate2dPWReg(nx, ny, &Yt[0,0], flt)
+    cdef FuncMapPtr Rv = _calculate2dPWReg(nx, ny, &Yt[0,0], 2 * reg_p / L)
 
     cdef ar[double, ndim=2, mode='c'] R = np.empty( (Y.shape[0], Y.shape[1]) )
 
+    cdef size_t xi, yi
     cdef size_t i, j
 
     for xi in range(nx):
         for yi in range(ny):
             R[xi,yi] = Rv.at(xi, yi)
-        
 
     # print "R = ",
     # print R
@@ -685,7 +820,10 @@ cdef pL(ar[double, ndim=2, mode="c"] Y,
 @cython.boundscheck(False)
 cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
                   double reg_p,
-                  size_t n_iterations, size_t sample_interval, double eta = 1.2):
+                  size_t n_iterations, size_t sample_interval, double eta = 1.3,
+                  double diff_eps = 1e-6):
+
+    assert eta > 1
 
     cdef ar[double, ndim=2, mode="c"] X = initial_X.copy()
 
@@ -709,6 +847,9 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
         
         value_Y, grad_Y = f(Y)
 
+        # value_Y *= reg_p
+        # grad_Y *= reg_p
+
         assert grad_Y.shape == Y.shape
 
         if sample_interval != 0 and (iteration % sample_interval) == 0:
@@ -716,6 +857,9 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
             solution_track.append( (value_F_Y, Y.copy()) )
 
             print "Iteration", iteration, "; value = ", value_F_Y
+
+            if len(solution_track) >= 5 and np.std([v for v, s in solution_track[-5:]]) <= diff_eps:
+                break
             
         # print "; ".join(["%1.5f" % v for v in (Y.ravel())])
 
@@ -724,7 +868,7 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
 
         while True:
             
-            Xtr = pL(Y, grad_Y, L, reg_p)
+            Xtr = pL(Y, grad_Y, L, reg_p, f)
 
             # print "Xtr = " #"; ".join(["%1.5f" % v for v in (Y.ravel())])
             # print Xtr
@@ -740,6 +884,7 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
 
             if value_F_Xtr > value_QL:
                 L *= eta
+                print ">>> L = ", L 
             else:
                 break
 
@@ -754,7 +899,7 @@ cpdef _run2DFista(f, ar[double, ndim=2, mode="c"] initial_X,
 
 def regularizedRegression(A, ar y, double reg_parameter,
                           size_t n_iterations = 1000, size_t sample_interval = 10,
-                          double eta = 1.2):
+                          double eta = 1.2, double diff_eps = 0):
     
     """
     Runs that model.  Blah!
@@ -795,11 +940,11 @@ def regularizedRegression(A, ar y, double reg_parameter,
 
         return value[0,0], grad.reshape(X.shape)
 
-    starting_X = np.zeros(A.shape[:-1])
+    starting_X = (dot(la.pinv(Ars), y.reshape(-1,1))).reshape(A.shape[:2])
 
     #dot(la.pinv(Ars), y).reshape(A.shape[:-1])
 
     print "Running Fista"
 
     return _run2DFista(f, starting_X, reg_parameter,
-                       n_iterations, sample_interval, eta)
+                       n_iterations, sample_interval, eta, diff_eps)

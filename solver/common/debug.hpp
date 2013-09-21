@@ -32,8 +32,8 @@ std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::v
 
 #if !defined(EMACS_FLYMAKE) && !defined(NDEBUG)
 #warning ">>>>>>>>>>>>>>> Debug On; pass -DNDEBUG to disable <<<<<<<<<<<<<<<<<<<<<<<<<"
-#else
-#warning ">>>>>>>>>>>>>>> Debug Off <<<<<<<<<<<<<<<<<<<<<<<<<"
+// #else
+// #warning ">>>>>>>>>>>>>>> Debug Off <<<<<<<<<<<<<<<<<<<<<<<<<"
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +92,143 @@ std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::v
 #undef assert
 #endif
 
+#define strong_assert(x)				\
+  do{						\
+    if(!(x))					\
+      {						\
+	std::cout << "ASSERTION FAILED: "	\
+		  << __FILE__ << ":"		\
+		  << __FUNCTION__ << ":"	\
+		  << __LINE__ << ": "		\
+		  << #x << std::endl;		\
+	abort();				\
+      }						\
+  }while(0)
+
+#define strong_assert_equal(x, y)					\
+  do{								\
+    if( (x) != (y) )						\
+      {								\
+	std::cout << "ASSERT == FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " != "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_almost_equal(x,y)				\
+  do{								\
+    double xv = (x);						\
+    double yv = (y);						\
+    if( abs(yv - xv) > max(abs(xv), abs(yv))*1e-4 )		\
+      {								\
+	std::cout << "ASSERT == FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " != "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_leq(x, y)					\
+  do{								\
+    if(!( (x) <= (y) ))						\
+      {								\
+	std::cout << "ASSERT <= FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " > "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_geq(x, y)					\
+  do{								\
+    if(!( (x) >= (y) ))						\
+      {								\
+	std::cout << "ASSERT >= FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " < "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_lt(x, y)						\
+  do{								\
+    if(!( (x) < (y) ))						\
+      {								\
+	std::cout << "ASSERT < FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " >= "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_gt(x, y)						\
+  do{								\
+    if(!( (x) > (y) ))						\
+      {								\
+	std::cout << "ASSERT > FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " >= "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_notequal(x, y)					\
+  do{								\
+    if( (x) == (y) )						\
+      {								\
+	std::cout << "ASSERT != FAILED: "			\
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " == "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+#define strong_assert_close(x, y, d)					\
+  do{								\
+    if( abs((x) - (y)) > (d))                                   \
+      {                                                                 \
+	std::cout << "ASSERT =~= FAILED (d = " << (d) << "): "          \
+		  << __FILE__ << ":"				\
+		  << __FUNCTION__ << ":"			\
+		  << __LINE__ << ": "				\
+		  << "(" << #x << ") " << (x)			\
+		  << " =~/~= "					\
+		  << (y) << " (" << #y << ") " << std::endl;	\
+	abort();						\
+      }								\
+  }while(0)
+
+
+
 #ifndef NDEBUG
 
 #define DEBUG_MODE true
@@ -113,141 +250,15 @@ std::basic_ostream<char>& operator<<(std::basic_ostream<char>& out, const std::v
 	      << #x << " = " << (x) << std::endl;	\
   }while(0)
 
-#define assert(x)				\
-  do{						\
-    if(!(x))					\
-      {						\
-	std::cout << "ASSERTION FAILED: "	\
-		  << __FILE__ << ":"		\
-		  << __FUNCTION__ << ":"	\
-		  << __LINE__ << ": "		\
-		  << #x << std::endl;		\
-	abort();				\
-      }						\
-  }while(0)
-
-#define assert_equal(x, y)					\
-  do{								\
-    if( (x) != (y) )						\
-      {								\
-	std::cout << "ASSERT == FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " != "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_almost_equal(x,y)				\
-  do{								\
-    double xv = (x);						\
-    double yv = (y);						\
-    if( abs(yv - xv) > max(abs(xv), abs(yv))*1e-4 )		\
-      {								\
-	std::cout << "ASSERT == FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " != "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_leq(x, y)					\
-  do{								\
-    if(!( (x) <= (y) ))						\
-      {								\
-	std::cout << "ASSERT <= FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " > "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_geq(x, y)					\
-  do{								\
-    if(!( (x) >= (y) ))						\
-      {								\
-	std::cout << "ASSERT >= FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " < "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_lt(x, y)						\
-  do{								\
-    if(!( (x) < (y) ))						\
-      {								\
-	std::cout << "ASSERT < FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " >= "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_gt(x, y)						\
-  do{								\
-    if(!( (x) > (y) ))						\
-      {								\
-	std::cout << "ASSERT > FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " >= "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_notequal(x, y)					\
-  do{								\
-    if( (x) == (y) )						\
-      {								\
-	std::cout << "ASSERT != FAILED: "			\
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " == "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
-#define assert_close(x, y, d)					\
-  do{								\
-    if( abs((x) - (y)) > (d))                                   \
-      {                                                                 \
-	std::cout << "ASSERT =~= FAILED (d = " << (d) << "): "          \
-		  << __FILE__ << ":"				\
-		  << __FUNCTION__ << ":"			\
-		  << __LINE__ << ": "				\
-		  << "(" << #x << ") " << (x)			\
-		  << " =~/~= "					\
-		  << (y) << " (" << #y << ") " << std::endl;	\
-	abort();						\
-      }								\
-  }while(0)
-
+#define assert(x)  strong_assert(x) 
+#define assert_equal(x, y) strong_assert_equal(x, y)
+#define assert_notequal(x, y) strong_assert_notequal(x, y)
+#define assert_almost_equal(x,y)		 strong_assert_almost_equal(x,y)		
+#define assert_geq(x,y) strong_assert_geq(x,y)
+#define assert_gt(x,y) strong_assert_gt(x,y)
+#define assert_leq(x,y) strong_assert_leq(x,y)
+#define assert_lt(x,y) strong_assert_lt(x,y)
+#define assert_close(x, y, d) strong_assert_close(x, y, d)
 #else
 
 #define DEBUG_MODE false
