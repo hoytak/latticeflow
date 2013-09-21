@@ -192,7 +192,15 @@ class KernelEdgeGenerator:
                 (e, aw / (2.0 * math.sqrt(e[0]*e[0] + e[1]*e[1])))
                 for aw, (ang, e) in zip(angle_widths, edge_info))
 
+            for e in edges:
+                if abs(weight_map[e] - weight_map[tuple(sorted(abs(ev) for ev in e))]) > 1e-5:
+                    print "!"*60
+                    print e, " --> ", weight_map[e]
+                    print tuple(sorted(abs(ev) for ev in e)), " --> ", weight_map[tuple(sorted(abs(ev) for ev in e))]
+                    assert False
+
             return (True, weight_map) 
+
         else:
             return (False, defaultdict(lambda: 1)) 
         
@@ -340,15 +348,21 @@ class SourceFileSetup:
         ################################################################################
         # Create the edge string
 
+        # print "##"
+
         edge_list_str = '{'
 
         for i, x in enumerate(edge_list):
+            
             edge_list_str += ('{' + ','.join(str(xe) for xe in x)
                               + ('},' if i != len(edge_list) - 1 else '}'))
 
             if (i+1) % (dimension * 2) == 0:
                 edge_list_str += '\n '
 
+            # if len(edge_list) == 24:
+            #     print "ii, jj, gc = i + %d, j + %d, %0.16f" % (x[0], x[1], edge_info.geocut_edge_weights[x])
+              
             # print x,
             # print edge_info.geocut_edge_weights[x]
 

@@ -69,7 +69,7 @@ cdef extern from "tv/tv_solver.hpp" namespace "latticeQBP":
     FuncMapPtr _calculate2dTV "latticeQBP::calculate2dTV<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
-    FuncMapPtr _calculate2dPWReg "latticeQBP::estimate2dTVProximal<latticeQBP::Full2d_4, int64_t>" (
+    FuncMapPtr _calculate2dPWReg "latticeQBP::estimate2dTVProximal<latticeQBP::Star2d_24, int64_t>" (
         size_t nx, size_t ny, double *function, double lm) nogil except +
 
     ImageMapPtr _calculate2dTVImage "latticeQBP::calculate2dTVImage<latticeQBP::Star2d_24, int64_t>" (
@@ -528,17 +528,109 @@ def calculate2dTVPath(ar Xo, ar[double] lma):
 
 @cython.boundscheck(False)
 cdef double calculate_g(ar[double, ndim=2, mode="c"] X, double reg_p):
-    cdef size_t i, j
+    cdef int i, j, ii, jj
 
-    cdef double r = 0
+    cdef double r = 0, gc
     
     for i in range(X.shape[0]):
         for j in range(X.shape[1]):
-            if i != X.shape[0] - 1:
-                r += fabs(X[i,j] - X[i+1,j])
-            if j != X.shape[1] - 1:
-                r += fabs(X[i,j] - X[i,j+1])
-                
+
+            ii, jj, gc = i + -3, j + -1, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -3, j + 1, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -2, j + -1, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -2, j + 1, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + -3, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + -2, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + -1, 0.1137559994321984
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + 0, 0.1608752771983211
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + 1, 0.1137559994321984
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + 2, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + -1, j + 3, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 0, j + -1, 0.1608752771983211
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 0, j + 1, 0.1608752771983211
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + -3, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + -2, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + -1, 0.1137559994321984
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + 0, 0.1608752771983211
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + 1, 0.1137559994321984
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + 2, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 1, j + 3, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 2, j + -1, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 2, j + 1, 0.0518373785665523
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 3, j + -1, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+
+            ii, jj, gc = i + 3, j + 1, 0.0366545619033433
+            if 0 <= ii < X.shape[0] and 0 <= jj < X.shape[1]:
+                r += gc*fabs(X[i,j] - X[ii,jj])
+               
     return reg_p * r
 
 
